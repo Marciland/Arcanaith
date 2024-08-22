@@ -1,0 +1,11 @@
+[package]
+name = "witch_s_ascendancy"
+version = "0.1.0"
+edition = "2021"
+authors = ["Marcel Witoschek <marcel.marciland@gmail.com>"]
+
+[dependencies]
+ash = { version = "0.38.0", default-features = false, features = ["linked"] }
+ash-window = "0.13.0"
+image = { version = "0.25.2", default-features = false, features = ["png"] }
+winit = { version = "0.30.5", default-features = false, features = ["rwh_06"] }

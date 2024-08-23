@@ -1,7 +1,8 @@
 use ash::{
+    khr::surface,
     vk::{
         ApplicationInfo, DeviceCreateInfo, DeviceQueueCreateInfo, InstanceCreateInfo,
-        PhysicalDevice, PhysicalDeviceFeatures, QueueFlags, API_VERSION_1_3,
+        PhysicalDevice, PhysicalDeviceFeatures, QueueFlags, SurfaceKHR, API_VERSION_1_3,
     },
     Device, Entry, Instance,
 };
@@ -17,7 +18,11 @@ pub struct VulkanWrapper;
 
 pub trait VulkanInterface {
     unsafe fn create_vulkan_instance(entry: &Entry, window: &Window) -> Instance;
-    unsafe fn find_physical_device(instance: &Instance) -> (PhysicalDevice, usize);
+    unsafe fn find_physical_device(
+        instance: &Instance,
+        surface: &SurfaceKHR,
+        surface_loader: &surface::Instance,
+    ) -> (PhysicalDevice, usize);
     unsafe fn create_logical_device(
         instance: &Instance,
         physical_device: PhysicalDevice,
@@ -62,7 +67,11 @@ impl VulkanInterface for VulkanWrapper {
         }
     }
 
-    unsafe fn find_physical_device(instance: &Instance) -> (PhysicalDevice, usize) {
+    unsafe fn find_physical_device(
+        instance: &Instance,
+        surface: &SurfaceKHR,
+        surface_loader: &surface::Instance,
+    ) -> (PhysicalDevice, usize) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/03_Physical_devices_and_queue_families.html
         instance
             .enumerate_physical_devices()
@@ -75,7 +84,14 @@ impl VulkanInterface for VulkanWrapper {
                     .enumerate()
                     .find_map(|(index, info)| {
                         let supports_graphic_and_surface =
-                            info.queue_flags.contains(QueueFlags::GRAPHICS); // surface check?
+                            info.queue_flags.contains(QueueFlags::GRAPHICS)
+                                && surface_loader
+                                    .get_physical_device_surface_support(
+                                        *device,
+                                        index as u32,
+                                        *surface,
+                                    )
+                                    .unwrap();
                         if supports_graphic_and_surface {
                             Some((*device, index))
                         } else {

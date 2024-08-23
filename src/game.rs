@@ -21,14 +21,14 @@ use winit::{
 pub struct Game {
     window: Option<Window>,
     is_running: Arc<AtomicBool>,
-    frame_time: Duration,
+    _frame_time: Duration,
 }
 
 impl Game {
     fn exit(&mut self, event_loop: &ActiveEventLoop) {
         event_loop.exit();
         self.is_running.store(false, Ordering::Release);
-        self.window.as_mut().unwrap().destroy();
+        unsafe { self.window.as_mut().unwrap().destroy() }
     }
 }
 
@@ -37,7 +37,7 @@ impl Default for Game {
         Game {
             window: None,
             is_running: Arc::new(AtomicBool::new(true)),
-            frame_time: Duration::from_secs_f64(1.0 / FPS as f64),
+            _frame_time: Duration::from_secs_f64(1.0 / FPS as f64),
         }
     }
 }
@@ -56,7 +56,7 @@ impl ApplicationHandler for Game {
             .with_window_icon(Some(icon))
             .with_fullscreen(Some(Borderless(None)));
         let window = event_loop.create_window(attributes).unwrap();
-        self.window = Some(Window::new(window))
+        self.window = unsafe { Some(Window::new(window)) }
     }
 
     fn window_event(

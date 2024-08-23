@@ -1,8 +1,10 @@
 use ash::{
-    khr::surface,
+    khr::{surface, swapchain},
     vk::{
-        ApplicationInfo, DeviceCreateInfo, DeviceQueueCreateInfo, InstanceCreateInfo,
-        PhysicalDevice, PhysicalDeviceFeatures, QueueFlags, SurfaceKHR, API_VERSION_1_3,
+        ApplicationInfo, CompositeAlphaFlagsKHR, DeviceCreateInfo, DeviceQueueCreateInfo,
+        ImageUsageFlags, InstanceCreateInfo, PhysicalDevice, PhysicalDeviceFeatures,
+        PresentModeKHR, QueueFlags, SharingMode, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR,
+        API_VERSION_1_3,
     },
     Device, Entry, Instance,
 };
@@ -28,6 +30,12 @@ pub trait VulkanInterface {
         physical_device: PhysicalDevice,
         queue_family_index: u32,
     ) -> Device;
+    unsafe fn create_swapchain(
+        surface: SurfaceKHR,
+        physical_device: PhysicalDevice,
+        surface_loader: &surface::Instance,
+        swapchain_loader: &swapchain::Device,
+    ) -> SwapchainKHR;
 }
 
 impl VulkanInterface for VulkanWrapper {
@@ -114,12 +122,62 @@ impl VulkanInterface for VulkanWrapper {
 
         let device_features = PhysicalDeviceFeatures::default();
 
+        let device_extensions = [swapchain::NAME.as_ptr()];
+
         let device_create_info = DeviceCreateInfo::default()
             .queue_create_infos(from_ref(&queue_create_info))
+            .enabled_extension_names(&device_extensions)
             .enabled_features(&device_features);
 
         instance
             .create_device(physical_device, &device_create_info, None)
+            .unwrap()
+    }
+
+    unsafe fn create_swapchain(
+        surface: SurfaceKHR,
+        physical_device: PhysicalDevice,
+        surface_loader: &surface::Instance,
+        swapchain_loader: &swapchain::Device,
+    ) -> SwapchainKHR {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/01_Presentation/01_Swap_chain.html#_creating_the_swap_chain
+        let surface_capabilities = surface_loader
+            .get_physical_device_surface_capabilities(physical_device, surface)
+            .unwrap();
+
+        let mut min_image_count = surface_capabilities.min_image_count + 1;
+        if min_image_count > surface_capabilities.max_image_count {
+            min_image_count = surface_capabilities.max_image_count
+        }
+
+        let surface_format = surface_loader
+            .get_physical_device_surface_formats(physical_device, surface)
+            .unwrap()[0]; /* in most cases it’s okay to just settle with the first format that is specified */
+
+        let present_mode = surface_loader
+            .get_physical_device_surface_present_modes(physical_device, surface)
+            .unwrap()
+            .iter()
+            .cloned()
+            .find(|&mode| mode == PresentModeKHR::MAILBOX)
+            .unwrap_or(PresentModeKHR::FIFO);
+
+        let swapchain_create_info = SwapchainCreateInfoKHR::default()
+            .surface(surface)
+            .min_image_count(min_image_count)
+            .image_format(surface_format.format)
+            .image_color_space(surface_format.color_space)
+            .image_extent(surface_capabilities.current_extent)
+            .image_array_layers(1)
+            .image_usage(ImageUsageFlags::COLOR_ATTACHMENT)
+            .image_sharing_mode(SharingMode::EXCLUSIVE)
+            .pre_transform(surface_capabilities.current_transform)
+            .composite_alpha(CompositeAlphaFlagsKHR::OPAQUE)
+            .present_mode(present_mode)
+            .clipped(true);
+
+        swapchain_loader
+            .create_swapchain(&swapchain_create_info, None)
             .unwrap()
     }
 }

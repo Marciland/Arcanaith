@@ -1,8 +1,8 @@
 mod vulkan;
 
 use ash::{
-    khr::surface,
-    vk::{PhysicalDevice, Queue, SurfaceKHR},
+    khr::{surface, swapchain},
+    vk::{PhysicalDevice, Queue, SurfaceKHR, SwapchainKHR},
     Device, Entry, Instance,
 };
 use ash_window::create_surface;
@@ -17,6 +17,8 @@ pub struct Window {
     _physical_device: PhysicalDevice,
     device: Device,
     _graphics_queue: Queue,
+    swapchain: SwapchainKHR,
+    swapchain_loader: swapchain::Device,
 }
 
 impl Window {
@@ -38,6 +40,13 @@ impl Window {
         let device =
             VulkanWrapper::create_logical_device(&vk_instance, physical_device, queue_family_index);
         let graphics_queue = device.get_device_queue(queue_family_index, 0);
+        let swapchain_loader = swapchain::Device::new(&vk_instance, &device);
+        let swapchain = VulkanWrapper::create_swapchain(
+            surface,
+            physical_device,
+            &surface_loader,
+            &swapchain_loader,
+        );
 
         Self {
             _window: window,
@@ -47,10 +56,14 @@ impl Window {
             _physical_device: physical_device,
             device,
             _graphics_queue: graphics_queue,
+            swapchain,
+            swapchain_loader,
         }
     }
 
     pub unsafe fn destroy(&mut self) {
+        self.swapchain_loader
+            .destroy_swapchain(self.swapchain, None);
         self.surface_loader.destroy_surface(self.surface, None);
         self.device.destroy_device(None);
         self.vk_instance.destroy_instance(None);

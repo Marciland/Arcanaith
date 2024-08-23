@@ -2,12 +2,10 @@ mod vulkan;
 
 use ash::{
     khr::{surface, swapchain},
-    vk::{PhysicalDevice, Queue, SurfaceKHR, SwapchainKHR},
+    vk::{Extent2D, Format, Image, PhysicalDevice, Queue, SurfaceKHR, SwapchainKHR},
     Device, Entry, Instance,
 };
-use ash_window::create_surface;
 use vulkan::{VulkanInterface, VulkanWrapper};
-use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
 pub struct Window {
     _window: winit::window::Window,
@@ -19,34 +17,30 @@ pub struct Window {
     _graphics_queue: Queue,
     swapchain: SwapchainKHR,
     swapchain_loader: swapchain::Device,
+    _images: Vec<Image>,
+    _format: Format,
+    _extent: Extent2D,
 }
 
 impl Window {
     pub unsafe fn new(window: winit::window::Window) -> Self {
         let entry = Entry::linked();
         let vk_instance = VulkanWrapper::create_vulkan_instance(&entry, &window);
-        let surface = create_surface(
-            &entry,
-            &vk_instance,
-            window.display_handle().unwrap().as_raw(),
-            window.window_handle().unwrap().as_raw(),
-            None,
-        )
-        .unwrap();
-        let surface_loader = surface::Instance::new(&entry, &vk_instance);
-        let (physical_device, index) =
+        let (surface, surface_loader) =
+            VulkanWrapper::create_surface(&window, &entry, &vk_instance);
+        let (physical_device, queue_family_index) =
             VulkanWrapper::find_physical_device(&vk_instance, &surface, &surface_loader);
-        let queue_family_index = index as u32;
         let device =
             VulkanWrapper::create_logical_device(&vk_instance, physical_device, queue_family_index);
         let graphics_queue = device.get_device_queue(queue_family_index, 0);
-        let swapchain_loader = swapchain::Device::new(&vk_instance, &device);
-        let swapchain = VulkanWrapper::create_swapchain(
+        let (swapchain, swapchain_loader, format, extent) = VulkanWrapper::create_swapchain(
+            &vk_instance,
             surface,
+            &device,
             physical_device,
             &surface_loader,
-            &swapchain_loader,
         );
+        let images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
 
         Self {
             _window: window,
@@ -58,6 +52,9 @@ impl Window {
             _graphics_queue: graphics_queue,
             swapchain,
             swapchain_loader,
+            _images: images,
+            _format: format,
+            _extent: extent,
         }
     }
 

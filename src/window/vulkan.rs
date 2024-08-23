@@ -1,18 +1,21 @@
 use ash::{
     khr::{surface, swapchain},
     vk::{
-        ApplicationInfo, CompositeAlphaFlagsKHR, DeviceCreateInfo, DeviceQueueCreateInfo,
-        ImageUsageFlags, InstanceCreateInfo, PhysicalDevice, PhysicalDeviceFeatures,
+        ApplicationInfo, CompositeAlphaFlagsKHR, DeviceCreateInfo, DeviceQueueCreateInfo, Extent2D,
+        Format, ImageUsageFlags, InstanceCreateInfo, PhysicalDevice, PhysicalDeviceFeatures,
         PresentModeKHR, QueueFlags, SharingMode, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR,
         API_VERSION_1_3,
     },
     Device, Entry, Instance,
 };
-use ash_window::enumerate_required_extensions;
+use ash_window::{create_surface, enumerate_required_extensions};
 #[cfg(debug_assertions)]
 use std::os::raw::c_char;
 use std::{array::from_ref, ffi::CStr};
-use winit::{raw_window_handle::HasDisplayHandle, window::Window};
+use winit::{
+    raw_window_handle::{HasDisplayHandle, HasWindowHandle},
+    window::Window,
+};
 
 use crate::constants::TITLE;
 
@@ -20,22 +23,28 @@ pub struct VulkanWrapper;
 
 pub trait VulkanInterface {
     unsafe fn create_vulkan_instance(entry: &Entry, window: &Window) -> Instance;
+    unsafe fn create_surface(
+        window: &Window,
+        entry: &Entry,
+        instance: &Instance,
+    ) -> (SurfaceKHR, surface::Instance);
     unsafe fn find_physical_device(
         instance: &Instance,
         surface: &SurfaceKHR,
         surface_loader: &surface::Instance,
-    ) -> (PhysicalDevice, usize);
+    ) -> (PhysicalDevice, u32);
     unsafe fn create_logical_device(
         instance: &Instance,
         physical_device: PhysicalDevice,
         queue_family_index: u32,
     ) -> Device;
     unsafe fn create_swapchain(
+        instance: &Instance,
         surface: SurfaceKHR,
+        device: &Device,
         physical_device: PhysicalDevice,
         surface_loader: &surface::Instance,
-        swapchain_loader: &swapchain::Device,
-    ) -> SwapchainKHR;
+    ) -> (SwapchainKHR, swapchain::Device, Format, Extent2D);
 }
 
 impl VulkanInterface for VulkanWrapper {
@@ -75,11 +84,28 @@ impl VulkanInterface for VulkanWrapper {
         }
     }
 
+    unsafe fn create_surface(
+        window: &Window,
+        entry: &Entry,
+        instance: &Instance,
+    ) -> (SurfaceKHR, surface::Instance) {
+        let surface = create_surface(
+            entry,
+            instance,
+            window.display_handle().unwrap().as_raw(),
+            window.window_handle().unwrap().as_raw(),
+            None,
+        )
+        .unwrap();
+        let surface_loader = surface::Instance::new(entry, instance);
+        (surface, surface_loader)
+    }
+
     unsafe fn find_physical_device(
         instance: &Instance,
         surface: &SurfaceKHR,
         surface_loader: &surface::Instance,
-    ) -> (PhysicalDevice, usize) {
+    ) -> (PhysicalDevice, u32) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/03_Physical_devices_and_queue_families.html
         instance
             .enumerate_physical_devices()
@@ -101,7 +127,7 @@ impl VulkanInterface for VulkanWrapper {
                                     )
                                     .unwrap();
                         if supports_graphic_and_surface {
-                            Some((*device, index))
+                            Some((*device, index as u32))
                         } else {
                             None
                         }
@@ -135,24 +161,27 @@ impl VulkanInterface for VulkanWrapper {
     }
 
     unsafe fn create_swapchain(
+        instance: &Instance,
         surface: SurfaceKHR,
+        device: &Device,
         physical_device: PhysicalDevice,
         surface_loader: &surface::Instance,
-        swapchain_loader: &swapchain::Device,
-    ) -> SwapchainKHR {
+    ) -> (SwapchainKHR, swapchain::Device, Format, Extent2D) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/01_Presentation/01_Swap_chain.html#_creating_the_swap_chain
+        let swapchain_loader = swapchain::Device::new(instance, device);
+
         let surface_capabilities = surface_loader
             .get_physical_device_surface_capabilities(physical_device, surface)
             .unwrap();
+
+        let surface_format = surface_loader
+            .get_physical_device_surface_formats(physical_device, surface)
+            .unwrap()[0]; /* in most cases it’s okay to just settle with the first format that is specified */
 
         let mut min_image_count = surface_capabilities.min_image_count + 1;
         if min_image_count > surface_capabilities.max_image_count {
             min_image_count = surface_capabilities.max_image_count
         }
-
-        let surface_format = surface_loader
-            .get_physical_device_surface_formats(physical_device, surface)
-            .unwrap()[0]; /* in most cases it’s okay to just settle with the first format that is specified */
 
         let present_mode = surface_loader
             .get_physical_device_surface_present_modes(physical_device, surface)
@@ -162,12 +191,15 @@ impl VulkanInterface for VulkanWrapper {
             .find(|&mode| mode == PresentModeKHR::MAILBOX)
             .unwrap_or(PresentModeKHR::FIFO);
 
+        let extent = surface_capabilities.current_extent;
+        let format = surface_format.format;
+
         let swapchain_create_info = SwapchainCreateInfoKHR::default()
             .surface(surface)
             .min_image_count(min_image_count)
-            .image_format(surface_format.format)
+            .image_format(format)
             .image_color_space(surface_format.color_space)
-            .image_extent(surface_capabilities.current_extent)
+            .image_extent(extent)
             .image_array_layers(1)
             .image_usage(ImageUsageFlags::COLOR_ATTACHMENT)
             .image_sharing_mode(SharingMode::EXCLUSIVE)
@@ -176,8 +208,10 @@ impl VulkanInterface for VulkanWrapper {
             .present_mode(present_mode)
             .clipped(true);
 
-        swapchain_loader
+        let swapchain = swapchain_loader
             .create_swapchain(&swapchain_create_info, None)
-            .unwrap()
+            .unwrap();
+
+        (swapchain, swapchain_loader, format, extent)
     }
 }

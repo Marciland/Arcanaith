@@ -67,8 +67,8 @@ impl ApplicationHandler for Game {
     ) {
         match event {
             WindowEvent::CloseRequested => self.exit(event_loop),
-            WindowEvent::RedrawRequested => println!("render me senpai"),
-            _ => println!("event: {:?}", event),
+            WindowEvent::RedrawRequested => println!("rendering"),
+            _ => (), //println!("event: {:?}", event),
         }
     }
 }

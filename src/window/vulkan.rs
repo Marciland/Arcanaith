@@ -1,10 +1,11 @@
 use ash::{
     khr::{surface, swapchain},
     vk::{
-        ApplicationInfo, CompositeAlphaFlagsKHR, DeviceCreateInfo, DeviceQueueCreateInfo, Extent2D,
-        Format, ImageUsageFlags, InstanceCreateInfo, PhysicalDevice, PhysicalDeviceFeatures,
-        PresentModeKHR, QueueFlags, SharingMode, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR,
-        API_VERSION_1_3,
+        ApplicationInfo, ComponentMapping, ComponentSwizzle, CompositeAlphaFlagsKHR,
+        DeviceCreateInfo, DeviceQueueCreateInfo, Extent2D, Format, Image, ImageAspectFlags,
+        ImageSubresourceRange, ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType,
+        InstanceCreateInfo, PhysicalDevice, PhysicalDeviceFeatures, PresentModeKHR, QueueFlags,
+        SharingMode, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, API_VERSION_1_3,
     },
     Device, Entry, Instance,
 };
@@ -45,6 +46,11 @@ pub trait VulkanInterface {
         physical_device: PhysicalDevice,
         surface_loader: &surface::Instance,
     ) -> (SwapchainKHR, swapchain::Device, Format, Extent2D);
+    unsafe fn create_image_views(
+        images: &[Image],
+        format: Format,
+        device: &Device,
+    ) -> Vec<ImageView>;
 }
 
 impl VulkanInterface for VulkanWrapper {
@@ -213,5 +219,42 @@ impl VulkanInterface for VulkanWrapper {
             .unwrap();
 
         (swapchain, swapchain_loader, format, extent)
+    }
+
+    unsafe fn create_image_views(
+        images: &[Image],
+        format: Format,
+        device: &Device,
+    ) -> Vec<ImageView> {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/01_Presentation/02_Image_views.html
+        let mut image_views: Vec<ImageView> = Vec::new();
+
+        let components = ComponentMapping::default()
+            .r(ComponentSwizzle::IDENTITY)
+            .g(ComponentSwizzle::IDENTITY)
+            .b(ComponentSwizzle::IDENTITY)
+            .a(ComponentSwizzle::IDENTITY);
+
+        let subresource_range = ImageSubresourceRange::default()
+            .aspect_mask(ImageAspectFlags::COLOR)
+            .base_mip_level(0)
+            .level_count(1)
+            .base_array_layer(0)
+            .layer_count(1);
+
+        for image in images {
+            let image_view_create_info = ImageViewCreateInfo::default()
+                .image(*image)
+                .view_type(ImageViewType::TYPE_2D)
+                .format(format)
+                .components(components)
+                .subresource_range(subresource_range);
+
+            let image_view = device
+                .create_image_view(&image_view_create_info, None)
+                .unwrap();
+            image_views.push(image_view)
+        }
+        image_views
     }
 }

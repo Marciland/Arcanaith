@@ -2,7 +2,7 @@ mod vulkan;
 
 use ash::{
     khr::{surface, swapchain},
-    vk::{Extent2D, Format, Image, PhysicalDevice, Queue, SurfaceKHR, SwapchainKHR},
+    vk::{Extent2D, Format, Image, ImageView, PhysicalDevice, Queue, SurfaceKHR, SwapchainKHR},
     Device, Entry, Instance,
 };
 use vulkan::{VulkanInterface, VulkanWrapper};
@@ -18,6 +18,7 @@ pub struct Window {
     swapchain: SwapchainKHR,
     swapchain_loader: swapchain::Device,
     _images: Vec<Image>,
+    image_views: Vec<ImageView>,
     _format: Format,
     _extent: Extent2D,
 }
@@ -41,6 +42,7 @@ impl Window {
             &surface_loader,
         );
         let images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
+        let image_views = VulkanWrapper::create_image_views(&images, format, &device);
 
         Self {
             _window: window,
@@ -53,12 +55,16 @@ impl Window {
             swapchain,
             swapchain_loader,
             _images: images,
+            image_views,
             _format: format,
             _extent: extent,
         }
     }
 
     pub unsafe fn destroy(&mut self) {
+        for image_view in &self.image_views {
+            self.device.destroy_image_view(*image_view, None);
+        }
         self.swapchain_loader
             .destroy_swapchain(self.swapchain, None);
         self.surface_loader.destroy_surface(self.surface, None);

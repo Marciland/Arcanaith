@@ -2,7 +2,10 @@ mod vulkan;
 
 use ash::{
     khr::{surface, swapchain},
-    vk::{Extent2D, Format, Image, ImageView, PhysicalDevice, Queue, SurfaceKHR, SwapchainKHR},
+    vk::{
+        Extent2D, Format, Image, ImageView, PhysicalDevice, Pipeline, PipelineLayout, Queue,
+        RenderPass, SurfaceKHR, SwapchainKHR,
+    },
     Device, Entry, Instance,
 };
 use vulkan::{VulkanInterface, VulkanWrapper};
@@ -21,6 +24,9 @@ pub struct Window {
     image_views: Vec<ImageView>,
     _format: Format,
     _extent: Extent2D,
+    render_pass: RenderPass,
+    pipeline_layout: PipelineLayout,
+    graphics_pipeline: Pipeline,
 }
 
 impl Window {
@@ -43,6 +49,9 @@ impl Window {
         );
         let images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
         let image_views = VulkanWrapper::create_image_views(&images, format, &device);
+        let render_pass = VulkanWrapper::create_render_pass(&device, format);
+        let (pipeline_layout, graphics_pipeline) =
+            VulkanWrapper::create_graphics_pipeline(&device, extent, render_pass);
 
         Self {
             _window: window,
@@ -58,10 +67,17 @@ impl Window {
             image_views,
             _format: format,
             _extent: extent,
+            render_pass,
+            pipeline_layout,
+            graphics_pipeline,
         }
     }
 
     pub unsafe fn destroy(&mut self) {
+        self.device.destroy_pipeline(self.graphics_pipeline, None);
+        self.device
+            .destroy_pipeline_layout(self.pipeline_layout, None);
+        self.device.destroy_render_pass(self.render_pass, None);
         for image_view in &self.image_views {
             self.device.destroy_image_view(*image_view, None);
         }

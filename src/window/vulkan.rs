@@ -1,24 +1,39 @@
 use ash::{
     khr::{surface, swapchain},
+    util::read_spv,
     vk::{
-        ApplicationInfo, ComponentMapping, ComponentSwizzle, CompositeAlphaFlagsKHR,
-        DeviceCreateInfo, DeviceQueueCreateInfo, Extent2D, Format, Image, ImageAspectFlags,
-        ImageSubresourceRange, ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType,
-        InstanceCreateInfo, PhysicalDevice, PhysicalDeviceFeatures, PresentModeKHR, QueueFlags,
-        SharingMode, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, API_VERSION_1_3,
+        ApplicationInfo, AttachmentDescription, AttachmentLoadOp, AttachmentReference,
+        AttachmentStoreOp, BlendFactor, BlendOp, ColorComponentFlags, ComponentMapping,
+        ComponentSwizzle, CompositeAlphaFlagsKHR, CullModeFlags, DeviceCreateInfo,
+        DeviceQueueCreateInfo, DynamicState, Extent2D, Format, FrontFace,
+        GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout, ImageSubresourceRange,
+        ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType, InstanceCreateInfo,
+        LogicOp, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline, PipelineBindPoint,
+        PipelineCache, PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
+        PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
+        PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineLayoutCreateInfo,
+        PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
+        PipelineShaderStageCreateInfo, PipelineVertexInputStateCreateInfo,
+        PipelineViewportStateCreateInfo, PolygonMode, PresentModeKHR, PrimitiveTopology,
+        QueueFlags, Rect2D, RenderPass, RenderPassCreateInfo, SampleCountFlags,
+        ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubpassDescription, SurfaceKHR,
+        SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3,
     },
     Device, Entry, Instance,
 };
 use ash_window::{create_surface, enumerate_required_extensions};
 #[cfg(debug_assertions)]
 use std::os::raw::c_char;
-use std::{array::from_ref, ffi::CStr};
+use std::{array::from_ref, ffi::CStr, io::Cursor};
 use winit::{
     raw_window_handle::{HasDisplayHandle, HasWindowHandle},
     window::Window,
 };
 
-use crate::constants::TITLE;
+use crate::{
+    constants::{FRAGSHADER, TITLE, VERTSHADER},
+    read_bytes_from_file,
+};
 
 pub struct VulkanWrapper;
 
@@ -51,6 +66,12 @@ pub trait VulkanInterface {
         format: Format,
         device: &Device,
     ) -> Vec<ImageView>;
+    unsafe fn create_render_pass(device: &Device, format: Format) -> RenderPass;
+    unsafe fn create_graphics_pipeline(
+        device: &Device,
+        extent: Extent2D,
+        render_pass: RenderPass,
+    ) -> (PipelineLayout, Pipeline);
 }
 
 impl VulkanInterface for VulkanWrapper {
@@ -152,6 +173,7 @@ impl VulkanInterface for VulkanWrapper {
             .queue_family_index(queue_family_index)
             .queue_priorities(&[1.0]);
 
+        // TODO BestPractices-vkCreateDevice-physical-device-features-not-retrieved
         let device_features = PhysicalDeviceFeatures::default();
 
         let device_extensions = [swapchain::NAME.as_ptr()];
@@ -256,5 +278,164 @@ impl VulkanInterface for VulkanWrapper {
             image_views.push(image_view)
         }
         image_views
+    }
+
+    unsafe fn create_render_pass(device: &Device, format: Format) -> RenderPass {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/02_Graphics_pipeline_basics/03_Render_passes.html
+        let color_attachments = [AttachmentDescription::default()
+            .format(format)
+            .samples(SampleCountFlags::TYPE_1)
+            .load_op(AttachmentLoadOp::CLEAR)
+            .store_op(AttachmentStoreOp::STORE)
+            .stencil_load_op(AttachmentLoadOp::DONT_CARE)
+            .stencil_store_op(AttachmentStoreOp::DONT_CARE)
+            .initial_layout(ImageLayout::UNDEFINED)
+            .final_layout(ImageLayout::PRESENT_SRC_KHR)];
+
+        let color_attachment_references = [AttachmentReference::default()
+            .attachment(0)
+            .layout(ImageLayout::COLOR_ATTACHMENT_OPTIMAL)];
+
+        let subpasses = [SubpassDescription::default()
+            .pipeline_bind_point(PipelineBindPoint::GRAPHICS)
+            .color_attachments(&color_attachment_references)];
+
+        let render_pass_info = RenderPassCreateInfo::default()
+            .attachments(&color_attachments)
+            .subpasses(&subpasses);
+
+        device.create_render_pass(&render_pass_info, None).unwrap()
+    }
+
+    unsafe fn create_graphics_pipeline(
+        device: &Device,
+        extent: Extent2D,
+        render_pass: RenderPass,
+    ) -> (PipelineLayout, Pipeline) {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/02_Graphics_pipeline_basics/00_Introduction.html
+        let vert_shader_module = device
+            .create_shader_module(
+                &ShaderModuleCreateInfo::default()
+                    .code(&read_spv(&mut Cursor::new(&read_bytes_from_file(VERTSHADER))).unwrap()),
+                None,
+            )
+            .unwrap();
+        let frag_shader_module = device
+            .create_shader_module(
+                &ShaderModuleCreateInfo::default()
+                    .code(&read_spv(&mut Cursor::new(&read_bytes_from_file(FRAGSHADER))).unwrap()),
+                None,
+            )
+            .unwrap();
+
+        let shader_stages = [
+            PipelineShaderStageCreateInfo::default()
+                .stage(ShaderStageFlags::VERTEX)
+                .module(vert_shader_module)
+                .name(CStr::from_bytes_with_nul("main\0".as_bytes()).unwrap()),
+            PipelineShaderStageCreateInfo::default()
+                .stage(ShaderStageFlags::FRAGMENT)
+                .module(frag_shader_module)
+                .name(CStr::from_bytes_with_nul("main\0".as_bytes()).unwrap()),
+        ];
+
+        let dynamic_state = PipelineDynamicStateCreateInfo::default()
+            .dynamic_states(&[DynamicState::SCISSOR, DynamicState::VIEWPORT]);
+
+        let vertex_input_info = PipelineVertexInputStateCreateInfo::default()
+            .vertex_binding_descriptions(&[])
+            .vertex_attribute_descriptions(&[]);
+
+        let input_assembly = PipelineInputAssemblyStateCreateInfo::default()
+            .topology(PrimitiveTopology::TRIANGLE_LIST)
+            .primitive_restart_enable(false);
+
+        let viewports = [Viewport::default()
+            .x(0.0)
+            .y(0.0)
+            .width(extent.width as f32)
+            .height(extent.height as f32)
+            .min_depth(0.0)
+            .max_depth(1.0)];
+
+        let scissors = [Rect2D::default()
+            .offset(Offset2D { x: 0, y: 0 })
+            .extent(extent)];
+
+        let viewport_state = PipelineViewportStateCreateInfo::default()
+            .scissor_count(1)
+            .scissors(&scissors)
+            .viewport_count(1)
+            .viewports(&viewports);
+
+        let rasterizer = PipelineRasterizationStateCreateInfo::default()
+            .depth_clamp_enable(false)
+            .rasterizer_discard_enable(false)
+            .polygon_mode(PolygonMode::FILL)
+            .line_width(1.0)
+            .cull_mode(CullModeFlags::BACK)
+            .front_face(FrontFace::CLOCKWISE)
+            .depth_bias_enable(false)
+            .depth_bias_constant_factor(0.0)
+            .depth_bias_clamp(0.0)
+            .depth_bias_slope_factor(0.0);
+
+        let multisampling = PipelineMultisampleStateCreateInfo::default()
+            .sample_shading_enable(false)
+            .rasterization_samples(SampleCountFlags::TYPE_1)
+            .min_sample_shading(1.0)
+            .sample_mask(&[])
+            .alpha_to_coverage_enable(false)
+            .alpha_to_one_enable(false);
+
+        let depth_stencil_state = PipelineDepthStencilStateCreateInfo::default();
+
+        let color_blend_attachments = [PipelineColorBlendAttachmentState::default()
+            .color_write_mask(ColorComponentFlags::RGBA)
+            .blend_enable(true)
+            .src_color_blend_factor(BlendFactor::SRC_ALPHA)
+            .dst_color_blend_factor(BlendFactor::ONE_MINUS_SRC_ALPHA)
+            .color_blend_op(BlendOp::ADD)
+            .src_alpha_blend_factor(BlendFactor::ONE)
+            .dst_alpha_blend_factor(BlendFactor::ZERO)
+            .alpha_blend_op(BlendOp::ADD)];
+
+        let color_blending = PipelineColorBlendStateCreateInfo::default()
+            .logic_op_enable(false)
+            .logic_op(LogicOp::COPY)
+            .attachments(&color_blend_attachments)
+            .blend_constants([0.0, 0.0, 0.0, 0.0]);
+
+        let pipeline_layout_info = PipelineLayoutCreateInfo::default()
+            .set_layouts(&[])
+            .push_constant_ranges(&[]);
+
+        let pipeline_layout = device
+            .create_pipeline_layout(&pipeline_layout_info, None)
+            .unwrap();
+
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/02_Graphics_pipeline_basics/04_Conclusion.html
+        let pipeline_infos = [GraphicsPipelineCreateInfo::default()
+            .stages(&shader_stages)
+            .vertex_input_state(&vertex_input_info)
+            .input_assembly_state(&input_assembly)
+            .viewport_state(&viewport_state)
+            .rasterization_state(&rasterizer)
+            .multisample_state(&multisampling)
+            .depth_stencil_state(&depth_stencil_state)
+            .color_blend_state(&color_blending)
+            .dynamic_state(&dynamic_state)
+            .layout(pipeline_layout)
+            .render_pass(render_pass)
+            .subpass(0)];
+
+        let graphics_pipeline = device
+            .create_graphics_pipelines(PipelineCache::null(), &pipeline_infos, None)
+            .unwrap()[0];
+
+        device.destroy_shader_module(vert_shader_module, None);
+        device.destroy_shader_module(frag_shader_module, None);
+
+        (pipeline_layout, graphics_pipeline)
     }
 }

@@ -3,8 +3,9 @@ mod vulkan;
 use ash::{
     khr::{surface, swapchain},
     vk::{
-        CommandBuffer, CommandPool, Extent2D, Format, Framebuffer, Image, ImageView,
-        PhysicalDevice, Pipeline, PipelineLayout, Queue, RenderPass, SurfaceKHR, SwapchainKHR,
+        CommandBuffer, CommandPool, Extent2D, Fence, Format, Framebuffer, Image, ImageView,
+        PhysicalDevice, Pipeline, PipelineLayout, Queue, RenderPass, Semaphore, SurfaceKHR,
+        SwapchainKHR,
     },
     Device, Entry, Instance,
 };
@@ -30,6 +31,9 @@ pub struct Window {
     graphics_pipeline: Pipeline,
     command_pool: CommandPool,
     _command_buffer: CommandBuffer,
+    image_available: Semaphore,
+    render_finished: Semaphore,
+    in_flight: Fence,
 }
 
 impl Window {
@@ -59,6 +63,7 @@ impl Window {
             VulkanWrapper::create_framebuffers(&device, render_pass, &image_views, extent);
         let command_pool = VulkanWrapper::create_command_pool(&device, queue_family_index);
         let command_buffer = VulkanWrapper::create_command_buffer(&device, command_pool);
+        let (image_available, render_finished, in_flight) = VulkanWrapper::create_sync(&device);
 
         VulkanWrapper::record_command_buffer_and_begin_render_pass(
             &device,
@@ -94,10 +99,16 @@ impl Window {
             graphics_pipeline,
             command_pool,
             _command_buffer: command_buffer,
+            image_available,
+            render_finished,
+            in_flight,
         }
     }
 
     pub unsafe fn destroy(&mut self) {
+        self.device.destroy_semaphore(self.image_available, None);
+        self.device.destroy_semaphore(self.render_finished, None);
+        self.device.destroy_fence(self.in_flight, None);
         self.device.destroy_command_pool(self.command_pool, None);
         self.device.destroy_pipeline(self.graphics_pipeline, None);
         self.device

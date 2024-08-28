@@ -7,20 +7,20 @@ use ash::{
         CommandBuffer, CommandBufferAllocateInfo, CommandBufferBeginInfo, CommandBufferLevel,
         CommandPool, CommandPoolCreateInfo, ComponentMapping, ComponentSwizzle,
         CompositeAlphaFlagsKHR, CullModeFlags, DeviceCreateInfo, DeviceQueueCreateInfo,
-        DynamicState, Extent2D, Format, Framebuffer, FramebufferCreateInfo, FrontFace,
-        GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout, ImageSubresourceRange,
-        ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType, InstanceCreateInfo,
-        LogicOp, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline, PipelineBindPoint,
-        PipelineCache, PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
-        PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
-        PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineLayoutCreateInfo,
-        PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
-        PipelineShaderStageCreateInfo, PipelineVertexInputStateCreateInfo,
-        PipelineViewportStateCreateInfo, PolygonMode, PresentModeKHR, PrimitiveTopology,
-        QueueFlags, Rect2D, RenderPass, RenderPassBeginInfo, RenderPassCreateInfo,
-        SampleCountFlags, ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubpassContents,
-        SubpassDescription, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, Viewport,
-        API_VERSION_1_3,
+        DynamicState, Extent2D, Fence, FenceCreateInfo, Format, Framebuffer, FramebufferCreateInfo,
+        FrontFace, GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout,
+        ImageSubresourceRange, ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType,
+        InstanceCreateInfo, LogicOp, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline,
+        PipelineBindPoint, PipelineCache, PipelineColorBlendAttachmentState,
+        PipelineColorBlendStateCreateInfo, PipelineDepthStencilStateCreateInfo,
+        PipelineDynamicStateCreateInfo, PipelineInputAssemblyStateCreateInfo, PipelineLayout,
+        PipelineLayoutCreateInfo, PipelineMultisampleStateCreateInfo,
+        PipelineRasterizationStateCreateInfo, PipelineShaderStageCreateInfo,
+        PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo, PolygonMode,
+        PresentModeKHR, PrimitiveTopology, QueueFlags, Rect2D, RenderPass, RenderPassBeginInfo,
+        RenderPassCreateInfo, SampleCountFlags, Semaphore, SemaphoreCreateInfo,
+        ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubpassContents, SubpassDescription,
+        SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3,
     },
     Device, Entry, Instance,
 };
@@ -97,6 +97,7 @@ pub trait VulkanInterface {
         pipeline: Pipeline,
         extent: Extent2D,
     );
+    unsafe fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence);
 }
 
 impl VulkanInterface for VulkanWrapper {
@@ -572,5 +573,21 @@ impl VulkanInterface for VulkanWrapper {
         device.cmd_set_scissor(command_buffer, 0, &scissors);
 
         device.cmd_draw(command_buffer, 3, 1, 0, 0);
+    }
+
+    unsafe fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence) {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_creating_the_synchronization_objects
+        let semaphore_create_info = SemaphoreCreateInfo::default();
+        let fence_create_info = FenceCreateInfo::default();
+
+        (
+            device
+                .create_semaphore(&semaphore_create_info, None)
+                .unwrap(),
+            device
+                .create_semaphore(&semaphore_create_info, None)
+                .unwrap(),
+            device.create_fence(&fence_create_info, None).unwrap(),
+        )
     }
 }

@@ -60,6 +60,20 @@ impl Window {
         let command_pool = VulkanWrapper::create_command_pool(&device, queue_family_index);
         let command_buffer = VulkanWrapper::create_command_buffer(&device, command_pool);
 
+        VulkanWrapper::record_command_buffer_and_begin_render_pass(
+            &device,
+            render_pass,
+            &swapchain_framebuffers,
+            0,
+            command_buffer,
+            extent,
+        );
+        VulkanWrapper::bind_and_draw(&device, command_buffer, graphics_pipeline, extent);
+
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_finishing_up
+        device.cmd_end_render_pass(command_buffer);
+        device.end_command_buffer(command_buffer).unwrap();
+
         Self {
             _window: window,
             vk_instance,

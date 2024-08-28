@@ -3,23 +3,24 @@ use ash::{
     util::read_spv,
     vk::{
         ApplicationInfo, AttachmentDescription, AttachmentLoadOp, AttachmentReference,
-        AttachmentStoreOp, BlendFactor, BlendOp, ColorComponentFlags, CommandBuffer,
-        CommandBufferAllocateInfo, CommandBufferLevel, CommandPool, CommandPoolCreateInfo,
-        ComponentMapping, ComponentSwizzle, CompositeAlphaFlagsKHR, CullModeFlags,
-        DeviceCreateInfo, DeviceQueueCreateInfo, DynamicState, Extent2D, Format, Framebuffer,
-        FramebufferCreateInfo, FrontFace, GraphicsPipelineCreateInfo, Image, ImageAspectFlags,
-        ImageLayout, ImageSubresourceRange, ImageUsageFlags, ImageView, ImageViewCreateInfo,
-        ImageViewType, InstanceCreateInfo, LogicOp, Offset2D, PhysicalDevice,
-        PhysicalDeviceFeatures, Pipeline, PipelineBindPoint, PipelineCache,
-        PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
+        AttachmentStoreOp, BlendFactor, BlendOp, ClearColorValue, ClearValue, ColorComponentFlags,
+        CommandBuffer, CommandBufferAllocateInfo, CommandBufferBeginInfo, CommandBufferLevel,
+        CommandPool, CommandPoolCreateInfo, ComponentMapping, ComponentSwizzle,
+        CompositeAlphaFlagsKHR, CullModeFlags, DeviceCreateInfo, DeviceQueueCreateInfo,
+        DynamicState, Extent2D, Format, Framebuffer, FramebufferCreateInfo, FrontFace,
+        GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout, ImageSubresourceRange,
+        ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType, InstanceCreateInfo,
+        LogicOp, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline, PipelineBindPoint,
+        PipelineCache, PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
         PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
         PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineLayoutCreateInfo,
         PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
         PipelineShaderStageCreateInfo, PipelineVertexInputStateCreateInfo,
         PipelineViewportStateCreateInfo, PolygonMode, PresentModeKHR, PrimitiveTopology,
-        QueueFlags, Rect2D, RenderPass, RenderPassCreateInfo, SampleCountFlags,
-        ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubpassDescription, SurfaceKHR,
-        SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3,
+        QueueFlags, Rect2D, RenderPass, RenderPassBeginInfo, RenderPassCreateInfo,
+        SampleCountFlags, ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubpassContents,
+        SubpassDescription, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, Viewport,
+        API_VERSION_1_3,
     },
     Device, Entry, Instance,
 };
@@ -82,6 +83,20 @@ pub trait VulkanInterface {
     ) -> Vec<Framebuffer>;
     unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> CommandPool;
     unsafe fn create_command_buffer(device: &Device, command_pool: CommandPool) -> CommandBuffer;
+    unsafe fn record_command_buffer_and_begin_render_pass(
+        device: &Device,
+        render_pass: RenderPass,
+        framebuffers: &[Framebuffer],
+        image_index: usize,
+        command_buffer: CommandBuffer,
+        extent: Extent2D,
+    );
+    unsafe fn bind_and_draw(
+        device: &Device,
+        command_buffer: CommandBuffer,
+        pipeline: Pipeline,
+        extent: Extent2D,
+    );
 }
 
 impl VulkanInterface for VulkanWrapper {
@@ -490,5 +505,72 @@ impl VulkanInterface for VulkanWrapper {
             .command_buffer_count(1);
 
         device.allocate_command_buffers(&allocation_info).unwrap()[0]
+    }
+
+    unsafe fn record_command_buffer_and_begin_render_pass(
+        device: &Device,
+        render_pass: RenderPass,
+        framebuffers: &[Framebuffer],
+        image_index: usize,
+        command_buffer: CommandBuffer,
+        extent: Extent2D,
+    ) {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_command_buffer_recording
+        let begin_info = CommandBufferBeginInfo::default();
+
+        device
+            .begin_command_buffer(command_buffer, &begin_info)
+            .unwrap();
+
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_starting_a_render_pass
+        let clear_colors = [ClearValue {
+            color: ClearColorValue {
+                float32: [0.0, 0.0, 0.0, 1.0],
+            },
+        }];
+
+        let render_pass_begin_info = RenderPassBeginInfo::default()
+            .render_pass(render_pass)
+            .framebuffer(framebuffers[image_index])
+            .render_area(Rect2D {
+                offset: Offset2D { x: 0, y: 0 },
+                extent,
+            })
+            .clear_values(&clear_colors);
+
+        device.cmd_begin_render_pass(
+            command_buffer,
+            &render_pass_begin_info,
+            SubpassContents::INLINE,
+        )
+    }
+
+    unsafe fn bind_and_draw(
+        device: &Device,
+        command_buffer: CommandBuffer,
+        pipeline: Pipeline,
+        extent: Extent2D,
+    ) {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_basic_drawing_commands
+        device.cmd_bind_pipeline(command_buffer, PipelineBindPoint::GRAPHICS, pipeline);
+
+        let viewports = [Viewport::default()
+            .x(0.0)
+            .y(0.0)
+            .width(extent.width as f32)
+            .height(extent.height as f32)
+            .min_depth(0.0)
+            .max_depth(1.0)];
+
+        device.cmd_set_viewport(command_buffer, 0, &viewports);
+
+        let scissors = [Rect2D {
+            offset: Offset2D { x: 0, y: 0 },
+            extent,
+        }];
+
+        device.cmd_set_scissor(command_buffer, 0, &scissors);
+
+        device.cmd_draw(command_buffer, 3, 1, 0, 0);
     }
 }

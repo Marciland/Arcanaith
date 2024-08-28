@@ -2,25 +2,26 @@ use ash::{
     khr::{surface, swapchain},
     util::read_spv,
     vk::{
-        ApplicationInfo, AttachmentDescription, AttachmentLoadOp, AttachmentReference,
+        AccessFlags, ApplicationInfo, AttachmentDescription, AttachmentLoadOp, AttachmentReference,
         AttachmentStoreOp, BlendFactor, BlendOp, ClearColorValue, ClearValue, ColorComponentFlags,
         CommandBuffer, CommandBufferAllocateInfo, CommandBufferBeginInfo, CommandBufferLevel,
-        CommandPool, CommandPoolCreateInfo, ComponentMapping, ComponentSwizzle,
-        CompositeAlphaFlagsKHR, CullModeFlags, DeviceCreateInfo, DeviceQueueCreateInfo,
-        DynamicState, Extent2D, Fence, FenceCreateInfo, Format, Framebuffer, FramebufferCreateInfo,
-        FrontFace, GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout,
-        ImageSubresourceRange, ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType,
-        InstanceCreateInfo, LogicOp, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline,
-        PipelineBindPoint, PipelineCache, PipelineColorBlendAttachmentState,
-        PipelineColorBlendStateCreateInfo, PipelineDepthStencilStateCreateInfo,
-        PipelineDynamicStateCreateInfo, PipelineInputAssemblyStateCreateInfo, PipelineLayout,
-        PipelineLayoutCreateInfo, PipelineMultisampleStateCreateInfo,
-        PipelineRasterizationStateCreateInfo, PipelineShaderStageCreateInfo,
-        PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo, PolygonMode,
-        PresentModeKHR, PrimitiveTopology, QueueFlags, Rect2D, RenderPass, RenderPassBeginInfo,
-        RenderPassCreateInfo, SampleCountFlags, Semaphore, SemaphoreCreateInfo,
-        ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubpassContents, SubpassDescription,
-        SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3,
+        CommandPool, CommandPoolCreateFlags, CommandPoolCreateInfo, ComponentMapping,
+        ComponentSwizzle, CompositeAlphaFlagsKHR, CullModeFlags, DeviceCreateInfo,
+        DeviceQueueCreateInfo, DynamicState, Extent2D, Fence, FenceCreateFlags, FenceCreateInfo,
+        Format, Framebuffer, FramebufferCreateInfo, FrontFace, GraphicsPipelineCreateInfo, Image,
+        ImageAspectFlags, ImageLayout, ImageSubresourceRange, ImageUsageFlags, ImageView,
+        ImageViewCreateInfo, ImageViewType, InstanceCreateInfo, LogicOp, Offset2D, PhysicalDevice,
+        PhysicalDeviceFeatures, Pipeline, PipelineBindPoint, PipelineCache,
+        PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
+        PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
+        PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineLayoutCreateInfo,
+        PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
+        PipelineShaderStageCreateInfo, PipelineStageFlags, PipelineVertexInputStateCreateInfo,
+        PipelineViewportStateCreateInfo, PolygonMode, PresentModeKHR, PrimitiveTopology,
+        QueueFlags, Rect2D, RenderPass, RenderPassBeginInfo, RenderPassCreateInfo,
+        SampleCountFlags, Semaphore, SemaphoreCreateInfo, ShaderModuleCreateInfo, ShaderStageFlags,
+        SharingMode, SubpassContents, SubpassDependency, SubpassDescription, SurfaceKHR,
+        SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3, SUBPASS_EXTERNAL,
     },
     Device, Entry, Instance,
 };
@@ -326,9 +327,18 @@ impl VulkanInterface for VulkanWrapper {
             .pipeline_bind_point(PipelineBindPoint::GRAPHICS)
             .color_attachments(&color_attachment_references)];
 
+        let dependencies = [SubpassDependency::default()
+            .src_subpass(SUBPASS_EXTERNAL)
+            .dst_subpass(0)
+            .src_stage_mask(PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .src_access_mask(AccessFlags::empty())
+            .dst_stage_mask(PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .dst_access_mask(AccessFlags::COLOR_ATTACHMENT_WRITE)];
+
         let render_pass_info = RenderPassCreateInfo::default()
             .attachments(&color_attachments)
-            .subpasses(&subpasses);
+            .subpasses(&subpasses)
+            .dependencies(&dependencies);
 
         device.create_render_pass(&render_pass_info, None).unwrap()
     }
@@ -493,8 +503,9 @@ impl VulkanInterface for VulkanWrapper {
 
     unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> CommandPool {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html
-        let pool_create_info =
-            CommandPoolCreateInfo::default().queue_family_index(queue_family_index);
+        let pool_create_info = CommandPoolCreateInfo::default()
+            .queue_family_index(queue_family_index)
+            .flags(CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
         device.create_command_pool(&pool_create_info, None).unwrap()
     }
 
@@ -578,7 +589,7 @@ impl VulkanInterface for VulkanWrapper {
     unsafe fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_creating_the_synchronization_objects
         let semaphore_create_info = SemaphoreCreateInfo::default();
-        let fence_create_info = FenceCreateInfo::default();
+        let fence_create_info = FenceCreateInfo::default().flags(FenceCreateFlags::SIGNALED);
 
         (
             device

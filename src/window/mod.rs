@@ -3,9 +3,9 @@ mod vulkan;
 use ash::{
     khr::{surface, swapchain},
     vk::{
-        CommandBuffer, CommandPool, Extent2D, Fence, Format, Framebuffer, Image, ImageView,
-        PhysicalDevice, Pipeline, PipelineLayout, Queue, RenderPass, Semaphore, SurfaceKHR,
-        SwapchainKHR,
+        CommandBuffer, CommandBufferResetFlags, CommandPool, Extent2D, Fence, Format, Framebuffer,
+        Image, ImageView, PhysicalDevice, Pipeline, PipelineLayout, PipelineStageFlags,
+        PresentInfoKHR, Queue, RenderPass, Semaphore, SubmitInfo, SurfaceKHR, SwapchainKHR,
     },
     Device, Entry, Instance,
 };
@@ -18,19 +18,19 @@ pub struct Window {
     surface_loader: surface::Instance,
     _physical_device: PhysicalDevice,
     device: Device,
-    _graphics_queue: Queue,
+    graphics_queue: Queue,
     swapchain: SwapchainKHR,
     swapchain_loader: swapchain::Device,
     swapchain_framebuffers: Vec<Framebuffer>,
     _images: Vec<Image>,
     image_views: Vec<ImageView>,
     _format: Format,
-    _extent: Extent2D,
+    extent: Extent2D,
     render_pass: RenderPass,
     pipeline_layout: PipelineLayout,
     graphics_pipeline: Pipeline,
     command_pool: CommandPool,
-    _command_buffer: CommandBuffer,
+    command_buffer: CommandBuffer,
     image_available: Semaphore,
     render_finished: Semaphore,
     in_flight: Fence,
@@ -86,23 +86,85 @@ impl Window {
             surface_loader,
             _physical_device: physical_device,
             device,
-            _graphics_queue: graphics_queue,
+            graphics_queue,
             swapchain,
             swapchain_loader,
             swapchain_framebuffers,
             _images: images,
             image_views,
             _format: format,
-            _extent: extent,
+            extent,
             render_pass,
             pipeline_layout,
             graphics_pipeline,
             command_pool,
-            _command_buffer: command_buffer,
+            command_buffer,
             image_available,
             render_finished,
             in_flight,
         }
+    }
+
+    pub unsafe fn draw_frame(&mut self) {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_waiting_for_the_previous_frame
+        self.device
+            .wait_for_fences(&[self.in_flight], true, u64::MAX)
+            .unwrap();
+        self.device.reset_fences(&[self.in_flight]).unwrap();
+
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_acquiring_an_image_from_the_swap_chain
+        let image_index = self
+            .swapchain_loader
+            .acquire_next_image(
+                self.swapchain,
+                u64::MAX,
+                self.image_available,
+                Fence::null(),
+            )
+            .unwrap()
+            .0;
+
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_recording_the_command_buffer
+        self.device
+            .reset_command_buffer(self.command_buffer, CommandBufferResetFlags::empty())
+            .unwrap();
+
+        VulkanWrapper::record_command_buffer_and_begin_render_pass(
+            &self.device,
+            self.render_pass,
+            &self.swapchain_framebuffers,
+            image_index as usize,
+            self.command_buffer,
+            self.extent,
+        );
+
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_submitting_the_command_buffer
+        let wait_semaphores = [self.image_available];
+        let command_buffers = [self.command_buffer];
+        let signal_semaphores = [self.render_finished];
+
+        let submit_info = SubmitInfo::default()
+            .wait_semaphores(&wait_semaphores)
+            .wait_dst_stage_mask(&[PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
+            .command_buffers(&command_buffers)
+            .signal_semaphores(&signal_semaphores);
+
+        self.device
+            .queue_submit(self.graphics_queue, &[submit_info], self.in_flight)
+            .unwrap();
+
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_presentation
+        let swapchains = [self.swapchain];
+        let image_indices = [image_index];
+
+        let present_info = PresentInfoKHR::default()
+            .wait_semaphores(&signal_semaphores)
+            .swapchains(&swapchains)
+            .image_indices(&image_indices);
+
+        self.swapchain_loader
+            .queue_present(self.graphics_queue, &present_info)
+            .unwrap();
     }
 
     pub unsafe fn destroy(&mut self) {

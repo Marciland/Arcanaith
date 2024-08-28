@@ -67,7 +67,7 @@ impl ApplicationHandler for Game {
     ) {
         match event {
             WindowEvent::CloseRequested => self.exit(event_loop),
-            WindowEvent::RedrawRequested => println!("rendering"),
+            WindowEvent::RedrawRequested => unsafe { self.window.as_mut().unwrap().draw_frame() },
             _ => (), //println!("event: {:?}", event),
         }
     }

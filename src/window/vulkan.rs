@@ -3,12 +3,13 @@ use ash::{
     util::read_spv,
     vk::{
         ApplicationInfo, AttachmentDescription, AttachmentLoadOp, AttachmentReference,
-        AttachmentStoreOp, BlendFactor, BlendOp, ColorComponentFlags, CommandPool,
-        CommandPoolCreateInfo, ComponentMapping, ComponentSwizzle, CompositeAlphaFlagsKHR,
-        CullModeFlags, DeviceCreateInfo, DeviceQueueCreateInfo, DynamicState, Extent2D, Format,
-        Framebuffer, FramebufferCreateInfo, FrontFace, GraphicsPipelineCreateInfo, Image,
-        ImageAspectFlags, ImageLayout, ImageSubresourceRange, ImageUsageFlags, ImageView,
-        ImageViewCreateInfo, ImageViewType, InstanceCreateInfo, LogicOp, Offset2D, PhysicalDevice,
+        AttachmentStoreOp, BlendFactor, BlendOp, ColorComponentFlags, CommandBuffer,
+        CommandBufferAllocateInfo, CommandBufferLevel, CommandPool, CommandPoolCreateInfo,
+        ComponentMapping, ComponentSwizzle, CompositeAlphaFlagsKHR, CullModeFlags,
+        DeviceCreateInfo, DeviceQueueCreateInfo, DynamicState, Extent2D, Format, Framebuffer,
+        FramebufferCreateInfo, FrontFace, GraphicsPipelineCreateInfo, Image, ImageAspectFlags,
+        ImageLayout, ImageSubresourceRange, ImageUsageFlags, ImageView, ImageViewCreateInfo,
+        ImageViewType, InstanceCreateInfo, LogicOp, Offset2D, PhysicalDevice,
         PhysicalDeviceFeatures, Pipeline, PipelineBindPoint, PipelineCache,
         PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
         PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
@@ -80,6 +81,7 @@ pub trait VulkanInterface {
         extent: Extent2D,
     ) -> Vec<Framebuffer>;
     unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> CommandPool;
+    unsafe fn create_command_buffer(device: &Device, command_pool: CommandPool) -> CommandBuffer;
 }
 
 impl VulkanInterface for VulkanWrapper {
@@ -478,5 +480,15 @@ impl VulkanInterface for VulkanWrapper {
         let pool_create_info =
             CommandPoolCreateInfo::default().queue_family_index(queue_family_index);
         device.create_command_pool(&pool_create_info, None).unwrap()
+    }
+
+    unsafe fn create_command_buffer(device: &Device, command_pool: CommandPool) -> CommandBuffer {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_command_buffer_allocation
+        let allocation_info = CommandBufferAllocateInfo::default()
+            .command_pool(command_pool)
+            .level(CommandBufferLevel::PRIMARY)
+            .command_buffer_count(1);
+
+        device.allocate_command_buffers(&allocation_info).unwrap()[0]
     }
 }

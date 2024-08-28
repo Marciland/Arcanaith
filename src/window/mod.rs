@@ -3,8 +3,8 @@ mod vulkan;
 use ash::{
     khr::{surface, swapchain},
     vk::{
-        CommandPool, Extent2D, Format, Framebuffer, Image, ImageView, PhysicalDevice, Pipeline,
-        PipelineLayout, Queue, RenderPass, SurfaceKHR, SwapchainKHR,
+        CommandBuffer, CommandPool, Extent2D, Format, Framebuffer, Image, ImageView,
+        PhysicalDevice, Pipeline, PipelineLayout, Queue, RenderPass, SurfaceKHR, SwapchainKHR,
     },
     Device, Entry, Instance,
 };
@@ -29,6 +29,7 @@ pub struct Window {
     pipeline_layout: PipelineLayout,
     graphics_pipeline: Pipeline,
     command_pool: CommandPool,
+    _command_buffer: CommandBuffer,
 }
 
 impl Window {
@@ -57,6 +58,7 @@ impl Window {
         let swapchain_framebuffers =
             VulkanWrapper::create_framebuffers(&device, render_pass, &image_views, extent);
         let command_pool = VulkanWrapper::create_command_pool(&device, queue_family_index);
+        let command_buffer = VulkanWrapper::create_command_buffer(&device, command_pool);
 
         Self {
             _window: window,
@@ -77,6 +79,7 @@ impl Window {
             pipeline_layout,
             graphics_pipeline,
             command_pool,
+            _command_buffer: command_buffer,
         }
     }
 

@@ -5,19 +5,20 @@ use ash::{
         ApplicationInfo, AttachmentDescription, AttachmentLoadOp, AttachmentReference,
         AttachmentStoreOp, BlendFactor, BlendOp, ColorComponentFlags, ComponentMapping,
         ComponentSwizzle, CompositeAlphaFlagsKHR, CullModeFlags, DeviceCreateInfo,
-        DeviceQueueCreateInfo, DynamicState, Extent2D, Format, FrontFace,
-        GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout, ImageSubresourceRange,
-        ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType, InstanceCreateInfo,
-        LogicOp, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline, PipelineBindPoint,
-        PipelineCache, PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
-        PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
-        PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineLayoutCreateInfo,
-        PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
-        PipelineShaderStageCreateInfo, PipelineVertexInputStateCreateInfo,
-        PipelineViewportStateCreateInfo, PolygonMode, PresentModeKHR, PrimitiveTopology,
-        QueueFlags, Rect2D, RenderPass, RenderPassCreateInfo, SampleCountFlags,
-        ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubpassDescription, SurfaceKHR,
-        SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3,
+        DeviceQueueCreateInfo, DynamicState, Extent2D, Format, Framebuffer, FramebufferCreateInfo,
+        FrontFace, GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout,
+        ImageSubresourceRange, ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType,
+        InstanceCreateInfo, LogicOp, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline,
+        PipelineBindPoint, PipelineCache, PipelineColorBlendAttachmentState,
+        PipelineColorBlendStateCreateInfo, PipelineDepthStencilStateCreateInfo,
+        PipelineDynamicStateCreateInfo, PipelineInputAssemblyStateCreateInfo, PipelineLayout,
+        PipelineLayoutCreateInfo, PipelineMultisampleStateCreateInfo,
+        PipelineRasterizationStateCreateInfo, PipelineShaderStageCreateInfo,
+        PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo, PolygonMode,
+        PresentModeKHR, PrimitiveTopology, QueueFlags, Rect2D, RenderPass, RenderPassCreateInfo,
+        SampleCountFlags, ShaderModuleCreateInfo, ShaderStageFlags, SharingMode,
+        SubpassDescription, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, Viewport,
+        API_VERSION_1_3,
     },
     Device, Entry, Instance,
 };
@@ -72,6 +73,12 @@ pub trait VulkanInterface {
         extent: Extent2D,
         render_pass: RenderPass,
     ) -> (PipelineLayout, Pipeline);
+    unsafe fn create_framebuffers(
+        device: &Device,
+        render_pass: RenderPass,
+        image_views: &[ImageView],
+        extent: Extent2D,
+    ) -> Vec<Framebuffer>;
 }
 
 impl VulkanInterface for VulkanWrapper {
@@ -134,6 +141,7 @@ impl VulkanInterface for VulkanWrapper {
         surface_loader: &surface::Instance,
     ) -> (PhysicalDevice, u32) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/03_Physical_devices_and_queue_families.html
+        // TODO BestPractices-vkCreateDevice-physical-device-features-not-retrieved
         instance
             .enumerate_physical_devices()
             .unwrap()
@@ -173,7 +181,6 @@ impl VulkanInterface for VulkanWrapper {
             .queue_family_index(queue_family_index)
             .queue_priorities(&[1.0]);
 
-        // TODO BestPractices-vkCreateDevice-physical-device-features-not-retrieved
         let device_features = PhysicalDeviceFeatures::default();
 
         let device_extensions = [swapchain::NAME.as_ptr()];
@@ -437,5 +444,30 @@ impl VulkanInterface for VulkanWrapper {
         device.destroy_shader_module(frag_shader_module, None);
 
         (pipeline_layout, graphics_pipeline)
+    }
+
+    unsafe fn create_framebuffers(
+        device: &Device,
+        render_pass: RenderPass,
+        image_views: &[ImageView],
+        extent: Extent2D,
+    ) -> Vec<Framebuffer> {
+        let mut framebuffers: Vec<Framebuffer> = Vec::new();
+
+        for image_view in image_views {
+            let attachments = [*image_view];
+            let framebuffer_create_info = FramebufferCreateInfo::default()
+                .render_pass(render_pass)
+                .attachments(&attachments)
+                .width(extent.width)
+                .height(extent.height)
+                .layers(1);
+            let framebuffer: Framebuffer = device
+                .create_framebuffer(&framebuffer_create_info, None)
+                .unwrap();
+            framebuffers.push(framebuffer);
+        }
+
+        framebuffers
     }
 }

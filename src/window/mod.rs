@@ -3,8 +3,8 @@ mod vulkan;
 use ash::{
     khr::{surface, swapchain},
     vk::{
-        Extent2D, Format, Image, ImageView, PhysicalDevice, Pipeline, PipelineLayout, Queue,
-        RenderPass, SurfaceKHR, SwapchainKHR,
+        Extent2D, Format, Framebuffer, Image, ImageView, PhysicalDevice, Pipeline, PipelineLayout,
+        Queue, RenderPass, SurfaceKHR, SwapchainKHR,
     },
     Device, Entry, Instance,
 };
@@ -20,6 +20,7 @@ pub struct Window {
     _graphics_queue: Queue,
     swapchain: SwapchainKHR,
     swapchain_loader: swapchain::Device,
+    swapchain_framebuffers: Vec<Framebuffer>,
     _images: Vec<Image>,
     image_views: Vec<ImageView>,
     _format: Format,
@@ -52,6 +53,8 @@ impl Window {
         let render_pass = VulkanWrapper::create_render_pass(&device, format);
         let (pipeline_layout, graphics_pipeline) =
             VulkanWrapper::create_graphics_pipeline(&device, extent, render_pass);
+        let swapchain_framebuffers =
+            VulkanWrapper::create_framebuffers(&device, render_pass, &image_views, extent);
 
         Self {
             _window: window,
@@ -63,6 +66,7 @@ impl Window {
             _graphics_queue: graphics_queue,
             swapchain,
             swapchain_loader,
+            swapchain_framebuffers,
             _images: images,
             image_views,
             _format: format,
@@ -77,6 +81,9 @@ impl Window {
         self.device.destroy_pipeline(self.graphics_pipeline, None);
         self.device
             .destroy_pipeline_layout(self.pipeline_layout, None);
+        for framebuffer in &self.swapchain_framebuffers {
+            self.device.destroy_framebuffer(*framebuffer, None);
+        }
         self.device.destroy_render_pass(self.render_pass, None);
         for image_view in &self.image_views {
             self.device.destroy_image_view(*image_view, None);

@@ -3,8 +3,8 @@ mod vulkan;
 use ash::{
     khr::{surface, swapchain},
     vk::{
-        Extent2D, Format, Framebuffer, Image, ImageView, PhysicalDevice, Pipeline, PipelineLayout,
-        Queue, RenderPass, SurfaceKHR, SwapchainKHR,
+        CommandPool, Extent2D, Format, Framebuffer, Image, ImageView, PhysicalDevice, Pipeline,
+        PipelineLayout, Queue, RenderPass, SurfaceKHR, SwapchainKHR,
     },
     Device, Entry, Instance,
 };
@@ -28,6 +28,7 @@ pub struct Window {
     render_pass: RenderPass,
     pipeline_layout: PipelineLayout,
     graphics_pipeline: Pipeline,
+    command_pool: CommandPool,
 }
 
 impl Window {
@@ -55,6 +56,7 @@ impl Window {
             VulkanWrapper::create_graphics_pipeline(&device, extent, render_pass);
         let swapchain_framebuffers =
             VulkanWrapper::create_framebuffers(&device, render_pass, &image_views, extent);
+        let command_pool = VulkanWrapper::create_command_pool(&device, queue_family_index);
 
         Self {
             _window: window,
@@ -74,10 +76,12 @@ impl Window {
             render_pass,
             pipeline_layout,
             graphics_pipeline,
+            command_pool,
         }
     }
 
     pub unsafe fn destroy(&mut self) {
+        self.device.destroy_command_pool(self.command_pool, None);
         self.device.destroy_pipeline(self.graphics_pipeline, None);
         self.device
             .destroy_pipeline_layout(self.pipeline_layout, None);

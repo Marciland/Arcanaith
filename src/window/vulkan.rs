@@ -3,22 +3,22 @@ use ash::{
     util::read_spv,
     vk::{
         ApplicationInfo, AttachmentDescription, AttachmentLoadOp, AttachmentReference,
-        AttachmentStoreOp, BlendFactor, BlendOp, ColorComponentFlags, ComponentMapping,
-        ComponentSwizzle, CompositeAlphaFlagsKHR, CullModeFlags, DeviceCreateInfo,
-        DeviceQueueCreateInfo, DynamicState, Extent2D, Format, Framebuffer, FramebufferCreateInfo,
-        FrontFace, GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout,
-        ImageSubresourceRange, ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType,
-        InstanceCreateInfo, LogicOp, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline,
-        PipelineBindPoint, PipelineCache, PipelineColorBlendAttachmentState,
-        PipelineColorBlendStateCreateInfo, PipelineDepthStencilStateCreateInfo,
-        PipelineDynamicStateCreateInfo, PipelineInputAssemblyStateCreateInfo, PipelineLayout,
-        PipelineLayoutCreateInfo, PipelineMultisampleStateCreateInfo,
-        PipelineRasterizationStateCreateInfo, PipelineShaderStageCreateInfo,
-        PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo, PolygonMode,
-        PresentModeKHR, PrimitiveTopology, QueueFlags, Rect2D, RenderPass, RenderPassCreateInfo,
-        SampleCountFlags, ShaderModuleCreateInfo, ShaderStageFlags, SharingMode,
-        SubpassDescription, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, Viewport,
-        API_VERSION_1_3,
+        AttachmentStoreOp, BlendFactor, BlendOp, ColorComponentFlags, CommandPool,
+        CommandPoolCreateInfo, ComponentMapping, ComponentSwizzle, CompositeAlphaFlagsKHR,
+        CullModeFlags, DeviceCreateInfo, DeviceQueueCreateInfo, DynamicState, Extent2D, Format,
+        Framebuffer, FramebufferCreateInfo, FrontFace, GraphicsPipelineCreateInfo, Image,
+        ImageAspectFlags, ImageLayout, ImageSubresourceRange, ImageUsageFlags, ImageView,
+        ImageViewCreateInfo, ImageViewType, InstanceCreateInfo, LogicOp, Offset2D, PhysicalDevice,
+        PhysicalDeviceFeatures, Pipeline, PipelineBindPoint, PipelineCache,
+        PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
+        PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
+        PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineLayoutCreateInfo,
+        PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
+        PipelineShaderStageCreateInfo, PipelineVertexInputStateCreateInfo,
+        PipelineViewportStateCreateInfo, PolygonMode, PresentModeKHR, PrimitiveTopology,
+        QueueFlags, Rect2D, RenderPass, RenderPassCreateInfo, SampleCountFlags,
+        ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubpassDescription, SurfaceKHR,
+        SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3,
     },
     Device, Entry, Instance,
 };
@@ -79,6 +79,7 @@ pub trait VulkanInterface {
         image_views: &[ImageView],
         extent: Extent2D,
     ) -> Vec<Framebuffer>;
+    unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> CommandPool;
 }
 
 impl VulkanInterface for VulkanWrapper {
@@ -452,6 +453,7 @@ impl VulkanInterface for VulkanWrapper {
         image_views: &[ImageView],
         extent: Extent2D,
     ) -> Vec<Framebuffer> {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/00_Framebuffers.html
         let mut framebuffers: Vec<Framebuffer> = Vec::new();
 
         for image_view in image_views {
@@ -469,5 +471,12 @@ impl VulkanInterface for VulkanWrapper {
         }
 
         framebuffers
+    }
+
+    unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> CommandPool {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html
+        let pool_create_info =
+            CommandPoolCreateInfo::default().queue_family_index(queue_family_index);
+        device.create_command_pool(&pool_create_info, None).unwrap()
     }
 }

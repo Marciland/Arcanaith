@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    constants::{FPS, ICONPATH, TITLE},
+    constants::{FPS, FULLSCREEN, ICONPATH, TITLE},
     window::Window,
 };
 
@@ -51,10 +51,13 @@ impl ApplicationHandler for Game {
             (rgba, width, height)
         };
         let icon = Icon::from_rgba(icon_rgba, icon_width, icon_height).unwrap();
-        let attributes = winit::window::Window::default_attributes()
+        let mut attributes = winit::window::Window::default_attributes()
             .with_title(TITLE)
             .with_window_icon(Some(icon))
-            .with_fullscreen(Some(Borderless(None)));
+            .with_visible(false);
+        if FULLSCREEN {
+            attributes = attributes.with_fullscreen(Some(Borderless(None)));
+        }
         let window = event_loop.create_window(attributes).unwrap();
         self.window = unsafe { Some(Window::new(window)) }
     }

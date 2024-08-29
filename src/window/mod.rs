@@ -65,20 +65,7 @@ impl Window {
         let command_buffer = VulkanWrapper::create_command_buffer(&device, command_pool);
         let (image_available, render_finished, in_flight) = VulkanWrapper::create_sync(&device);
 
-        VulkanWrapper::record_command_buffer_and_begin_render_pass(
-            &device,
-            render_pass,
-            &swapchain_framebuffers,
-            0,
-            command_buffer,
-            extent,
-        );
-        VulkanWrapper::bind_and_draw(&device, command_buffer, graphics_pipeline, extent);
-
-        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_finishing_up
-        device.cmd_end_render_pass(command_buffer);
-        device.end_command_buffer(command_buffer).unwrap();
-
+        window.set_visible(true);
         Self {
             _window: window,
             vk_instance,
@@ -129,12 +116,13 @@ impl Window {
             .reset_command_buffer(self.command_buffer, CommandBufferResetFlags::empty())
             .unwrap();
 
-        VulkanWrapper::record_command_buffer_and_begin_render_pass(
+        VulkanWrapper::begin_render_pass(
             &self.device,
             self.render_pass,
             &self.swapchain_framebuffers,
             image_index as usize,
             self.command_buffer,
+            self.graphics_pipeline,
             self.extent,
         );
 
@@ -168,6 +156,7 @@ impl Window {
     }
 
     pub unsafe fn destroy(&mut self) {
+        self.device.device_wait_idle().unwrap();
         self.device.destroy_semaphore(self.image_available, None);
         self.device.destroy_semaphore(self.render_finished, None);
         self.device.destroy_fence(self.in_flight, None);

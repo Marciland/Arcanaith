@@ -84,16 +84,11 @@ pub trait VulkanInterface {
     ) -> Vec<Framebuffer>;
     unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> CommandPool;
     unsafe fn create_command_buffer(device: &Device, command_pool: CommandPool) -> CommandBuffer;
-    unsafe fn record_command_buffer_and_begin_render_pass(
+    unsafe fn begin_render_pass(
         device: &Device,
         render_pass: RenderPass,
         framebuffers: &[Framebuffer],
         image_index: usize,
-        command_buffer: CommandBuffer,
-        extent: Extent2D,
-    );
-    unsafe fn bind_and_draw(
-        device: &Device,
         command_buffer: CommandBuffer,
         pipeline: Pipeline,
         extent: Extent2D,
@@ -519,12 +514,13 @@ impl VulkanInterface for VulkanWrapper {
         device.allocate_command_buffers(&allocation_info).unwrap()[0]
     }
 
-    unsafe fn record_command_buffer_and_begin_render_pass(
+    unsafe fn begin_render_pass(
         device: &Device,
         render_pass: RenderPass,
         framebuffers: &[Framebuffer],
         image_index: usize,
         command_buffer: CommandBuffer,
+        pipeline: Pipeline,
         extent: Extent2D,
     ) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_command_buffer_recording
@@ -554,15 +550,8 @@ impl VulkanInterface for VulkanWrapper {
             command_buffer,
             &render_pass_begin_info,
             SubpassContents::INLINE,
-        )
-    }
+        );
 
-    unsafe fn bind_and_draw(
-        device: &Device,
-        command_buffer: CommandBuffer,
-        pipeline: Pipeline,
-        extent: Extent2D,
-    ) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_basic_drawing_commands
         device.cmd_bind_pipeline(command_buffer, PipelineBindPoint::GRAPHICS, pipeline);
 
@@ -584,6 +573,10 @@ impl VulkanInterface for VulkanWrapper {
         device.cmd_set_scissor(command_buffer, 0, &scissors);
 
         device.cmd_draw(command_buffer, 3, 1, 0, 0);
+
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_finishing_up
+        device.cmd_end_render_pass(command_buffer);
+        device.end_command_buffer(command_buffer).unwrap();
     }
 
     unsafe fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence) {

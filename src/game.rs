@@ -3,7 +3,8 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::Duration,
+    thread,
+    time::{Duration, Instant},
 };
 
 use crate::{
@@ -21,7 +22,7 @@ use winit::{
 pub struct Game {
     window: Option<Window>,
     is_running: Arc<AtomicBool>,
-    _frame_time: Duration,
+    frame_time: Duration,
 }
 
 impl Game {
@@ -37,7 +38,7 @@ impl Default for Game {
         Game {
             window: None,
             is_running: Arc::new(AtomicBool::new(true)),
-            _frame_time: Duration::from_secs_f64(1.0 / FPS as f64),
+            frame_time: Duration::from_secs_f64(1.0 / FPS as f64),
         }
     }
 }
@@ -70,7 +71,20 @@ impl ApplicationHandler for Game {
     ) {
         match event {
             WindowEvent::CloseRequested => self.exit(event_loop),
-            WindowEvent::RedrawRequested => unsafe { self.window.as_mut().unwrap().draw_frame() },
+            WindowEvent::RedrawRequested => {
+                let start_time = Instant::now();
+                unsafe {
+                    self.window.as_mut().unwrap().draw_frame();
+                }
+                let end_time = Instant::now();
+                let render_time = end_time - start_time;
+                let remaining_time = self.frame_time.saturating_sub(render_time);
+
+                if !remaining_time.is_zero() {
+                    thread::sleep(remaining_time)
+                }
+                self.window.as_mut().unwrap().window.request_redraw();
+            }
             _ => (), //println!("event: {:?}", event),
         }
     }

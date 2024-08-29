@@ -12,7 +12,7 @@ use ash::{
 use vulkan::{VulkanInterface, VulkanWrapper};
 
 pub struct Window {
-    _window: winit::window::Window,
+    pub window: winit::window::Window,
     vk_instance: Instance,
     surface: SurfaceKHR,
     surface_loader: surface::Instance,
@@ -67,7 +67,7 @@ impl Window {
 
         window.set_visible(true);
         Self {
-            _window: window,
+            window,
             vk_instance,
             surface,
             surface_loader,

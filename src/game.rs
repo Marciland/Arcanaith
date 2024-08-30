@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    constants::{FPS, FULLSCREEN, ICONPATH, TITLE},
+    constants::{BG_FPS, FPS, FULLSCREEN, ICONPATH, TITLE},
     window::Window,
 };
 
@@ -84,6 +84,22 @@ impl ApplicationHandler for Game {
                     thread::sleep(remaining_time)
                 }
                 self.window.as_mut().unwrap().window.request_redraw();
+            }
+            WindowEvent::Resized(_size) => {
+                let is_minimized = self.window.as_mut().unwrap().window.is_minimized().unwrap();
+                if is_minimized {
+                    self.frame_time = Duration::from_secs_f64(1.0 / BG_FPS as f64)
+                } else {
+                    self.frame_time = Duration::from_secs_f64(1.0 / FPS as f64)
+                }
+                // recreate swapchain
+            }
+            WindowEvent::Focused(focused) => {
+                if focused {
+                    self.frame_time = Duration::from_secs_f64(1.0 / FPS as f64)
+                } else {
+                    self.frame_time = Duration::from_secs_f64(1.0 / BG_FPS as f64)
+                }
             }
             _ => (), //println!("event: {:?}", event),
         }

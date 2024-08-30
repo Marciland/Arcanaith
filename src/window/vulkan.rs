@@ -26,8 +26,6 @@ use ash::{
     Device, Entry, Instance,
 };
 use ash_window::{create_surface, enumerate_required_extensions};
-#[cfg(debug_assertions)]
-use std::os::raw::c_char;
 use std::{array::from_ref, ffi::CStr, io::Cursor};
 use winit::{
     raw_window_handle::{HasDisplayHandle, HasWindowHandle},
@@ -66,10 +64,11 @@ pub trait VulkanInterface {
         surface_loader: &surface::Instance,
     ) -> (SwapchainKHR, swapchain::Device, Format, Extent2D);
     unsafe fn create_image_views(
-        images: &[Image],
+        swapchain_loader: &swapchain::Device,
+        swapchain: SwapchainKHR,
         format: Format,
         device: &Device,
-    ) -> Vec<ImageView>;
+    ) -> (Vec<Image>, Vec<ImageView>);
     unsafe fn create_render_pass(device: &Device, format: Format) -> RenderPass;
     unsafe fn create_graphics_pipeline(
         device: &Device,
@@ -113,24 +112,8 @@ impl VulkanInterface for VulkanWrapper {
             .enabled_extension_names(&extension_names)
             .application_info(&application_info);
 
-        #[cfg(not(debug_assertions))]
-        {
-            entry.create_instance(&create_info, None).unwrap()
-        }
-
-        #[cfg(debug_assertions)]
-        {
-            let layers_names: Vec<*const c_char> = [CStr::from_bytes_with_nul_unchecked(
-                b"VK_LAYER_KHRONOS_validation\0",
-            )]
-            .iter()
-            .map(|raw_name| raw_name.as_ptr())
-            .collect();
-
-            entry
-                .create_instance(&create_info.enabled_layer_names(&layers_names), None)
-                .unwrap()
-        }
+        // control validation layers from vulkan configurator!!
+        entry.create_instance(&create_info, None).unwrap()
     }
 
     unsafe fn create_surface(
@@ -266,12 +249,14 @@ impl VulkanInterface for VulkanWrapper {
     }
 
     unsafe fn create_image_views(
-        images: &[Image],
+        swapchain_loader: &swapchain::Device,
+        swapchain: SwapchainKHR,
         format: Format,
         device: &Device,
-    ) -> Vec<ImageView> {
+    ) -> (Vec<Image>, Vec<ImageView>) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/01_Presentation/02_Image_views.html
         let mut image_views: Vec<ImageView> = Vec::new();
+        let images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
 
         let components = ComponentMapping::default()
             .r(ComponentSwizzle::IDENTITY)
@@ -286,7 +271,7 @@ impl VulkanInterface for VulkanWrapper {
             .base_array_layer(0)
             .layer_count(1);
 
-        for image in images {
+        for image in &images {
             let image_view_create_info = ImageViewCreateInfo::default()
                 .image(*image)
                 .view_type(ImageViewType::TYPE_2D)
@@ -299,7 +284,7 @@ impl VulkanInterface for VulkanWrapper {
                 .unwrap();
             image_views.push(image_view)
         }
-        image_views
+        (images, image_views)
     }
 
     unsafe fn create_render_pass(device: &Device, format: Format) -> RenderPass {

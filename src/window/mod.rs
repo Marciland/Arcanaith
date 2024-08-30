@@ -16,15 +16,15 @@ pub struct Window {
     vk_instance: Instance,
     surface: SurfaceKHR,
     surface_loader: surface::Instance,
-    _physical_device: PhysicalDevice,
+    physical_device: PhysicalDevice,
     device: Device,
     graphics_queue: Queue,
     swapchain: SwapchainKHR,
     swapchain_loader: swapchain::Device,
     swapchain_framebuffers: Vec<Framebuffer>,
-    _images: Vec<Image>,
+    images: Vec<Image>,
     image_views: Vec<ImageView>,
-    _format: Format,
+    format: Format,
     extent: Extent2D,
     render_pass: RenderPass,
     pipeline_layout: PipelineLayout,
@@ -54,8 +54,8 @@ impl Window {
             physical_device,
             &surface_loader,
         );
-        let images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
-        let image_views = VulkanWrapper::create_image_views(&images, format, &device);
+        let (images, image_views) =
+            VulkanWrapper::create_image_views(&swapchain_loader, swapchain, format, &device);
         let render_pass = VulkanWrapper::create_render_pass(&device, format);
         let (pipeline_layout, graphics_pipeline) =
             VulkanWrapper::create_graphics_pipeline(&device, extent, render_pass);
@@ -71,15 +71,15 @@ impl Window {
             vk_instance,
             surface,
             surface_loader,
-            _physical_device: physical_device,
+            physical_device,
             device,
             graphics_queue,
             swapchain,
             swapchain_loader,
             swapchain_framebuffers,
-            _images: images,
+            images,
             image_views,
-            _format: format,
+            format,
             extent,
             render_pass,
             pipeline_layout,
@@ -97,19 +97,20 @@ impl Window {
         self.device
             .wait_for_fences(&[self.in_flight], true, u64::MAX)
             .unwrap();
-        self.device.reset_fences(&[self.in_flight]).unwrap();
 
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_acquiring_an_image_from_the_swap_chain
-        let image_index = self
-            .swapchain_loader
-            .acquire_next_image(
-                self.swapchain,
-                u64::MAX,
-                self.image_available,
-                Fence::null(),
-            )
-            .unwrap()
-            .0;
+        let (image_index, _) = match self.swapchain_loader.acquire_next_image(
+            self.swapchain,
+            u64::MAX,
+            self.image_available,
+            Fence::null(),
+        ) {
+            Ok((image_index, suboptimal)) => (image_index, suboptimal),
+            Err(_) => return self.recreate_swapchain(),
+        };
+
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/04_Swap_chain_recreation.html#_fixing_a_deadlock
+        self.device.reset_fences(&[self.in_flight]).unwrap();
 
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_recording_the_command_buffer
         self.device
@@ -150,9 +151,44 @@ impl Window {
             .swapchains(&swapchains)
             .image_indices(&image_indices);
 
-        self.swapchain_loader
+        if self
+            .swapchain_loader
             .queue_present(self.graphics_queue, &present_info)
-            .unwrap();
+            .is_err()
+        {
+            self.recreate_swapchain()
+        };
+    }
+
+    unsafe fn recreate_swapchain(&mut self) {
+        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/04_Swap_chain_recreation.html#_recreating_the_swap_chain
+        self.device.device_wait_idle().unwrap();
+
+        self.destroy_swapchain_elements();
+
+        let (swapchain, swapchain_loader, format, extent) = VulkanWrapper::create_swapchain(
+            &self.vk_instance,
+            self.surface,
+            &self.device,
+            self.physical_device,
+            &self.surface_loader,
+        );
+        let (images, image_views) =
+            VulkanWrapper::create_image_views(&swapchain_loader, swapchain, format, &self.device);
+        let framebuffers = VulkanWrapper::create_framebuffers(
+            &self.device,
+            self.render_pass,
+            &image_views,
+            extent,
+        );
+
+        self.swapchain = swapchain;
+        self.swapchain_loader = swapchain_loader;
+        self.format = format;
+        self.extent = extent;
+        self.images = images;
+        self.image_views = image_views;
+        self.swapchain_framebuffers = framebuffers;
     }
 
     pub unsafe fn destroy(&mut self) {
@@ -164,17 +200,23 @@ impl Window {
         self.device.destroy_pipeline(self.graphics_pipeline, None);
         self.device
             .destroy_pipeline_layout(self.pipeline_layout, None);
-        for framebuffer in &self.swapchain_framebuffers {
-            self.device.destroy_framebuffer(*framebuffer, None);
-        }
         self.device.destroy_render_pass(self.render_pass, None);
-        for image_view in &self.image_views {
-            self.device.destroy_image_view(*image_view, None);
-        }
-        self.swapchain_loader
-            .destroy_swapchain(self.swapchain, None);
+        self.destroy_swapchain_elements();
         self.surface_loader.destroy_surface(self.surface, None);
         self.device.destroy_device(None);
         self.vk_instance.destroy_instance(None);
+    }
+
+    unsafe fn destroy_swapchain_elements(&mut self) {
+        for framebuffer in &self.swapchain_framebuffers {
+            self.device.destroy_framebuffer(*framebuffer, None);
+        }
+
+        for image_view in &self.image_views {
+            self.device.destroy_image_view(*image_view, None);
+        }
+
+        self.swapchain_loader
+            .destroy_swapchain(self.swapchain, None);
     }
 }

@@ -1,32 +1,35 @@
+use super::vertex::Vertex;
 use ash::{
     khr::{surface, swapchain},
     util::read_spv,
     vk::{
         AccessFlags, ApplicationInfo, AttachmentDescription, AttachmentLoadOp, AttachmentReference,
-        AttachmentStoreOp, BlendFactor, BlendOp, ClearColorValue, ClearValue, ColorComponentFlags,
-        CommandBuffer, CommandBufferAllocateInfo, CommandBufferBeginInfo, CommandBufferLevel,
-        CommandPool, CommandPoolCreateFlags, CommandPoolCreateInfo, ComponentMapping,
-        ComponentSwizzle, CompositeAlphaFlagsKHR, CullModeFlags, DeviceCreateInfo,
-        DeviceQueueCreateInfo, DynamicState, Extent2D, Fence, FenceCreateFlags, FenceCreateInfo,
-        Format, Framebuffer, FramebufferCreateInfo, FrontFace, GraphicsPipelineCreateInfo, Image,
-        ImageAspectFlags, ImageLayout, ImageSubresourceRange, ImageUsageFlags, ImageView,
-        ImageViewCreateInfo, ImageViewType, InstanceCreateInfo, LogicOp, Offset2D, PhysicalDevice,
-        PhysicalDeviceFeatures, Pipeline, PipelineBindPoint, PipelineCache,
-        PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
-        PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
-        PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineLayoutCreateInfo,
-        PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
-        PipelineShaderStageCreateInfo, PipelineStageFlags, PipelineVertexInputStateCreateInfo,
-        PipelineViewportStateCreateInfo, PolygonMode, PresentModeKHR, PrimitiveTopology,
-        QueueFlags, Rect2D, RenderPass, RenderPassBeginInfo, RenderPassCreateInfo,
-        SampleCountFlags, Semaphore, SemaphoreCreateInfo, ShaderModuleCreateInfo, ShaderStageFlags,
-        SharingMode, SubpassContents, SubpassDependency, SubpassDescription, SurfaceKHR,
-        SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3, SUBPASS_EXTERNAL,
+        AttachmentStoreOp, BlendFactor, BlendOp, Buffer, BufferCreateInfo, BufferUsageFlags,
+        ClearColorValue, ClearValue, ColorComponentFlags, CommandBuffer, CommandBufferAllocateInfo,
+        CommandBufferBeginInfo, CommandBufferLevel, CommandPool, CommandPoolCreateFlags,
+        CommandPoolCreateInfo, ComponentMapping, ComponentSwizzle, CompositeAlphaFlagsKHR,
+        CullModeFlags, DeviceCreateInfo, DeviceMemory, DeviceQueueCreateInfo, DynamicState,
+        Extent2D, Fence, FenceCreateFlags, FenceCreateInfo, Format, Framebuffer,
+        FramebufferCreateInfo, FrontFace, GraphicsPipelineCreateInfo, Image, ImageAspectFlags,
+        ImageLayout, ImageSubresourceRange, ImageUsageFlags, ImageView, ImageViewCreateInfo,
+        ImageViewType, InstanceCreateInfo, LogicOp, MemoryAllocateInfo, MemoryMapFlags,
+        MemoryPropertyFlags, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline,
+        PipelineBindPoint, PipelineCache, PipelineColorBlendAttachmentState,
+        PipelineColorBlendStateCreateInfo, PipelineDepthStencilStateCreateInfo,
+        PipelineDynamicStateCreateInfo, PipelineInputAssemblyStateCreateInfo, PipelineLayout,
+        PipelineLayoutCreateInfo, PipelineMultisampleStateCreateInfo,
+        PipelineRasterizationStateCreateInfo, PipelineShaderStageCreateInfo, PipelineStageFlags,
+        PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo, PolygonMode,
+        PresentModeKHR, PrimitiveTopology, QueueFlags, Rect2D, RenderPass, RenderPassBeginInfo,
+        RenderPassCreateInfo, SampleCountFlags, Semaphore, SemaphoreCreateInfo,
+        ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubpassContents, SubpassDependency,
+        SubpassDescription, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, Viewport,
+        API_VERSION_1_3, SUBPASS_EXTERNAL,
     },
     Device, Entry, Instance,
 };
 use ash_window::{create_surface, enumerate_required_extensions};
-use std::{array::from_ref, ffi::CStr, io::Cursor};
+use std::{array::from_ref, ffi::CStr, io::Cursor, mem, ptr::copy_nonoverlapping};
 use winit::{
     raw_window_handle::{HasDisplayHandle, HasWindowHandle},
     window::Window,
@@ -83,16 +86,25 @@ pub trait VulkanInterface {
     ) -> Vec<Framebuffer>;
     unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> CommandPool;
     unsafe fn create_command_buffer(device: &Device, command_pool: CommandPool) -> CommandBuffer;
+    #[allow(clippy::too_many_arguments)]
     unsafe fn begin_render_pass(
         device: &Device,
         render_pass: RenderPass,
         framebuffers: &[Framebuffer],
+        vertex_buffer: Buffer,
         image_index: usize,
         command_buffer: CommandBuffer,
         pipeline: Pipeline,
         extent: Extent2D,
+        vertices: Vec<Vertex>,
     );
     unsafe fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence);
+    unsafe fn create_and_bind_vertex_buffer(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+        device: &Device,
+        vertices: &[Vertex],
+    ) -> (Buffer, DeviceMemory);
 }
 
 impl VulkanInterface for VulkanWrapper {
@@ -358,9 +370,13 @@ impl VulkanInterface for VulkanWrapper {
         let dynamic_state = PipelineDynamicStateCreateInfo::default()
             .dynamic_states(&[DynamicState::SCISSOR, DynamicState::VIEWPORT]);
 
+        let binding_descriptions = [Vertex::get_binding_description()];
+
+        let attribute_descriptions = Vertex::get_attribute_descriptions();
+
         let vertex_input_info = PipelineVertexInputStateCreateInfo::default()
-            .vertex_binding_descriptions(&[])
-            .vertex_attribute_descriptions(&[]);
+            .vertex_binding_descriptions(&binding_descriptions)
+            .vertex_attribute_descriptions(&attribute_descriptions);
 
         let input_assembly = PipelineInputAssemblyStateCreateInfo::default()
             .topology(PrimitiveTopology::TRIANGLE_LIST)
@@ -503,10 +519,12 @@ impl VulkanInterface for VulkanWrapper {
         device: &Device,
         render_pass: RenderPass,
         framebuffers: &[Framebuffer],
+        vertex_buffer: Buffer,
         image_index: usize,
         command_buffer: CommandBuffer,
         pipeline: Pipeline,
         extent: Extent2D,
+        vertices: Vec<Vertex>,
     ) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_command_buffer_recording
         let begin_info = CommandBufferBeginInfo::default();
@@ -540,6 +558,9 @@ impl VulkanInterface for VulkanWrapper {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_basic_drawing_commands
         device.cmd_bind_pipeline(command_buffer, PipelineBindPoint::GRAPHICS, pipeline);
 
+        let vertex_buffers = [vertex_buffer];
+        device.cmd_bind_vertex_buffers(command_buffer, 0, &vertex_buffers, &[0]);
+
         let viewports = [Viewport::default()
             .x(0.0)
             .y(0.0)
@@ -557,7 +578,7 @@ impl VulkanInterface for VulkanWrapper {
 
         device.cmd_set_scissor(command_buffer, 0, &scissors);
 
-        device.cmd_draw(command_buffer, 3, 1, 0, 0);
+        device.cmd_draw(command_buffer, vertices.len() as u32, 1, 0, 0);
 
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_finishing_up
         device.cmd_end_render_pass(command_buffer);
@@ -578,5 +599,57 @@ impl VulkanInterface for VulkanWrapper {
                 .unwrap(),
             device.create_fence(&fence_create_info, None).unwrap(),
         )
+    }
+
+    unsafe fn create_and_bind_vertex_buffer(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+        device: &Device,
+        vertices: &[Vertex],
+    ) -> (Buffer, DeviceMemory) {
+        let buffer_create_info = BufferCreateInfo::default()
+            .size((mem::size_of_val(vertices) * vertices.len()) as u64)
+            .usage(BufferUsageFlags::VERTEX_BUFFER)
+            .sharing_mode(SharingMode::EXCLUSIVE);
+        let vertex_buffer = device.create_buffer(&buffer_create_info, None).unwrap();
+
+        let memory_requirements = device.get_buffer_memory_requirements(vertex_buffer);
+        let memory_properties = instance.get_physical_device_memory_properties(physical_device);
+
+        let index = (0..memory_properties.memory_type_count)
+            .find(|index| {
+                (memory_requirements.memory_type_bits & (1 << index)) != 0
+                    && (memory_properties.memory_types[*index as usize].property_flags
+                        & MemoryPropertyFlags::HOST_VISIBLE
+                        | MemoryPropertyFlags::HOST_COHERENT)
+                        == MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT
+            })
+            .unwrap();
+
+        let allocation_info = MemoryAllocateInfo::default()
+            .allocation_size(memory_requirements.size)
+            .memory_type_index(index);
+        let vertex_buffer_memory = device.allocate_memory(&allocation_info, None).unwrap();
+
+        device
+            .bind_buffer_memory(vertex_buffer, vertex_buffer_memory, 0)
+            .unwrap();
+
+        let data = device
+            .map_memory(
+                vertex_buffer_memory,
+                0,
+                buffer_create_info.size,
+                MemoryMapFlags::empty(),
+            )
+            .unwrap();
+        copy_nonoverlapping(
+            vertices.as_ptr(),
+            data as *mut Vertex,
+            buffer_create_info.size as usize,
+        );
+        device.unmap_memory(vertex_buffer_memory);
+
+        (vertex_buffer, vertex_buffer_memory)
     }
 }

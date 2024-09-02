@@ -1,14 +1,17 @@
+mod vertex;
 mod vulkan;
 
 use ash::{
     khr::{surface, swapchain},
     vk::{
-        CommandBuffer, CommandBufferResetFlags, CommandPool, Extent2D, Fence, Format, Framebuffer,
-        Image, ImageView, PhysicalDevice, Pipeline, PipelineLayout, PipelineStageFlags,
-        PresentInfoKHR, Queue, RenderPass, Semaphore, SubmitInfo, SurfaceKHR, SwapchainKHR,
+        Buffer, CommandBuffer, CommandBufferResetFlags, CommandPool, DeviceMemory, Extent2D, Fence,
+        Format, Framebuffer, Image, ImageView, PhysicalDevice, Pipeline, PipelineLayout,
+        PipelineStageFlags, PresentInfoKHR, Queue, RenderPass, Semaphore, SubmitInfo, SurfaceKHR,
+        SwapchainKHR,
     },
     Device, Entry, Instance,
 };
+use vertex::Vertex;
 use vulkan::{VulkanInterface, VulkanWrapper};
 
 pub struct Window {
@@ -34,6 +37,9 @@ pub struct Window {
     image_available: Semaphore,
     render_finished: Semaphore,
     in_flight: Fence,
+    vertex_buffer: Buffer,
+    vertex_buffer_memory: DeviceMemory,
+    vertices: Vec<Vertex>,
 }
 
 impl Window {
@@ -62,6 +68,41 @@ impl Window {
         let swapchain_framebuffers =
             VulkanWrapper::create_framebuffers(&device, render_pass, &image_views, extent);
         let command_pool = VulkanWrapper::create_command_pool(&device, queue_family_index);
+
+        let vertices = vec![
+            Vertex {
+                pos: glam::Vec2 { x: 0.0, y: -0.5 },
+                color: glam::Vec3 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                },
+            },
+            Vertex {
+                pos: glam::Vec2 { x: 0.5, y: 0.5 },
+                color: glam::Vec3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
+            },
+            Vertex {
+                pos: glam::Vec2 { x: -0.5, y: 0.5 },
+                color: glam::Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
+            },
+        ];
+
+        let (vertex_buffer, vertex_buffer_memory) = VulkanWrapper::create_and_bind_vertex_buffer(
+            &vk_instance,
+            physical_device,
+            &device,
+            &vertices,
+        );
+
         let command_buffer = VulkanWrapper::create_command_buffer(&device, command_pool);
         let (image_available, render_finished, in_flight) = VulkanWrapper::create_sync(&device);
 
@@ -89,6 +130,9 @@ impl Window {
             image_available,
             render_finished,
             in_flight,
+            vertex_buffer,
+            vertex_buffer_memory,
+            vertices,
         }
     }
 
@@ -121,10 +165,12 @@ impl Window {
             &self.device,
             self.render_pass,
             &self.swapchain_framebuffers,
+            self.vertex_buffer,
             image_index as usize,
             self.command_buffer,
             self.graphics_pipeline,
             self.extent,
+            self.vertices.clone(),
         );
 
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_submitting_the_command_buffer
@@ -192,19 +238,27 @@ impl Window {
     }
 
     pub unsafe fn destroy(&mut self) {
-        self.device.device_wait_idle().unwrap();
-        self.device.destroy_semaphore(self.image_available, None);
-        self.device.destroy_semaphore(self.render_finished, None);
-        self.device.destroy_fence(self.in_flight, None);
+        self.destroy_sync_elements();
         self.device.destroy_command_pool(self.command_pool, None);
         self.device.destroy_pipeline(self.graphics_pipeline, None);
         self.device
             .destroy_pipeline_layout(self.pipeline_layout, None);
         self.device.destroy_render_pass(self.render_pass, None);
         self.destroy_swapchain_elements();
+        self.device.destroy_buffer(self.vertex_buffer, None);
+        self.device.free_memory(self.vertex_buffer_memory, None);
         self.surface_loader.destroy_surface(self.surface, None);
         self.device.destroy_device(None);
         self.vk_instance.destroy_instance(None);
+    }
+
+    unsafe fn destroy_sync_elements(&mut self) {
+        self.device.device_wait_idle().unwrap();
+
+        self.device.destroy_semaphore(self.image_available, None);
+        self.device.destroy_semaphore(self.render_finished, None);
+
+        self.device.destroy_fence(self.in_flight, None);
     }
 
     unsafe fn destroy_swapchain_elements(&mut self) {

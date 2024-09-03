@@ -4,27 +4,28 @@ use ash::{
     util::read_spv,
     vk::{
         AccessFlags, ApplicationInfo, AttachmentDescription, AttachmentLoadOp, AttachmentReference,
-        AttachmentStoreOp, BlendFactor, BlendOp, Buffer, BufferCreateInfo, BufferUsageFlags,
-        ClearColorValue, ClearValue, ColorComponentFlags, CommandBuffer, CommandBufferAllocateInfo,
-        CommandBufferBeginInfo, CommandBufferLevel, CommandPool, CommandPoolCreateFlags,
-        CommandPoolCreateInfo, ComponentMapping, ComponentSwizzle, CompositeAlphaFlagsKHR,
-        CullModeFlags, DeviceCreateInfo, DeviceMemory, DeviceQueueCreateInfo, DynamicState,
-        Extent2D, Fence, FenceCreateFlags, FenceCreateInfo, Format, Framebuffer,
-        FramebufferCreateInfo, FrontFace, GraphicsPipelineCreateInfo, Image, ImageAspectFlags,
-        ImageLayout, ImageSubresourceRange, ImageUsageFlags, ImageView, ImageViewCreateInfo,
-        ImageViewType, InstanceCreateInfo, LogicOp, MemoryAllocateInfo, MemoryMapFlags,
-        MemoryPropertyFlags, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline,
-        PipelineBindPoint, PipelineCache, PipelineColorBlendAttachmentState,
-        PipelineColorBlendStateCreateInfo, PipelineDepthStencilStateCreateInfo,
-        PipelineDynamicStateCreateInfo, PipelineInputAssemblyStateCreateInfo, PipelineLayout,
-        PipelineLayoutCreateInfo, PipelineMultisampleStateCreateInfo,
-        PipelineRasterizationStateCreateInfo, PipelineShaderStageCreateInfo, PipelineStageFlags,
-        PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo, PolygonMode,
-        PresentModeKHR, PrimitiveTopology, QueueFlags, Rect2D, RenderPass, RenderPassBeginInfo,
-        RenderPassCreateInfo, SampleCountFlags, Semaphore, SemaphoreCreateInfo,
-        ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubpassContents, SubpassDependency,
-        SubpassDescription, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, Viewport,
-        API_VERSION_1_3, SUBPASS_EXTERNAL,
+        AttachmentStoreOp, BlendFactor, BlendOp, Buffer, BufferCopy, BufferCreateInfo,
+        BufferUsageFlags, ClearColorValue, ClearValue, ColorComponentFlags, CommandBuffer,
+        CommandBufferAllocateInfo, CommandBufferBeginInfo, CommandBufferLevel,
+        CommandBufferUsageFlags, CommandPool, CommandPoolCreateFlags, CommandPoolCreateInfo,
+        ComponentMapping, ComponentSwizzle, CompositeAlphaFlagsKHR, CullModeFlags,
+        DeviceCreateInfo, DeviceMemory, DeviceQueueCreateInfo, DynamicState, Extent2D, Fence,
+        FenceCreateFlags, FenceCreateInfo, Format, Framebuffer, FramebufferCreateInfo, FrontFace,
+        GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout, ImageSubresourceRange,
+        ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType, InstanceCreateInfo,
+        LogicOp, MemoryAllocateInfo, MemoryMapFlags, MemoryPropertyFlags, MemoryRequirements,
+        Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline, PipelineBindPoint,
+        PipelineCache, PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
+        PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
+        PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineLayoutCreateInfo,
+        PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
+        PipelineShaderStageCreateInfo, PipelineStageFlags, PipelineVertexInputStateCreateInfo,
+        PipelineViewportStateCreateInfo, PolygonMode, PresentModeKHR, PrimitiveTopology, Queue,
+        QueueFlags, Rect2D, RenderPass, RenderPassBeginInfo, RenderPassCreateInfo,
+        SampleCountFlags, Semaphore, SemaphoreCreateInfo, ShaderModuleCreateInfo, ShaderStageFlags,
+        SharingMode, SubmitInfo, SubpassContents, SubpassDependency, SubpassDescription,
+        SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3,
+        SUBPASS_EXTERNAL,
     },
     Device, Entry, Instance,
 };
@@ -99,12 +100,105 @@ pub trait VulkanInterface {
         vertices: Vec<Vertex>,
     );
     unsafe fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence);
-    unsafe fn create_and_bind_vertex_buffer(
+    unsafe fn create_vertex_buffer(
         instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
         vertices: &[Vertex],
+        command_pool: CommandPool,
+        graphics_queue: Queue,
     ) -> (Buffer, DeviceMemory);
+}
+
+impl VulkanWrapper {
+    unsafe fn create_buffer(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+        device: &Device,
+        size: u64,
+        usage_flags: BufferUsageFlags,
+        memory_properties: MemoryPropertyFlags,
+    ) -> (Buffer, DeviceMemory) {
+        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_abstracting_buffer_creation
+        let buffer_create_info = BufferCreateInfo::default()
+            .size(size)
+            .usage(usage_flags)
+            .sharing_mode(SharingMode::EXCLUSIVE);
+        let buffer = device.create_buffer(&buffer_create_info, None).unwrap();
+
+        let memory_requirements = device.get_buffer_memory_requirements(buffer);
+
+        let allocation_info = MemoryAllocateInfo::default()
+            .allocation_size(memory_requirements.size)
+            .memory_type_index(VulkanWrapper::find_memory_type(
+                instance,
+                physical_device,
+                memory_requirements,
+                memory_properties,
+            ));
+        let buffer_memory = device.allocate_memory(&allocation_info, None).unwrap();
+
+        device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
+
+        (buffer, buffer_memory)
+    }
+
+    unsafe fn copy_buffer(
+        device: &Device,
+        command_pool: CommandPool,
+        graphics_queue: Queue,
+        src: Buffer,
+        dst: Buffer,
+        size: u64,
+    ) {
+        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_conclusion
+        let allocation_info = CommandBufferAllocateInfo::default()
+            .level(CommandBufferLevel::PRIMARY)
+            .command_pool(command_pool)
+            .command_buffer_count(1);
+        let command_buffers = device.allocate_command_buffers(&allocation_info).unwrap();
+
+        device
+            .begin_command_buffer(
+                command_buffers[0],
+                &CommandBufferBeginInfo::default().flags(CommandBufferUsageFlags::ONE_TIME_SUBMIT),
+            )
+            .unwrap();
+        device.cmd_copy_buffer(
+            command_buffers[0],
+            src,
+            dst,
+            &[BufferCopy::default().src_offset(0).dst_offset(0).size(size)],
+        );
+        device.end_command_buffer(command_buffers[0]).unwrap();
+
+        device
+            .queue_submit(
+                graphics_queue,
+                &[SubmitInfo::default().command_buffers(&command_buffers)],
+                Fence::null(),
+            )
+            .unwrap();
+        device.queue_wait_idle(graphics_queue).unwrap();
+        device.free_command_buffers(command_pool, &command_buffers)
+    }
+
+    unsafe fn find_memory_type(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+        memory_requirements: MemoryRequirements,
+        properties: MemoryPropertyFlags,
+    ) -> u32 {
+        let memory_properties = instance.get_physical_device_memory_properties(physical_device);
+
+        (0..memory_properties.memory_type_count)
+            .find(|index| {
+                (memory_requirements.memory_type_bits & (1 << index)) != 0
+                    && (memory_properties.memory_types[*index as usize].property_flags & properties)
+                        == properties
+            })
+            .unwrap()
+    }
 }
 
 impl VulkanInterface for VulkanWrapper {
@@ -601,54 +695,57 @@ impl VulkanInterface for VulkanWrapper {
         )
     }
 
-    unsafe fn create_and_bind_vertex_buffer(
+    unsafe fn create_vertex_buffer(
         instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
         vertices: &[Vertex],
+        command_pool: CommandPool,
+        graphics_queue: Queue,
     ) -> (Buffer, DeviceMemory) {
-        let buffer_create_info = BufferCreateInfo::default()
-            .size((mem::size_of_val(vertices) * vertices.len()) as u64)
-            .usage(BufferUsageFlags::VERTEX_BUFFER)
-            .sharing_mode(SharingMode::EXCLUSIVE);
-        let vertex_buffer = device.create_buffer(&buffer_create_info, None).unwrap();
+        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/01_Vertex_buffer_creation.html
+        let buffer_size = (mem::size_of_val(vertices) * vertices.len()) as u64;
 
-        let memory_requirements = device.get_buffer_memory_requirements(vertex_buffer);
-        let memory_properties = instance.get_physical_device_memory_properties(physical_device);
-
-        let index = (0..memory_properties.memory_type_count)
-            .find(|index| {
-                (memory_requirements.memory_type_bits & (1 << index)) != 0
-                    && (memory_properties.memory_types[*index as usize].property_flags
-                        & MemoryPropertyFlags::HOST_VISIBLE
-                        | MemoryPropertyFlags::HOST_COHERENT)
-                        == MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT
-            })
-            .unwrap();
-
-        let allocation_info = MemoryAllocateInfo::default()
-            .allocation_size(memory_requirements.size)
-            .memory_type_index(index);
-        let vertex_buffer_memory = device.allocate_memory(&allocation_info, None).unwrap();
-
-        device
-            .bind_buffer_memory(vertex_buffer, vertex_buffer_memory, 0)
-            .unwrap();
+        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_using_a_staging_buffer
+        let (staging_buffer, staging_buffer_memory) = VulkanWrapper::create_buffer(
+            instance,
+            physical_device,
+            device,
+            buffer_size,
+            BufferUsageFlags::TRANSFER_SRC,
+            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
+        );
 
         let data = device
             .map_memory(
-                vertex_buffer_memory,
+                staging_buffer_memory,
                 0,
-                buffer_create_info.size,
+                buffer_size,
                 MemoryMapFlags::empty(),
             )
             .unwrap();
-        copy_nonoverlapping(
-            vertices.as_ptr(),
-            data as *mut Vertex,
-            buffer_create_info.size as usize,
+        copy_nonoverlapping(vertices.as_ptr(), data as *mut Vertex, buffer_size as usize);
+        device.unmap_memory(staging_buffer_memory);
+
+        let (vertex_buffer, vertex_buffer_memory) = VulkanWrapper::create_buffer(
+            instance,
+            physical_device,
+            device,
+            buffer_size,
+            BufferUsageFlags::VERTEX_BUFFER | BufferUsageFlags::TRANSFER_DST,
+            MemoryPropertyFlags::DEVICE_LOCAL,
         );
-        device.unmap_memory(vertex_buffer_memory);
+
+        VulkanWrapper::copy_buffer(
+            device,
+            command_pool,
+            graphics_queue,
+            staging_buffer,
+            vertex_buffer,
+            buffer_size,
+        );
+        device.destroy_buffer(staging_buffer, None);
+        device.free_memory(staging_buffer_memory, None);
 
         (vertex_buffer, vertex_buffer_memory)
     }

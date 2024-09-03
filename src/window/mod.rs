@@ -96,11 +96,13 @@ impl Window {
             },
         ];
 
-        let (vertex_buffer, vertex_buffer_memory) = VulkanWrapper::create_and_bind_vertex_buffer(
+        let (vertex_buffer, vertex_buffer_memory) = VulkanWrapper::create_vertex_buffer(
             &vk_instance,
             physical_device,
             &device,
             &vertices,
+            command_pool,
+            graphics_queue,
         );
 
         let command_buffer = VulkanWrapper::create_command_buffer(&device, command_pool);

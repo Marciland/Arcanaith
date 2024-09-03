@@ -12,20 +12,20 @@ use ash::{
         DeviceCreateInfo, DeviceMemory, DeviceQueueCreateInfo, DynamicState, Extent2D, Fence,
         FenceCreateFlags, FenceCreateInfo, Format, Framebuffer, FramebufferCreateInfo, FrontFace,
         GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout, ImageSubresourceRange,
-        ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType, InstanceCreateInfo,
-        LogicOp, MemoryAllocateInfo, MemoryMapFlags, MemoryPropertyFlags, MemoryRequirements,
-        Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline, PipelineBindPoint,
-        PipelineCache, PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
-        PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
-        PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineLayoutCreateInfo,
-        PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
-        PipelineShaderStageCreateInfo, PipelineStageFlags, PipelineVertexInputStateCreateInfo,
-        PipelineViewportStateCreateInfo, PolygonMode, PresentModeKHR, PrimitiveTopology, Queue,
-        QueueFlags, Rect2D, RenderPass, RenderPassBeginInfo, RenderPassCreateInfo,
-        SampleCountFlags, Semaphore, SemaphoreCreateInfo, ShaderModuleCreateInfo, ShaderStageFlags,
-        SharingMode, SubmitInfo, SubpassContents, SubpassDependency, SubpassDescription,
-        SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3,
-        SUBPASS_EXTERNAL,
+        ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType, IndexType,
+        InstanceCreateInfo, LogicOp, MemoryAllocateInfo, MemoryMapFlags, MemoryPropertyFlags,
+        MemoryRequirements, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline,
+        PipelineBindPoint, PipelineCache, PipelineColorBlendAttachmentState,
+        PipelineColorBlendStateCreateInfo, PipelineDepthStencilStateCreateInfo,
+        PipelineDynamicStateCreateInfo, PipelineInputAssemblyStateCreateInfo, PipelineLayout,
+        PipelineLayoutCreateInfo, PipelineMultisampleStateCreateInfo,
+        PipelineRasterizationStateCreateInfo, PipelineShaderStageCreateInfo, PipelineStageFlags,
+        PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo, PolygonMode,
+        PresentModeKHR, PrimitiveTopology, Queue, QueueFlags, Rect2D, RenderPass,
+        RenderPassBeginInfo, RenderPassCreateInfo, SampleCountFlags, Semaphore,
+        SemaphoreCreateInfo, ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubmitInfo,
+        SubpassContents, SubpassDependency, SubpassDescription, SurfaceKHR, SwapchainCreateInfoKHR,
+        SwapchainKHR, Viewport, API_VERSION_1_3, SUBPASS_EXTERNAL,
     },
     Device, Entry, Instance,
 };
@@ -93,11 +93,12 @@ pub trait VulkanInterface {
         render_pass: RenderPass,
         framebuffers: &[Framebuffer],
         vertex_buffer: Buffer,
+        index_buffer: Buffer,
         image_index: usize,
         command_buffer: CommandBuffer,
         pipeline: Pipeline,
         extent: Extent2D,
-        vertices: Vec<Vertex>,
+        indices: Vec<u16>,
     );
     unsafe fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence);
     unsafe fn create_vertex_buffer(
@@ -107,6 +108,14 @@ pub trait VulkanInterface {
         vertices: &[Vertex],
         command_pool: CommandPool,
         graphics_queue: Queue,
+    ) -> (Buffer, DeviceMemory);
+    unsafe fn create_index_buffer(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+        device: &Device,
+        indices: &[u16],
+        graphics_queue: Queue,
+        command_pool: CommandPool,
     ) -> (Buffer, DeviceMemory);
 }
 
@@ -614,11 +623,12 @@ impl VulkanInterface for VulkanWrapper {
         render_pass: RenderPass,
         framebuffers: &[Framebuffer],
         vertex_buffer: Buffer,
+        index_buffer: Buffer,
         image_index: usize,
         command_buffer: CommandBuffer,
         pipeline: Pipeline,
         extent: Extent2D,
-        vertices: Vec<Vertex>,
+        indices: Vec<u16>,
     ) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_command_buffer_recording
         let begin_info = CommandBufferBeginInfo::default();
@@ -654,6 +664,7 @@ impl VulkanInterface for VulkanWrapper {
 
         let vertex_buffers = [vertex_buffer];
         device.cmd_bind_vertex_buffers(command_buffer, 0, &vertex_buffers, &[0]);
+        device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, IndexType::UINT16);
 
         let viewports = [Viewport::default()
             .x(0.0)
@@ -672,7 +683,7 @@ impl VulkanInterface for VulkanWrapper {
 
         device.cmd_set_scissor(command_buffer, 0, &scissors);
 
-        device.cmd_draw(command_buffer, vertices.len() as u32, 1, 0, 0);
+        device.cmd_draw_indexed(command_buffer, indices.len() as u32, 1, 0, 0, 0);
 
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_finishing_up
         device.cmd_end_render_pass(command_buffer);
@@ -704,7 +715,7 @@ impl VulkanInterface for VulkanWrapper {
         graphics_queue: Queue,
     ) -> (Buffer, DeviceMemory) {
         // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/01_Vertex_buffer_creation.html
-        let buffer_size = (mem::size_of_val(vertices) * vertices.len()) as u64;
+        let buffer_size = mem::size_of_val(vertices) as u64;
 
         // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_using_a_staging_buffer
         let (staging_buffer, staging_buffer_memory) = VulkanWrapper::create_buffer(
@@ -748,5 +759,59 @@ impl VulkanInterface for VulkanWrapper {
         device.free_memory(staging_buffer_memory, None);
 
         (vertex_buffer, vertex_buffer_memory)
+    }
+
+    unsafe fn create_index_buffer(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+        device: &Device,
+        indices: &[u16],
+        graphics_queue: Queue,
+        command_pool: CommandPool,
+    ) -> (Buffer, DeviceMemory) {
+        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/03_Index_buffer.html
+        let buffer_size = mem::size_of_val(indices) as u64;
+
+        let (staging_buffer, staging_buffer_memory) = VulkanWrapper::create_buffer(
+            instance,
+            physical_device,
+            device,
+            buffer_size,
+            BufferUsageFlags::TRANSFER_SRC,
+            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
+        );
+
+        let data = device
+            .map_memory(
+                staging_buffer_memory,
+                0,
+                buffer_size,
+                MemoryMapFlags::empty(),
+            )
+            .unwrap();
+        copy_nonoverlapping(indices.as_ptr(), data as *mut u16, buffer_size as usize);
+        device.unmap_memory(staging_buffer_memory);
+
+        let (index_buffer, index_buffer_memory) = VulkanWrapper::create_buffer(
+            instance,
+            physical_device,
+            device,
+            buffer_size,
+            BufferUsageFlags::INDEX_BUFFER | BufferUsageFlags::TRANSFER_DST,
+            MemoryPropertyFlags::DEVICE_LOCAL,
+        );
+
+        VulkanWrapper::copy_buffer(
+            device,
+            command_pool,
+            graphics_queue,
+            staging_buffer,
+            index_buffer,
+            buffer_size,
+        );
+        device.destroy_buffer(staging_buffer, None);
+        device.free_memory(staging_buffer_memory, None);
+
+        (index_buffer, index_buffer_memory)
     }
 }

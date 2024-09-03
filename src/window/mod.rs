@@ -39,7 +39,10 @@ pub struct Window {
     in_flight: Fence,
     vertex_buffer: Buffer,
     vertex_buffer_memory: DeviceMemory,
-    vertices: Vec<Vertex>,
+    index_buffer: Buffer,
+    index_buffer_memory: DeviceMemory,
+    _vertices: Vec<Vertex>,
+    indices: Vec<u16>,
 }
 
 impl Window {
@@ -71,15 +74,15 @@ impl Window {
 
         let vertices = vec![
             Vertex {
-                pos: glam::Vec2 { x: 0.0, y: -0.5 },
+                pos: glam::Vec2 { x: -0.5, y: -0.5 },
                 color: glam::Vec3 {
                     x: 1.0,
-                    y: 1.0,
-                    z: 1.0,
+                    y: 0.0,
+                    z: 0.0,
                 },
             },
             Vertex {
-                pos: glam::Vec2 { x: 0.5, y: 0.5 },
+                pos: glam::Vec2 { x: 0.5, y: -0.5 },
                 color: glam::Vec3 {
                     x: 0.0,
                     y: 1.0,
@@ -87,14 +90,24 @@ impl Window {
                 },
             },
             Vertex {
-                pos: glam::Vec2 { x: -0.5, y: 0.5 },
+                pos: glam::Vec2 { x: 0.5, y: 0.5 },
                 color: glam::Vec3 {
                     x: 0.0,
                     y: 0.0,
                     z: 1.0,
                 },
             },
+            Vertex {
+                pos: glam::Vec2 { x: -0.5, y: 0.5 },
+                color: glam::Vec3 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                },
+            },
         ];
+
+        let indices: Vec<u16> = vec![0, 1, 2, 2, 3, 0];
 
         let (vertex_buffer, vertex_buffer_memory) = VulkanWrapper::create_vertex_buffer(
             &vk_instance,
@@ -103,6 +116,15 @@ impl Window {
             &vertices,
             command_pool,
             graphics_queue,
+        );
+
+        let (index_buffer, index_buffer_memory) = VulkanWrapper::create_index_buffer(
+            &vk_instance,
+            physical_device,
+            &device,
+            &indices,
+            graphics_queue,
+            command_pool,
         );
 
         let command_buffer = VulkanWrapper::create_command_buffer(&device, command_pool);
@@ -134,7 +156,10 @@ impl Window {
             in_flight,
             vertex_buffer,
             vertex_buffer_memory,
-            vertices,
+            index_buffer,
+            index_buffer_memory,
+            _vertices: vertices,
+            indices,
         }
     }
 
@@ -168,11 +193,12 @@ impl Window {
             self.render_pass,
             &self.swapchain_framebuffers,
             self.vertex_buffer,
+            self.index_buffer,
             image_index as usize,
             self.command_buffer,
             self.graphics_pipeline,
             self.extent,
-            self.vertices.clone(),
+            self.indices.clone(),
         );
 
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_submitting_the_command_buffer
@@ -247,8 +273,7 @@ impl Window {
             .destroy_pipeline_layout(self.pipeline_layout, None);
         self.device.destroy_render_pass(self.render_pass, None);
         self.destroy_swapchain_elements();
-        self.device.destroy_buffer(self.vertex_buffer, None);
-        self.device.free_memory(self.vertex_buffer_memory, None);
+        self.destroy_buffer();
         self.surface_loader.destroy_surface(self.surface, None);
         self.device.destroy_device(None);
         self.vk_instance.destroy_instance(None);
@@ -274,5 +299,13 @@ impl Window {
 
         self.swapchain_loader
             .destroy_swapchain(self.swapchain, None);
+    }
+
+    unsafe fn destroy_buffer(&mut self) {
+        self.device.destroy_buffer(self.index_buffer, None);
+        self.device.free_memory(self.index_buffer_memory, None);
+
+        self.device.destroy_buffer(self.vertex_buffer, None);
+        self.device.free_memory(self.vertex_buffer_memory, None);
     }
 }

@@ -1,5 +1,8 @@
 mod constants;
 mod game;
+mod scene;
+mod vertex;
+mod vulkan;
 mod window;
 
 use std::{fs::File, io::Read};

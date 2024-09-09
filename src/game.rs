@@ -1,3 +1,8 @@
+use crate::{
+    constants::{BG_FPS, FPS, FULLSCREEN, ICONPATH, TITLE},
+    scene::Scene,
+    window::Window,
+};
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -5,11 +10,6 @@ use std::{
     },
     thread,
     time::{Duration, Instant},
-};
-
-use crate::{
-    constants::{BG_FPS, FPS, FULLSCREEN, ICONPATH, TITLE},
-    window::Window,
 };
 
 use winit::{
@@ -23,13 +23,19 @@ pub struct Game {
     window: Option<Window>,
     is_running: Arc<AtomicBool>,
     frame_time: Duration,
+    current_scene: Option<Scene>,
 }
 
 impl Game {
     fn exit(&mut self, event_loop: &ActiveEventLoop) {
         event_loop.exit();
         self.is_running.store(false, Ordering::Release);
-        unsafe { self.window.as_mut().unwrap().destroy() }
+        unsafe {
+            self.window
+                .as_mut()
+                .unwrap()
+                .destroy(self.current_scene.as_ref().unwrap())
+        }
     }
 }
 
@@ -39,6 +45,7 @@ impl Default for Game {
             window: None,
             is_running: Arc::new(AtomicBool::new(true)),
             frame_time: Duration::from_secs_f64(1.0 / FPS as f64),
+            current_scene: None,
         }
     }
 }
@@ -60,7 +67,8 @@ impl ApplicationHandler for Game {
             attributes = attributes.with_fullscreen(Some(Borderless(None)));
         }
         let window = event_loop.create_window(attributes).unwrap();
-        self.window = unsafe { Some(Window::new(window)) }
+        self.window = unsafe { Some(Window::new(window)) };
+        self.current_scene = Some(Scene::new()); // TODO create titlescreen scene instead of "new"
     }
 
     fn window_event(
@@ -74,7 +82,10 @@ impl ApplicationHandler for Game {
             WindowEvent::RedrawRequested => {
                 let start_time = Instant::now();
                 unsafe {
-                    self.window.as_mut().unwrap().draw_frame();
+                    self.window
+                        .as_mut()
+                        .unwrap()
+                        .draw_frame(self.current_scene.as_ref().unwrap());
                 }
                 let end_time = Instant::now();
                 let render_time = end_time - start_time;

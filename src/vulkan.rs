@@ -92,13 +92,13 @@ pub trait VulkanInterface {
         device: &Device,
         render_pass: RenderPass,
         framebuffers: &[Framebuffer],
-        vertex_buffer: Buffer,
+        vertex_buffers: &[Buffer],
         index_buffer: Buffer,
         image_index: usize,
         command_buffer: CommandBuffer,
         pipeline: Pipeline,
         extent: Extent2D,
-        indices: Vec<u16>,
+        index_count: u32,
     );
     unsafe fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence);
     unsafe fn create_vertex_buffer(
@@ -602,6 +602,7 @@ impl VulkanInterface for VulkanWrapper {
 
     unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> CommandPool {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html
+        // TODO reset pool instead
         let pool_create_info = CommandPoolCreateInfo::default()
             .queue_family_index(queue_family_index)
             .flags(CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
@@ -622,13 +623,13 @@ impl VulkanInterface for VulkanWrapper {
         device: &Device,
         render_pass: RenderPass,
         framebuffers: &[Framebuffer],
-        vertex_buffer: Buffer,
+        vertex_buffers: &[Buffer],
         index_buffer: Buffer,
         image_index: usize,
         command_buffer: CommandBuffer,
         pipeline: Pipeline,
         extent: Extent2D,
-        indices: Vec<u16>,
+        index_count: u32,
     ) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_command_buffer_recording
         let begin_info = CommandBufferBeginInfo::default();
@@ -662,7 +663,6 @@ impl VulkanInterface for VulkanWrapper {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_basic_drawing_commands
         device.cmd_bind_pipeline(command_buffer, PipelineBindPoint::GRAPHICS, pipeline);
 
-        let vertex_buffers = [vertex_buffer];
         device.cmd_bind_vertex_buffers(command_buffer, 0, &vertex_buffers, &[0]);
         device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, IndexType::UINT16);
 
@@ -683,7 +683,7 @@ impl VulkanInterface for VulkanWrapper {
 
         device.cmd_set_scissor(command_buffer, 0, &scissors);
 
-        device.cmd_draw_indexed(command_buffer, indices.len() as u32, 1, 0, 0, 0);
+        device.cmd_draw_indexed(command_buffer, index_count, 1, 0, 0, 0);
 
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_finishing_up
         device.cmd_end_render_pass(command_buffer);

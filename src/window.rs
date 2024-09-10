@@ -1,13 +1,15 @@
 use crate::{
     scene::Scene,
+    vertex::Vertex,
     vulkan::{VulkanInterface, VulkanWrapper},
 };
 use ash::{
     khr::{surface, swapchain},
     vk::{
-        CommandBuffer, CommandBufferResetFlags, CommandPool, Extent2D, Fence, Format, Framebuffer,
-        Image, ImageView, PhysicalDevice, Pipeline, PipelineLayout, PipelineStageFlags,
-        PresentInfoKHR, Queue, RenderPass, Semaphore, SubmitInfo, SurfaceKHR, SwapchainKHR,
+        Buffer, CommandBuffer, CommandBufferResetFlags, CommandPool, DeviceMemory, Extent2D, Fence,
+        Format, Framebuffer, Image, ImageView, PhysicalDevice, Pipeline, PipelineLayout,
+        PipelineStageFlags, PresentInfoKHR, Queue, RenderPass, Semaphore, SubmitInfo, SurfaceKHR,
+        SwapchainKHR,
     },
     Device, Entry, Instance,
 };
@@ -93,7 +95,7 @@ impl Window {
         }
     }
 
-    pub unsafe fn draw_frame(&mut self, /* TODO use scene for rendering */ _scene: &Scene) {
+    pub unsafe fn draw_frame(&mut self, scene: &Scene) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_waiting_for_the_previous_frame
         self.device
             .wait_for_fences(&[self.in_flight], true, u64::MAX)
@@ -118,30 +120,14 @@ impl Window {
             .reset_command_buffer(self.command_buffer, CommandBufferResetFlags::empty())
             .unwrap();
 
+        let (index_buffer, vertex_buffers) = scene.get_buffers();
+
         VulkanWrapper::begin_render_pass(
             &self.device,
             self.render_pass,
             &self.swapchain_framebuffers,
-            &[VulkanWrapper::create_vertex_buffer(
-                &self.vk_instance,
-                self.physical_device,
-                &self.device,
-                &[],
-                self.command_pool,
-                self.graphics_queue,
-            )
-            .0],
-            //vertex_buffer,
-            VulkanWrapper::create_index_buffer(
-                &self.vk_instance,
-                self.physical_device,
-                &self.device,
-                &[],
-                self.graphics_queue,
-                self.command_pool,
-            )
-            .0,
-            //index_buffer,
+            &vertex_buffers,
+            index_buffer,
             image_index as usize,
             self.command_buffer,
             self.graphics_pipeline,
@@ -182,6 +168,36 @@ impl Window {
         };
     }
 
+    pub unsafe fn create_buffers(
+        &self,
+        all_vertices: Vec<Vec<Vertex>>,
+        indices: Vec<u16>,
+    ) -> (Buffer, DeviceMemory, Vec<(Buffer, DeviceMemory)>) {
+        let (index_buffer, index_buffer_memory) = VulkanWrapper::create_index_buffer(
+            &self.vk_instance,
+            self.physical_device,
+            &self.device,
+            indices,
+            self.graphics_queue,
+            self.command_pool,
+        );
+
+        let mut vertex_buffers = Vec::new();
+        for vertices in all_vertices {
+            let (buffer, buffer_memory) = VulkanWrapper::create_vertex_buffer(
+                &self.vk_instance,
+                self.physical_device,
+                &self.device,
+                &vertices,
+                self.command_pool,
+                self.graphics_queue,
+            );
+            vertex_buffers.push((buffer, buffer_memory))
+        }
+
+        (index_buffer, index_buffer_memory, vertex_buffers)
+    }
+
     unsafe fn recreate_swapchain(&mut self) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/04_Swap_chain_recreation.html#_recreating_the_swap_chain
         self.device.device_wait_idle().unwrap();
@@ -213,7 +229,7 @@ impl Window {
         self.swapchain_framebuffers = framebuffers;
     }
 
-    pub unsafe fn destroy(&mut self, _scene: &Scene) {
+    pub unsafe fn destroy(&self, _scene: &Scene) {
         self.destroy_sync_elements();
         self.device.destroy_command_pool(self.command_pool, None);
         self.device.destroy_pipeline(self.graphics_pipeline, None);
@@ -239,7 +255,7 @@ impl Window {
         self.vk_instance.destroy_instance(None);
     }
 
-    unsafe fn destroy_sync_elements(&mut self) {
+    unsafe fn destroy_sync_elements(&self) {
         self.device.device_wait_idle().unwrap();
 
         self.device.destroy_semaphore(self.image_available, None);
@@ -248,7 +264,7 @@ impl Window {
         self.device.destroy_fence(self.in_flight, None);
     }
 
-    unsafe fn destroy_swapchain_elements(&mut self) {
+    unsafe fn destroy_swapchain_elements(&self) {
         for framebuffer in &self.swapchain_framebuffers {
             self.device.destroy_framebuffer(*framebuffer, None);
         }

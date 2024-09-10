@@ -4,6 +4,7 @@ use crate::{
     window::Window,
 };
 use std::{
+    rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -20,7 +21,7 @@ use winit::{
 };
 
 pub struct Game {
-    window: Option<Window>,
+    window: Option<Rc<Window>>,
     is_running: Arc<AtomicBool>,
     frame_time: Duration,
     current_scene: Option<Scene>,
@@ -66,9 +67,9 @@ impl ApplicationHandler for Game {
         if FULLSCREEN {
             attributes = attributes.with_fullscreen(Some(Borderless(None)));
         }
-        let window = event_loop.create_window(attributes).unwrap();
-        self.window = unsafe { Some(Window::new(window)) };
-        self.current_scene = Some(Scene::new()); // TODO create titlescreen scene instead of "new"
+        let inner_window = event_loop.create_window(attributes).unwrap();
+        self.window = Some(Rc::new(unsafe { Window::new(inner_window) }));
+        self.current_scene = Some(Scene::load_menu(self.window.as_ref().unwrap().clone()));
     }
 
     fn window_event(
@@ -83,8 +84,7 @@ impl ApplicationHandler for Game {
                 let start_time = Instant::now();
                 unsafe {
                     self.window
-                        .as_mut()
-                        .unwrap()
+                        .unwrap() /* needs mutable! */
                         .draw_frame(self.current_scene.as_ref().unwrap());
                 }
                 let end_time = Instant::now();

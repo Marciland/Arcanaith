@@ -113,7 +113,7 @@ pub trait VulkanInterface {
         instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
-        indices: &[u16],
+        indices: Vec<u16>,
         graphics_queue: Queue,
         command_pool: CommandPool,
     ) -> (Buffer, DeviceMemory);
@@ -765,12 +765,12 @@ impl VulkanInterface for VulkanWrapper {
         instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
-        indices: &[u16],
+        indices: Vec<u16>,
         graphics_queue: Queue,
         command_pool: CommandPool,
     ) -> (Buffer, DeviceMemory) {
         // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/03_Index_buffer.html
-        let buffer_size = mem::size_of_val(indices) as u64;
+        let buffer_size = mem::size_of_val(&indices) as u64;
 
         let (staging_buffer, staging_buffer_memory) = VulkanWrapper::create_buffer(
             instance,

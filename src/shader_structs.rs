@@ -3,13 +3,14 @@ use std::mem::{self, offset_of};
 use ash::vk::{
     Format, VertexInputAttributeDescription, VertexInputBindingDescription, VertexInputRate,
 };
-use glam::{Vec2, Vec3};
+use glam::{Mat4, Vec2, Vec3};
 
 // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/00_Vertex_input_description.html
 #[derive(Clone)]
 pub struct Vertex {
-    pub pos: Vec2,
+    pub position: Vec3,
     pub color: Vec3,
+    pub texture_coordinates: Vec2,
 }
 
 impl Vertex {
@@ -25,13 +26,24 @@ impl Vertex {
             VertexInputAttributeDescription::default()
                 .binding(0)
                 .location(0)
-                .format(Format::R32G32_SFLOAT)
-                .offset(offset_of!(Vertex, pos) as u32),
+                .format(Format::R32G32B32_SFLOAT)
+                .offset(offset_of!(Vertex, position) as u32),
             VertexInputAttributeDescription::default()
                 .binding(0)
                 .location(1)
                 .format(Format::R32G32B32_SFLOAT)
                 .offset(offset_of!(Vertex, color) as u32),
+            VertexInputAttributeDescription::default()
+                .binding(0)
+                .location(2)
+                .format(Format::R32G32_SFLOAT)
+                .offset(offset_of!(Vertex, texture_coordinates) as u32),
         ]
     }
+}
+
+pub struct UniformBufferObject {
+    pub _model: Mat4,
+    pub _view: Mat4,
+    pub projection: Mat4,
 }

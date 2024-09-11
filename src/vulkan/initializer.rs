@@ -1,36 +1,35 @@
-use super::vertex::Vertex;
 use ash::{
     khr::{surface, swapchain},
     util::read_spv,
     vk::{
         AccessFlags, ApplicationInfo, AttachmentDescription, AttachmentLoadOp, AttachmentReference,
-        AttachmentStoreOp, BlendFactor, BlendOp, Buffer, BufferCopy, BufferCreateInfo,
-        BufferUsageFlags, ClearColorValue, ClearValue, ColorComponentFlags, CommandBuffer,
-        CommandBufferAllocateInfo, CommandBufferBeginInfo, CommandBufferLevel,
-        CommandBufferUsageFlags, CommandPool, CommandPoolCreateFlags, CommandPoolCreateInfo,
-        ComponentMapping, ComponentSwizzle, CompositeAlphaFlagsKHR, CullModeFlags,
-        DeviceCreateInfo, DeviceMemory, DeviceQueueCreateInfo, DynamicState, Extent2D, Fence,
-        FenceCreateFlags, FenceCreateInfo, Format, Framebuffer, FramebufferCreateInfo, FrontFace,
-        GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout, ImageSubresourceRange,
-        ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType, IndexType,
-        InstanceCreateInfo, LogicOp, MemoryAllocateInfo, MemoryMapFlags, MemoryPropertyFlags,
-        MemoryRequirements, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline,
+        AttachmentStoreOp, BlendFactor, BlendOp, ColorComponentFlags, CommandBuffer,
+        CommandBufferAllocateInfo, CommandBufferLevel, CommandPool, CommandPoolCreateFlags,
+        CommandPoolCreateInfo, CompareOp, CompositeAlphaFlagsKHR, CullModeFlags,
+        DescriptorSetLayout, DescriptorSetLayoutBinding, DescriptorSetLayoutCreateInfo,
+        DescriptorType, DeviceCreateInfo, DeviceMemory, DeviceQueueCreateInfo, DynamicState,
+        Extent2D, Fence, FenceCreateFlags, FenceCreateInfo, Format, Framebuffer,
+        FramebufferCreateInfo, FrontFace, GraphicsPipelineCreateInfo, Image, ImageAspectFlags,
+        ImageLayout, ImageTiling, ImageUsageFlags, ImageView, InstanceCreateInfo, LogicOp,
+        MemoryPropertyFlags, Offset2D, PhysicalDevice, PhysicalDeviceFeatures, Pipeline,
         PipelineBindPoint, PipelineCache, PipelineColorBlendAttachmentState,
         PipelineColorBlendStateCreateInfo, PipelineDepthStencilStateCreateInfo,
         PipelineDynamicStateCreateInfo, PipelineInputAssemblyStateCreateInfo, PipelineLayout,
         PipelineLayoutCreateInfo, PipelineMultisampleStateCreateInfo,
         PipelineRasterizationStateCreateInfo, PipelineShaderStageCreateInfo, PipelineStageFlags,
         PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo, PolygonMode,
-        PresentModeKHR, PrimitiveTopology, Queue, QueueFlags, Rect2D, RenderPass,
-        RenderPassBeginInfo, RenderPassCreateInfo, SampleCountFlags, Semaphore,
-        SemaphoreCreateInfo, ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubmitInfo,
-        SubpassContents, SubpassDependency, SubpassDescription, SurfaceKHR, SwapchainCreateInfoKHR,
+        PresentModeKHR, PrimitiveTopology, QueueFlags, Rect2D, RenderPass, RenderPassCreateInfo,
+        SampleCountFlags, Semaphore, SemaphoreCreateInfo, ShaderModuleCreateInfo, ShaderStageFlags,
+        SharingMode, SubpassDependency, SubpassDescription, SurfaceKHR, SwapchainCreateInfoKHR,
         SwapchainKHR, Viewport, API_VERSION_1_3, SUBPASS_EXTERNAL,
     },
     Device, Entry, Instance,
 };
+
 use ash_window::{create_surface, enumerate_required_extensions};
-use std::{array::from_ref, ffi::CStr, io::Cursor, mem, ptr::copy_nonoverlapping};
+
+use super::{internal::InternalVulkan, VulkanWrapper};
+use std::{array::from_ref, ffi::CStr, io::Cursor};
 use winit::{
     raw_window_handle::{HasDisplayHandle, HasWindowHandle},
     window::Window,
@@ -39,11 +38,10 @@ use winit::{
 use crate::{
     constants::{FRAGSHADER, TITLE, VERTSHADER},
     read_bytes_from_file,
+    shader_structs::Vertex,
 };
 
-pub struct VulkanWrapper;
-
-pub trait VulkanInterface {
+pub trait VulkanInitializer {
     unsafe fn create_vulkan_instance(entry: &Entry, window: &Window) -> Instance;
     unsafe fn create_surface(
         window: &Window,
@@ -73,144 +71,38 @@ pub trait VulkanInterface {
         format: Format,
         device: &Device,
     ) -> (Vec<Image>, Vec<ImageView>);
-    unsafe fn create_render_pass(device: &Device, format: Format) -> RenderPass;
+    unsafe fn create_render_pass(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+        device: &Device,
+        format: Format,
+    ) -> RenderPass;
+    unsafe fn create_descriptor_set_layout(device: &Device) -> DescriptorSetLayout;
     unsafe fn create_graphics_pipeline(
         device: &Device,
         extent: Extent2D,
         render_pass: RenderPass,
+        descriptor_set_layout: DescriptorSetLayout,
     ) -> (PipelineLayout, Pipeline);
     unsafe fn create_framebuffers(
         device: &Device,
         render_pass: RenderPass,
         image_views: &[ImageView],
+        depth_image_view: ImageView,
         extent: Extent2D,
     ) -> Vec<Framebuffer>;
     unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> CommandPool;
     unsafe fn create_command_buffer(device: &Device, command_pool: CommandPool) -> CommandBuffer;
-    #[allow(clippy::too_many_arguments)]
-    unsafe fn begin_render_pass(
-        device: &Device,
-        render_pass: RenderPass,
-        framebuffers: &[Framebuffer],
-        vertex_buffer: Buffer,
-        index_buffer: Buffer,
-        image_index: usize,
-        command_buffer: CommandBuffer,
-        pipeline: Pipeline,
-        extent: Extent2D,
-        indices: Vec<u16>,
-    );
     unsafe fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence);
-    unsafe fn create_vertex_buffer(
+    unsafe fn create_depth_image_view(
         instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
-        vertices: &[Vertex],
-        command_pool: CommandPool,
-        graphics_queue: Queue,
-    ) -> (Buffer, DeviceMemory);
-    unsafe fn create_index_buffer(
-        instance: &Instance,
-        physical_device: PhysicalDevice,
-        device: &Device,
-        indices: &[u16],
-        graphics_queue: Queue,
-        command_pool: CommandPool,
-    ) -> (Buffer, DeviceMemory);
+        extent: Extent2D,
+    ) -> (Image, DeviceMemory, ImageView);
 }
 
-impl VulkanWrapper {
-    unsafe fn create_buffer(
-        instance: &Instance,
-        physical_device: PhysicalDevice,
-        device: &Device,
-        size: u64,
-        usage_flags: BufferUsageFlags,
-        memory_properties: MemoryPropertyFlags,
-    ) -> (Buffer, DeviceMemory) {
-        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_abstracting_buffer_creation
-        let buffer_create_info = BufferCreateInfo::default()
-            .size(size)
-            .usage(usage_flags)
-            .sharing_mode(SharingMode::EXCLUSIVE);
-        let buffer = device.create_buffer(&buffer_create_info, None).unwrap();
-
-        let memory_requirements = device.get_buffer_memory_requirements(buffer);
-
-        let allocation_info = MemoryAllocateInfo::default()
-            .allocation_size(memory_requirements.size)
-            .memory_type_index(VulkanWrapper::find_memory_type(
-                instance,
-                physical_device,
-                memory_requirements,
-                memory_properties,
-            ));
-        let buffer_memory = device.allocate_memory(&allocation_info, None).unwrap();
-
-        device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
-
-        (buffer, buffer_memory)
-    }
-
-    unsafe fn copy_buffer(
-        device: &Device,
-        command_pool: CommandPool,
-        graphics_queue: Queue,
-        src: Buffer,
-        dst: Buffer,
-        size: u64,
-    ) {
-        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_conclusion
-        let allocation_info = CommandBufferAllocateInfo::default()
-            .level(CommandBufferLevel::PRIMARY)
-            .command_pool(command_pool)
-            .command_buffer_count(1);
-        let command_buffers = device.allocate_command_buffers(&allocation_info).unwrap();
-
-        device
-            .begin_command_buffer(
-                command_buffers[0],
-                &CommandBufferBeginInfo::default().flags(CommandBufferUsageFlags::ONE_TIME_SUBMIT),
-            )
-            .unwrap();
-        device.cmd_copy_buffer(
-            command_buffers[0],
-            src,
-            dst,
-            &[BufferCopy::default().src_offset(0).dst_offset(0).size(size)],
-        );
-        device.end_command_buffer(command_buffers[0]).unwrap();
-
-        device
-            .queue_submit(
-                graphics_queue,
-                &[SubmitInfo::default().command_buffers(&command_buffers)],
-                Fence::null(),
-            )
-            .unwrap();
-        device.queue_wait_idle(graphics_queue).unwrap();
-        device.free_command_buffers(command_pool, &command_buffers)
-    }
-
-    unsafe fn find_memory_type(
-        instance: &Instance,
-        physical_device: PhysicalDevice,
-        memory_requirements: MemoryRequirements,
-        properties: MemoryPropertyFlags,
-    ) -> u32 {
-        let memory_properties = instance.get_physical_device_memory_properties(physical_device);
-
-        (0..memory_properties.memory_type_count)
-            .find(|index| {
-                (memory_requirements.memory_type_bits & (1 << index)) != 0
-                    && (memory_properties.memory_types[*index as usize].property_flags & properties)
-                        == properties
-            })
-            .unwrap()
-    }
-}
-
-impl VulkanInterface for VulkanWrapper {
+impl VulkanInitializer for VulkanWrapper {
     unsafe fn create_vulkan_instance(entry: &Entry, window: &Window) -> Instance {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/01_Instance.html
         let extension_names =
@@ -294,7 +186,7 @@ impl VulkanInterface for VulkanWrapper {
             .queue_family_index(queue_family_index)
             .queue_priorities(&[1.0]);
 
-        let device_features = PhysicalDeviceFeatures::default();
+        let device_features = PhysicalDeviceFeatures::default().sampler_anisotropy(true);
 
         let device_extensions = [swapchain::NAME.as_ptr()];
 
@@ -373,38 +265,25 @@ impl VulkanInterface for VulkanWrapper {
         let mut image_views: Vec<ImageView> = Vec::new();
         let images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
 
-        let components = ComponentMapping::default()
-            .r(ComponentSwizzle::IDENTITY)
-            .g(ComponentSwizzle::IDENTITY)
-            .b(ComponentSwizzle::IDENTITY)
-            .a(ComponentSwizzle::IDENTITY);
-
-        let subresource_range = ImageSubresourceRange::default()
-            .aspect_mask(ImageAspectFlags::COLOR)
-            .base_mip_level(0)
-            .level_count(1)
-            .base_array_layer(0)
-            .layer_count(1);
-
         for image in &images {
-            let image_view_create_info = ImageViewCreateInfo::default()
-                .image(*image)
-                .view_type(ImageViewType::TYPE_2D)
-                .format(format)
-                .components(components)
-                .subresource_range(subresource_range);
-
-            let image_view = device
-                .create_image_view(&image_view_create_info, None)
-                .unwrap();
-            image_views.push(image_view)
+            image_views.push(InternalVulkan::create_image_view(
+                device,
+                *image,
+                format,
+                ImageAspectFlags::COLOR,
+            ))
         }
         (images, image_views)
     }
 
-    unsafe fn create_render_pass(device: &Device, format: Format) -> RenderPass {
+    unsafe fn create_render_pass(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+        device: &Device,
+        format: Format,
+    ) -> RenderPass {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/02_Graphics_pipeline_basics/03_Render_passes.html
-        let color_attachments = [AttachmentDescription::default()
+        let color_attachment = AttachmentDescription::default()
             .format(format)
             .samples(SampleCountFlags::TYPE_1)
             .load_op(AttachmentLoadOp::CLEAR)
@@ -412,36 +291,83 @@ impl VulkanInterface for VulkanWrapper {
             .stencil_load_op(AttachmentLoadOp::DONT_CARE)
             .stencil_store_op(AttachmentStoreOp::DONT_CARE)
             .initial_layout(ImageLayout::UNDEFINED)
-            .final_layout(ImageLayout::PRESENT_SRC_KHR)];
+            .final_layout(ImageLayout::PRESENT_SRC_KHR);
+        let depth_attachment = AttachmentDescription::default()
+            .format(InternalVulkan::find_depth_format(instance, physical_device))
+            .samples(SampleCountFlags::TYPE_1)
+            .load_op(AttachmentLoadOp::CLEAR)
+            .store_op(AttachmentStoreOp::DONT_CARE)
+            .stencil_load_op(AttachmentLoadOp::DONT_CARE)
+            .stencil_store_op(AttachmentStoreOp::DONT_CARE)
+            .initial_layout(ImageLayout::UNDEFINED)
+            .final_layout(ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-        let color_attachment_references = [AttachmentReference::default()
+        let attachments = [color_attachment, depth_attachment];
+
+        let color_attachments = [AttachmentReference::default()
             .attachment(0)
             .layout(ImageLayout::COLOR_ATTACHMENT_OPTIMAL)];
 
+        let depth_stencil_attachment = AttachmentReference::default()
+            .attachment(1)
+            .layout(ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
         let subpasses = [SubpassDescription::default()
             .pipeline_bind_point(PipelineBindPoint::GRAPHICS)
-            .color_attachments(&color_attachment_references)];
+            .color_attachments(&color_attachments)
+            .depth_stencil_attachment(&depth_stencil_attachment)];
 
         let dependencies = [SubpassDependency::default()
             .src_subpass(SUBPASS_EXTERNAL)
             .dst_subpass(0)
-            .src_stage_mask(PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .src_access_mask(AccessFlags::empty())
-            .dst_stage_mask(PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .dst_access_mask(AccessFlags::COLOR_ATTACHMENT_WRITE)];
+            .src_stage_mask(
+                PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+                    | PipelineStageFlags::LATE_FRAGMENT_TESTS,
+            )
+            .src_access_mask(AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
+            .dst_stage_mask(
+                PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+                    | PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+            )
+            .dst_access_mask(
+                AccessFlags::COLOR_ATTACHMENT_WRITE | AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            )];
 
         let render_pass_info = RenderPassCreateInfo::default()
-            .attachments(&color_attachments)
+            .attachments(&attachments)
             .subpasses(&subpasses)
             .dependencies(&dependencies);
 
         device.create_render_pass(&render_pass_info, None).unwrap()
     }
 
+    unsafe fn create_descriptor_set_layout(device: &Device) -> DescriptorSetLayout {
+        // https://docs.vulkan.org/tutorial/latest/05_Uniform_buffers/00_Descriptor_set_layout_and_buffer.html#_descriptor_set_layout
+        let ubo_layout_binding = DescriptorSetLayoutBinding::default()
+            .binding(0)
+            .descriptor_count(1)
+            .descriptor_type(DescriptorType::UNIFORM_BUFFER)
+            .stage_flags(ShaderStageFlags::VERTEX);
+
+        let sampler_layout_binding = DescriptorSetLayoutBinding::default()
+            .binding(1)
+            .descriptor_count(1)
+            .descriptor_type(DescriptorType::COMBINED_IMAGE_SAMPLER)
+            .stage_flags(ShaderStageFlags::FRAGMENT);
+
+        let bindings = [ubo_layout_binding, sampler_layout_binding];
+        let layout_create_info = DescriptorSetLayoutCreateInfo::default().bindings(&bindings);
+
+        device
+            .create_descriptor_set_layout(&layout_create_info, None)
+            .unwrap()
+    }
+
     unsafe fn create_graphics_pipeline(
         device: &Device,
         extent: Extent2D,
         render_pass: RenderPass,
+        descriptor_set_layout: DescriptorSetLayout,
     ) -> (PipelineLayout, Pipeline) {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/02_Graphics_pipeline_basics/00_Introduction.html
         let vert_shader_module = device
@@ -509,7 +435,7 @@ impl VulkanInterface for VulkanWrapper {
             .polygon_mode(PolygonMode::FILL)
             .line_width(1.0)
             .cull_mode(CullModeFlags::BACK)
-            .front_face(FrontFace::CLOCKWISE)
+            .front_face(FrontFace::COUNTER_CLOCKWISE)
             .depth_bias_enable(false)
             .depth_bias_constant_factor(0.0)
             .depth_bias_clamp(0.0)
@@ -523,7 +449,14 @@ impl VulkanInterface for VulkanWrapper {
             .alpha_to_coverage_enable(false)
             .alpha_to_one_enable(false);
 
-        let depth_stencil_state = PipelineDepthStencilStateCreateInfo::default();
+        let depth_stencil_state = PipelineDepthStencilStateCreateInfo::default()
+            .depth_test_enable(true)
+            .depth_write_enable(true)
+            .depth_compare_op(CompareOp::LESS)
+            .depth_bounds_test_enable(false)
+            .min_depth_bounds(0.0)
+            .max_depth_bounds(1.0)
+            .stencil_test_enable(false);
 
         let color_blend_attachments = [PipelineColorBlendAttachmentState::default()
             .color_write_mask(ColorComponentFlags::RGBA)
@@ -541,9 +474,10 @@ impl VulkanInterface for VulkanWrapper {
             .attachments(&color_blend_attachments)
             .blend_constants([0.0, 0.0, 0.0, 0.0]);
 
-        let pipeline_layout_info = PipelineLayoutCreateInfo::default()
-            .set_layouts(&[])
-            .push_constant_ranges(&[]);
+        let descriptor_set_layouts = [descriptor_set_layout];
+
+        let pipeline_layout_info =
+            PipelineLayoutCreateInfo::default().set_layouts(&descriptor_set_layouts);
 
         let pipeline_layout = device
             .create_pipeline_layout(&pipeline_layout_info, None)
@@ -578,13 +512,14 @@ impl VulkanInterface for VulkanWrapper {
         device: &Device,
         render_pass: RenderPass,
         image_views: &[ImageView],
+        depth_image_view: ImageView,
         extent: Extent2D,
     ) -> Vec<Framebuffer> {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/00_Framebuffers.html
         let mut framebuffers: Vec<Framebuffer> = Vec::new();
 
         for image_view in image_views {
-            let attachments = [*image_view];
+            let attachments = [*image_view, depth_image_view];
             let framebuffer_create_info = FramebufferCreateInfo::default()
                 .render_pass(render_pass)
                 .attachments(&attachments)
@@ -602,6 +537,7 @@ impl VulkanInterface for VulkanWrapper {
 
     unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> CommandPool {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html
+        // TODO reset pool instead
         let pool_create_info = CommandPoolCreateInfo::default()
             .queue_family_index(queue_family_index)
             .flags(CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
@@ -616,78 +552,6 @@ impl VulkanInterface for VulkanWrapper {
             .command_buffer_count(1);
 
         device.allocate_command_buffers(&allocation_info).unwrap()[0]
-    }
-
-    unsafe fn begin_render_pass(
-        device: &Device,
-        render_pass: RenderPass,
-        framebuffers: &[Framebuffer],
-        vertex_buffer: Buffer,
-        index_buffer: Buffer,
-        image_index: usize,
-        command_buffer: CommandBuffer,
-        pipeline: Pipeline,
-        extent: Extent2D,
-        indices: Vec<u16>,
-    ) {
-        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_command_buffer_recording
-        let begin_info = CommandBufferBeginInfo::default();
-
-        device
-            .begin_command_buffer(command_buffer, &begin_info)
-            .unwrap();
-
-        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_starting_a_render_pass
-        let clear_colors = [ClearValue {
-            color: ClearColorValue {
-                float32: [0.0, 0.0, 0.0, 1.0],
-            },
-        }];
-
-        let render_pass_begin_info = RenderPassBeginInfo::default()
-            .render_pass(render_pass)
-            .framebuffer(framebuffers[image_index])
-            .render_area(Rect2D {
-                offset: Offset2D { x: 0, y: 0 },
-                extent,
-            })
-            .clear_values(&clear_colors);
-
-        device.cmd_begin_render_pass(
-            command_buffer,
-            &render_pass_begin_info,
-            SubpassContents::INLINE,
-        );
-
-        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_basic_drawing_commands
-        device.cmd_bind_pipeline(command_buffer, PipelineBindPoint::GRAPHICS, pipeline);
-
-        let vertex_buffers = [vertex_buffer];
-        device.cmd_bind_vertex_buffers(command_buffer, 0, &vertex_buffers, &[0]);
-        device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, IndexType::UINT16);
-
-        let viewports = [Viewport::default()
-            .x(0.0)
-            .y(0.0)
-            .width(extent.width as f32)
-            .height(extent.height as f32)
-            .min_depth(0.0)
-            .max_depth(1.0)];
-
-        device.cmd_set_viewport(command_buffer, 0, &viewports);
-
-        let scissors = [Rect2D {
-            offset: Offset2D { x: 0, y: 0 },
-            extent,
-        }];
-
-        device.cmd_set_scissor(command_buffer, 0, &scissors);
-
-        device.cmd_draw_indexed(command_buffer, indices.len() as u32, 1, 0, 0, 0);
-
-        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_finishing_up
-        device.cmd_end_render_pass(command_buffer);
-        device.end_command_buffer(command_buffer).unwrap();
     }
 
     unsafe fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence) {
@@ -706,112 +570,31 @@ impl VulkanInterface for VulkanWrapper {
         )
     }
 
-    unsafe fn create_vertex_buffer(
+    unsafe fn create_depth_image_view(
         instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
-        vertices: &[Vertex],
-        command_pool: CommandPool,
-        graphics_queue: Queue,
-    ) -> (Buffer, DeviceMemory) {
-        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/01_Vertex_buffer_creation.html
-        let buffer_size = mem::size_of_val(vertices) as u64;
-
-        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_using_a_staging_buffer
-        let (staging_buffer, staging_buffer_memory) = VulkanWrapper::create_buffer(
+        extent: Extent2D,
+    ) -> (Image, DeviceMemory, ImageView) {
+        // https://docs.vulkan.org/tutorial/latest/07_Depth_buffering.html#_depth_image_and_view
+        let depth_format = InternalVulkan::find_depth_format(instance, physical_device);
+        let (depth_image, depth_image_memory) = InternalVulkan::create_image(
             instance,
             physical_device,
             device,
-            buffer_size,
-            BufferUsageFlags::TRANSFER_SRC,
-            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
-        );
-
-        let data = device
-            .map_memory(
-                staging_buffer_memory,
-                0,
-                buffer_size,
-                MemoryMapFlags::empty(),
-            )
-            .unwrap();
-        copy_nonoverlapping(vertices.as_ptr(), data as *mut Vertex, buffer_size as usize);
-        device.unmap_memory(staging_buffer_memory);
-
-        let (vertex_buffer, vertex_buffer_memory) = VulkanWrapper::create_buffer(
-            instance,
-            physical_device,
-            device,
-            buffer_size,
-            BufferUsageFlags::VERTEX_BUFFER | BufferUsageFlags::TRANSFER_DST,
+            extent,
+            depth_format,
+            ImageTiling::OPTIMAL,
+            ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
-
-        VulkanWrapper::copy_buffer(
+        let depth_image_view = InternalVulkan::create_image_view(
             device,
-            command_pool,
-            graphics_queue,
-            staging_buffer,
-            vertex_buffer,
-            buffer_size,
-        );
-        device.destroy_buffer(staging_buffer, None);
-        device.free_memory(staging_buffer_memory, None);
-
-        (vertex_buffer, vertex_buffer_memory)
-    }
-
-    unsafe fn create_index_buffer(
-        instance: &Instance,
-        physical_device: PhysicalDevice,
-        device: &Device,
-        indices: &[u16],
-        graphics_queue: Queue,
-        command_pool: CommandPool,
-    ) -> (Buffer, DeviceMemory) {
-        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/03_Index_buffer.html
-        let buffer_size = mem::size_of_val(indices) as u64;
-
-        let (staging_buffer, staging_buffer_memory) = VulkanWrapper::create_buffer(
-            instance,
-            physical_device,
-            device,
-            buffer_size,
-            BufferUsageFlags::TRANSFER_SRC,
-            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
+            depth_image,
+            depth_format,
+            ImageAspectFlags::DEPTH,
         );
 
-        let data = device
-            .map_memory(
-                staging_buffer_memory,
-                0,
-                buffer_size,
-                MemoryMapFlags::empty(),
-            )
-            .unwrap();
-        copy_nonoverlapping(indices.as_ptr(), data as *mut u16, buffer_size as usize);
-        device.unmap_memory(staging_buffer_memory);
-
-        let (index_buffer, index_buffer_memory) = VulkanWrapper::create_buffer(
-            instance,
-            physical_device,
-            device,
-            buffer_size,
-            BufferUsageFlags::INDEX_BUFFER | BufferUsageFlags::TRANSFER_DST,
-            MemoryPropertyFlags::DEVICE_LOCAL,
-        );
-
-        VulkanWrapper::copy_buffer(
-            device,
-            command_pool,
-            graphics_queue,
-            staging_buffer,
-            index_buffer,
-            buffer_size,
-        );
-        device.destroy_buffer(staging_buffer, None);
-        device.free_memory(staging_buffer_memory, None);
-
-        (index_buffer, index_buffer_memory)
+        (depth_image, depth_image_memory, depth_image_view)
     }
 }

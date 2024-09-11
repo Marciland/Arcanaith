@@ -1,0 +1,8 @@
+size 64x64
+
+row = 0 move down
+row = 1 move up
+row = 2 move left
+row = 3 move right
+
+col 0-3 at 15 fps => col 0 at frames 1-15, col 1 at 16-30...

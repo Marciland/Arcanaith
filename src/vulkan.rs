@@ -663,7 +663,7 @@ impl VulkanInterface for VulkanWrapper {
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/01_Command_buffers.html#_basic_drawing_commands
         device.cmd_bind_pipeline(command_buffer, PipelineBindPoint::GRAPHICS, pipeline);
 
-        device.cmd_bind_vertex_buffers(command_buffer, 0, &vertex_buffers, &[0]);
+        device.cmd_bind_vertex_buffers(command_buffer, 0, vertex_buffers, &[0]);
         device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, IndexType::UINT16);
 
         let viewports = [Viewport::default()

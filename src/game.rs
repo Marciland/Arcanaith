@@ -4,6 +4,7 @@ use crate::{
     window::Window,
 };
 use std::{
+    cell::RefCell,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -21,7 +22,7 @@ use winit::{
 };
 
 pub struct Game {
-    window: Option<Rc<Window>>,
+    window: Option<Rc<RefCell<Window>>>,
     is_running: Arc<AtomicBool>,
     frame_time: Duration,
     current_scene: Option<Scene>,
@@ -33,8 +34,9 @@ impl Game {
         self.is_running.store(false, Ordering::Release);
         unsafe {
             self.window
-                .as_mut()
+                .as_ref()
                 .unwrap()
+                .borrow()
                 .destroy(self.current_scene.as_ref().unwrap())
         }
     }
@@ -68,7 +70,7 @@ impl ApplicationHandler for Game {
             attributes = attributes.with_fullscreen(Some(Borderless(None)));
         }
         let inner_window = event_loop.create_window(attributes).unwrap();
-        self.window = Some(Rc::new(unsafe { Window::new(inner_window) }));
+        self.window = Some(Rc::new(RefCell::new(unsafe { Window::new(inner_window) })));
         self.current_scene = Some(Scene::load_menu(self.window.as_ref().unwrap().clone()));
     }
 
@@ -84,7 +86,9 @@ impl ApplicationHandler for Game {
                 let start_time = Instant::now();
                 unsafe {
                     self.window
-                        .unwrap() /* needs mutable! */
+                        .as_ref()
+                        .unwrap()
+                        .borrow_mut()
                         .draw_frame(self.current_scene.as_ref().unwrap());
                 }
                 let end_time = Instant::now();
@@ -94,10 +98,22 @@ impl ApplicationHandler for Game {
                 if !remaining_time.is_zero() {
                     thread::sleep(remaining_time)
                 }
-                self.window.as_mut().unwrap().window.request_redraw();
+                self.window
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .window
+                    .request_redraw();
             }
             WindowEvent::Resized(_size) => {
-                let is_minimized = self.window.as_mut().unwrap().window.is_minimized().unwrap();
+                let is_minimized = self
+                    .window
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .window
+                    .is_minimized()
+                    .unwrap();
                 if is_minimized {
                     self.frame_time = Duration::from_secs_f64(1.0 / BG_FPS as f64)
                 } else {

@@ -120,13 +120,13 @@ impl Window {
             .reset_command_buffer(self.command_buffer, CommandBufferResetFlags::empty())
             .unwrap();
 
-        let (index_buffer, vertex_buffers) = scene.get_buffers();
+        let (index_buffer, vertex_buffer) = scene.get_buffers();
 
         VulkanWrapper::begin_render_pass(
             &self.device,
             self.render_pass,
             &self.swapchain_framebuffers,
-            &vertex_buffers,
+            &[vertex_buffer],
             index_buffer,
             image_index as usize,
             self.command_buffer,
@@ -170,9 +170,9 @@ impl Window {
 
     pub unsafe fn create_buffers(
         &self,
-        all_vertices: Vec<Vec<Vertex>>,
+        vertices: Vec<Vertex>,
         indices: Vec<u16>,
-    ) -> (Buffer, DeviceMemory, Vec<(Buffer, DeviceMemory)>) {
+    ) -> (Buffer, DeviceMemory, Buffer, DeviceMemory) {
         let (index_buffer, index_buffer_memory) = VulkanWrapper::create_index_buffer(
             &self.vk_instance,
             self.physical_device,
@@ -182,20 +182,21 @@ impl Window {
             self.command_pool,
         );
 
-        let mut vertex_buffers = Vec::new();
-        for vertices in all_vertices {
-            let (buffer, buffer_memory) = VulkanWrapper::create_vertex_buffer(
-                &self.vk_instance,
-                self.physical_device,
-                &self.device,
-                &vertices,
-                self.command_pool,
-                self.graphics_queue,
-            );
-            vertex_buffers.push((buffer, buffer_memory))
-        }
+        let (vertex_buffer, vertex_buffer_memory) = VulkanWrapper::create_vertex_buffer(
+            &self.vk_instance,
+            self.physical_device,
+            &self.device,
+            &vertices,
+            self.command_pool,
+            self.graphics_queue,
+        );
 
-        (index_buffer, index_buffer_memory, vertex_buffers)
+        (
+            index_buffer,
+            index_buffer_memory,
+            vertex_buffer,
+            vertex_buffer_memory,
+        )
     }
 
     unsafe fn recreate_swapchain(&mut self) {

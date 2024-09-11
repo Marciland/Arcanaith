@@ -1,18 +1,19 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use ash::vk::{Buffer, DeviceMemory};
 
 use crate::{vertex::Vertex, window::Window};
 
 pub struct Scene {
-    window: Rc<Window>,
+    _window: Rc<RefCell<Window>>,
     index_buffer: Buffer,
-    index_buffer_memory: DeviceMemory,
-    objects: Vec<(Buffer, DeviceMemory)>,
+    _index_buffer_memory: DeviceMemory,
+    vertex_buffer: Buffer,
+    _vertex_buffer_memory: DeviceMemory,
 }
 
 impl Scene {
-    pub fn load_menu(window: Rc<Window>) -> Self {
+    pub fn load_menu(window: Rc<RefCell<Window>>) -> Self {
         let vertices = vec![
             Vertex {
                 pos: glam::Vec2 { x: -0.5, y: -0.5 },
@@ -50,25 +51,19 @@ impl Scene {
 
         let indices: Vec<u16> = vec![0, 1, 2, 2, 3, 0];
 
-        let all_vertices = vec![vertices];
-        let (index_buffer, index_buffer_memory, objects) =
-            unsafe { window.create_buffers(all_vertices, indices) };
+        let (index_buffer, index_buffer_memory, vertex_buffer, vertex_buffer_memory) =
+            unsafe { window.borrow().create_buffers(vertices, indices) };
 
         Self {
-            window,
+            _window: window,
             index_buffer,
-            index_buffer_memory,
-            objects,
+            _index_buffer_memory: index_buffer_memory,
+            vertex_buffer,
+            _vertex_buffer_memory: vertex_buffer_memory,
         }
     }
 
-    pub fn get_buffers(&self) -> (Buffer, Vec<Buffer>) {
-        let mut vertex_buffers: Vec<Buffer> = Vec::new();
-
-        for (buffer, _memory) in &self.objects {
-            vertex_buffers.push(*buffer);
-        }
-
-        (self.index_buffer, vertex_buffers)
+    pub fn get_buffers(&self) -> (Buffer, Buffer) {
+        (self.index_buffer, self.vertex_buffer)
     }
 }

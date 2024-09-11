@@ -132,7 +132,7 @@ impl Window {
             self.command_buffer,
             self.graphics_pipeline,
             self.extent,
-            0,
+            scene.get_index_count(),
         );
 
         // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html#_submitting_the_command_buffer
@@ -171,7 +171,7 @@ impl Window {
     pub unsafe fn create_buffers(
         &self,
         vertices: Vec<Vertex>,
-        indices: Vec<u16>,
+        indices: &[u16],
     ) -> (Buffer, DeviceMemory, Buffer, DeviceMemory) {
         let (index_buffer, index_buffer_memory) = VulkanWrapper::create_index_buffer(
             &self.vk_instance,
@@ -230,7 +230,7 @@ impl Window {
         self.swapchain_framebuffers = framebuffers;
     }
 
-    pub unsafe fn destroy(&self, _scene: &Scene) {
+    pub unsafe fn destroy(&self, scene: &Scene) {
         self.destroy_sync_elements();
         self.device.destroy_command_pool(self.command_pool, None);
         self.device.destroy_pipeline(self.graphics_pipeline, None);
@@ -238,19 +238,7 @@ impl Window {
             .destroy_pipeline_layout(self.pipeline_layout, None);
         self.device.destroy_render_pass(self.render_pass, None);
         self.destroy_swapchain_elements();
-
-        /* TODO all scene buffers need to be destroyed here
-
-        for each object in scene:
-
-        self.device.destroy_buffer(index_buffer, None);
-        self.device.free_memory(index_buffer_memory, None);
-
-        self.device.destroy_buffer(vertex_buffer, None);
-        self.device.free_memory(vertex_buffer_memory, None);
-
-        */
-
+        scene.destroy_buffers(&self.device);
         self.surface_loader.destroy_surface(self.surface, None);
         self.device.destroy_device(None);
         self.vk_instance.destroy_instance(None);

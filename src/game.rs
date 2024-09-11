@@ -70,8 +70,9 @@ impl ApplicationHandler for Game {
             attributes = attributes.with_fullscreen(Some(Borderless(None)));
         }
         let inner_window = event_loop.create_window(attributes).unwrap();
-        self.window = Some(Rc::new(RefCell::new(unsafe { Window::new(inner_window) })));
-        self.current_scene = Some(Scene::load_menu(self.window.as_ref().unwrap().clone()));
+        let window = Rc::new(RefCell::new(unsafe { Window::new(inner_window) }));
+        self.current_scene = Some(Scene::load_menu(window.clone()));
+        self.window = Some(window);
     }
 
     fn window_event(

@@ -1,4 +1,5 @@
 use ash::{
+    khr::surface,
     vk::{
         AccessFlags, Buffer, BufferCopy, BufferCreateInfo, BufferImageCopy, BufferUsageFlags,
         CommandBuffer, CommandBufferAllocateInfo, CommandBufferBeginInfo, CommandBufferLevel,
@@ -7,16 +8,17 @@ use ash::{
         ImageMemoryBarrier, ImageSubresourceLayers, ImageSubresourceRange, ImageTiling, ImageType,
         ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType, MemoryAllocateInfo,
         MemoryPropertyFlags, MemoryRequirements, Offset3D, PhysicalDevice, PipelineStageFlags,
-        Queue, SampleCountFlags, SharingMode, SubmitInfo, QUEUE_FAMILY_IGNORED,
+        Queue, QueueFlags, SampleCountFlags, SharingMode, SubmitInfo, SurfaceKHR,
+        QUEUE_FAMILY_IGNORED,
     },
     Device, Instance,
 };
 
-pub struct InternalVulkan {}
+pub struct InternalVulkan;
 
 impl InternalVulkan {
     #[allow(clippy::too_many_arguments)]
-    pub unsafe fn create_image(
+    pub fn create_image(
         instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
@@ -42,9 +44,14 @@ impl InternalVulkan {
             .usage(usage)
             .sharing_mode(SharingMode::EXCLUSIVE)
             .samples(SampleCountFlags::TYPE_1);
-        let texture_image = device.create_image(&image_info, None).unwrap();
 
-        let memory_requirements = device.get_image_memory_requirements(texture_image);
+        let (texture_image, memory_requirements) = unsafe {
+            let texture_image = device.create_image(&image_info, None).unwrap();
+            let memory_requirements = device.get_image_memory_requirements(texture_image);
+
+            (texture_image, memory_requirements)
+        };
+
         let allocation_info = MemoryAllocateInfo::default()
             .allocation_size(memory_requirements.size)
             .memory_type_index(InternalVulkan::find_memory_type(
@@ -53,56 +60,62 @@ impl InternalVulkan {
                 memory_requirements,
                 memory_properties,
             ));
-        let texture_image_memory = device.allocate_memory(&allocation_info, None).unwrap();
 
-        device
-            .bind_image_memory(texture_image, texture_image_memory, 0)
-            .unwrap();
+        let texture_image_memory = unsafe {
+            let texture_image_memory = device.allocate_memory(&allocation_info, None).unwrap();
+
+            device
+                .bind_image_memory(texture_image, texture_image_memory, 0)
+                .unwrap();
+            texture_image_memory
+        };
 
         (texture_image, texture_image_memory)
     }
 
-    unsafe fn begin_single_time_commands(
-        device: &Device,
-        command_pool: CommandPool,
-    ) -> CommandBuffer {
+    fn begin_single_time_commands(device: &Device, command_pool: CommandPool) -> CommandBuffer {
         let allocation_info = CommandBufferAllocateInfo::default()
             .level(CommandBufferLevel::PRIMARY)
             .command_pool(command_pool)
             .command_buffer_count(1);
 
-        let command_buffer = device.allocate_command_buffers(&allocation_info).unwrap()[0];
+        let command_buffer =
+            unsafe { device.allocate_command_buffers(&allocation_info).unwrap()[0] };
 
         let begin_info =
             CommandBufferBeginInfo::default().flags(CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
-        device
-            .begin_command_buffer(command_buffer, &begin_info)
-            .unwrap();
+        unsafe {
+            device
+                .begin_command_buffer(command_buffer, &begin_info)
+                .unwrap()
+        };
 
         command_buffer
     }
 
-    unsafe fn end_single_time_commands(
+    fn end_single_time_commands(
         device: &Device,
         graphics_queue: Queue,
         command_pool: CommandPool,
         command_buffer: CommandBuffer,
     ) {
-        device.end_command_buffer(command_buffer).unwrap();
+        unsafe { device.end_command_buffer(command_buffer).unwrap() };
 
         let buffers = [command_buffer];
         let submit_info = SubmitInfo::default().command_buffers(&buffers);
 
-        device
-            .queue_submit(graphics_queue, &[submit_info], Fence::null())
-            .unwrap();
+        unsafe {
+            device
+                .queue_submit(graphics_queue, &[submit_info], Fence::null())
+                .unwrap();
 
-        device.queue_wait_idle(graphics_queue).unwrap();
-        device.free_command_buffers(command_pool, &[command_buffer])
+            device.queue_wait_idle(graphics_queue).unwrap();
+            device.free_command_buffers(command_pool, &[command_buffer]);
+        };
     }
 
-    pub unsafe fn transition_image_layout(
+    pub fn transition_image_layout(
         device: &Device,
         graphics_queue: Queue,
         command_pool: CommandPool,
@@ -154,15 +167,17 @@ impl InternalVulkan {
             .src_access_mask(src_access_mask)
             .dst_access_mask(dst_access_mask);
 
-        device.cmd_pipeline_barrier(
-            command_buffer,
-            src_stage_mask,
-            dst_stage_mask,
-            DependencyFlags::empty(),
-            &[],
-            &[],
-            &[image_memory_barrier],
-        );
+        unsafe {
+            device.cmd_pipeline_barrier(
+                command_buffer,
+                src_stage_mask,
+                dst_stage_mask,
+                DependencyFlags::empty(),
+                &[],
+                &[],
+                &[image_memory_barrier],
+            )
+        };
 
         InternalVulkan::end_single_time_commands(
             device,
@@ -172,7 +187,7 @@ impl InternalVulkan {
         );
     }
 
-    pub unsafe fn copy_buffer_to_image(
+    pub fn copy_buffer_to_image(
         device: &Device,
         command_pool: CommandPool,
         graphics_queue: Queue,
@@ -200,13 +215,15 @@ impl InternalVulkan {
                 depth: 1,
             });
 
-        device.cmd_copy_buffer_to_image(
-            command_buffer,
-            buffer,
-            image,
-            ImageLayout::TRANSFER_DST_OPTIMAL,
-            &[region],
-        );
+        unsafe {
+            device.cmd_copy_buffer_to_image(
+                command_buffer,
+                buffer,
+                image,
+                ImageLayout::TRANSFER_DST_OPTIMAL,
+                &[region],
+            );
+        };
 
         InternalVulkan::end_single_time_commands(
             device,
@@ -216,7 +233,7 @@ impl InternalVulkan {
         );
     }
 
-    pub unsafe fn create_buffer(
+    pub fn create_buffer(
         instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
@@ -229,9 +246,13 @@ impl InternalVulkan {
             .size(size)
             .usage(usage_flags)
             .sharing_mode(SharingMode::EXCLUSIVE);
-        let buffer = device.create_buffer(&buffer_create_info, None).unwrap();
 
-        let memory_requirements = device.get_buffer_memory_requirements(buffer);
+        let (buffer, memory_requirements) = unsafe {
+            let buffer = device.create_buffer(&buffer_create_info, None).unwrap();
+            let memory_requirements = device.get_buffer_memory_requirements(buffer);
+
+            (buffer, memory_requirements)
+        };
 
         let allocation_info = MemoryAllocateInfo::default()
             .allocation_size(memory_requirements.size)
@@ -241,14 +262,18 @@ impl InternalVulkan {
                 memory_requirements,
                 memory_properties,
             ));
-        let buffer_memory = device.allocate_memory(&allocation_info, None).unwrap();
 
-        device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
+        let buffer_memory = unsafe {
+            let buffer_memory = device.allocate_memory(&allocation_info, None).unwrap();
+            device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
+
+            buffer_memory
+        };
 
         (buffer, buffer_memory)
     }
 
-    pub unsafe fn copy_buffer(
+    pub fn copy_buffer(
         device: &Device,
         command_pool: CommandPool,
         graphics_queue: Queue,
@@ -258,9 +283,11 @@ impl InternalVulkan {
     ) {
         // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_conclusion
         let command_buffer = InternalVulkan::begin_single_time_commands(device, command_pool);
-
         let copy_region = BufferCopy::default().src_offset(0).dst_offset(0).size(size);
-        device.cmd_copy_buffer(command_buffer, src, dst, &[copy_region]);
+
+        unsafe {
+            device.cmd_copy_buffer(command_buffer, src, dst, &[copy_region]);
+        };
 
         InternalVulkan::end_single_time_commands(
             device,
@@ -270,13 +297,14 @@ impl InternalVulkan {
         );
     }
 
-    unsafe fn find_memory_type(
+    fn find_memory_type(
         instance: &Instance,
         physical_device: PhysicalDevice,
         memory_requirements: MemoryRequirements,
         properties: MemoryPropertyFlags,
     ) -> u32 {
-        let memory_properties = instance.get_physical_device_memory_properties(physical_device);
+        let memory_properties =
+            unsafe { instance.get_physical_device_memory_properties(physical_device) };
 
         (0..memory_properties.memory_type_count)
             .find(|index| {
@@ -287,7 +315,7 @@ impl InternalVulkan {
             .unwrap()
     }
 
-    pub unsafe fn create_image_view(
+    pub fn create_image_view(
         device: &Device,
         image: Image,
         format: Format,
@@ -305,9 +333,11 @@ impl InternalVulkan {
                 layer_count: 1,
             });
 
-        device
-            .create_image_view(&image_view_create_info, None)
-            .unwrap()
+        unsafe {
+            device
+                .create_image_view(&image_view_create_info, None)
+                .unwrap()
+        }
     }
 
     fn find_supported_format(
@@ -348,5 +378,33 @@ impl InternalVulkan {
             ImageTiling::OPTIMAL,
             FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
         )
+    }
+
+    pub fn get_queue_family_index(
+        surface: &SurfaceKHR,
+        surface_loader: &surface::Instance,
+        physical_device: PhysicalDevice,
+        queue_family_properties: Vec<ash::vk::QueueFamilyProperties>,
+    ) -> Option<(PhysicalDevice, u32)> {
+        queue_family_properties
+            .iter()
+            .enumerate()
+            .find_map(|(index, info)| {
+                let supports_graphic_and_surface = info.queue_flags.contains(QueueFlags::GRAPHICS)
+                    && unsafe {
+                        surface_loader
+                            .get_physical_device_surface_support(
+                                physical_device,
+                                index as u32,
+                                *surface,
+                            )
+                            .unwrap()
+                    };
+                if supports_graphic_and_surface {
+                    Some((physical_device, index as u32))
+                } else {
+                    None
+                }
+            })
     }
 }

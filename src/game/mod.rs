@@ -1,8 +1,13 @@
+mod object;
+mod scene;
+mod sprites;
 use crate::{
     constants::{FPS, FULLSCREEN, ICONPATH, TITLE},
-    scene::Scene,
     window::Window,
 };
+use object::{GameObject, Quad};
+use scene::Layer;
+pub use scene::Scene;
 use std::{
     cell::RefCell,
     rc::Rc,
@@ -11,9 +16,8 @@ use std::{
         Arc,
     },
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
-
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
@@ -32,13 +36,9 @@ impl Game {
     fn exit(&mut self, event_loop: &ActiveEventLoop) {
         event_loop.exit();
         self.is_running.store(false, Ordering::Release);
-        unsafe {
-            self.window
-                .as_ref()
-                .unwrap()
-                .borrow()
-                .destroy(self.current_scene.as_ref().unwrap())
-        }
+
+        let scene_ref = self.current_scene.as_ref().unwrap();
+        unsafe { self.window.as_ref().unwrap().borrow().destroy(scene_ref) }
     }
 }
 
@@ -70,8 +70,8 @@ impl ApplicationHandler for Game {
             attributes = attributes.with_fullscreen(Some(Borderless(None)));
         }
         let inner_window = event_loop.create_window(attributes).unwrap();
-        let window = Rc::new(RefCell::new(unsafe { Window::new(inner_window) }));
-        self.current_scene = Some(Scene::load_menu(window.clone()));
+        let window = Rc::new(RefCell::new(Window::create(inner_window)));
+        self.current_scene = Some(Scene::create(window.clone()));
         self.window = Some(window);
     }
 
@@ -84,29 +84,23 @@ impl ApplicationHandler for Game {
         match event {
             WindowEvent::CloseRequested => self.exit(event_loop),
             WindowEvent::RedrawRequested => {
-                let start_time = Instant::now();
-                unsafe {
-                    self.window
-                        .as_ref()
-                        .unwrap()
-                        .borrow_mut()
-                        .draw_frame(self.current_scene.as_ref().unwrap());
-                }
-                let end_time = Instant::now();
-                let render_time = end_time - start_time;
-                let remaining_time = self.frame_time.saturating_sub(render_time);
+                let render_time = {
+                    let scene_ref = self.current_scene.as_ref().unwrap();
+                    let mut window_ref = self.window.as_ref().unwrap().borrow_mut();
+
+                    window_ref.render(scene_ref)
+                };
 
                 // println!("{:?}", render_time);
-
+                let remaining_time = self.frame_time.saturating_sub(render_time);
                 if !remaining_time.is_zero() {
                     thread::sleep(remaining_time)
                 }
-                self.window
-                    .as_ref()
-                    .unwrap()
-                    .borrow()
-                    .window
-                    .request_redraw();
+
+                {
+                    let window_ref = self.window.as_ref().unwrap().borrow();
+                    window_ref.request_render();
+                }
             }
             _ => (), //println!("event: {:?}", event),
         }

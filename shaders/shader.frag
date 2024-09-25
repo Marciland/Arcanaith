@@ -1,10 +1,17 @@
 #version 450
+#define TEXTURE_COUNT 2
 
-layout(binding = 1) uniform sampler2D textureSampler;
+layout(set = 0, binding = 2) uniform sampler2D objectTextures[TEXTURE_COUNT];
 
-layout(location = 0) in vec3 fragColor;
-layout(location = 1) in vec2 fragUV;
+layout(location = 0) in vec2 fragTextureCoordinates;
+layout(location = 1) flat in int instanceIndex;
 
 layout(location = 0) out vec4 outColor;
 
-void main() { outColor = texture(textureSampler, fragUV); }
+void main() {
+  vec4 textureColor = texture(objectTextures[instanceIndex], fragTextureCoordinates);
+  if (textureColor.a < 0.1) {
+    discard;
+  }
+  outColor = textureColor;
+}

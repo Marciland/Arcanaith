@@ -1,13 +1,16 @@
 use crate::{
-    vulkan::{ImageData, Wrapper},
-    Scene, Vertex, VulkanWrapper,
+    constants::FRAMES_IN_FLIGHT,
+    ecs::system::RenderSystem,
+    structs::{ImageData, ModelViewProjection, StorageBufferObject, Vertex},
+    vulkan::{VulkanWrapper, Wrapper},
 };
 use ash::{
     khr::{surface, swapchain},
     vk::{
-        Buffer, CommandBuffer, CommandPool, CommandPoolResetFlags, DeviceMemory, Extent2D, Fence,
-        Format, Framebuffer, Image, ImageView, PhysicalDevice, PipelineStageFlags, PresentInfoKHR,
-        Queue, Semaphore, SubmitInfo, SurfaceKHR, SwapchainKHR,
+        Buffer, CommandBuffer, CommandPool, CommandPoolResetFlags, DescriptorPool, DescriptorSet,
+        DescriptorSetLayout, DeviceMemory, Extent2D, Fence, Format, Framebuffer, Image, ImageView,
+        PhysicalDevice, Pipeline, PipelineLayout, PipelineStageFlags, PresentInfoKHR, Queue,
+        RenderPass, Sampler, Semaphore, SubmitInfo, SurfaceKHR, SwapchainKHR,
     },
     Device, Instance,
 };
@@ -19,25 +22,35 @@ pub struct Renderer {
     swapchain_framebuffers: Vec<Framebuffer>,
     format: Format,
     extent: Extent2D,
-    command_pool: CommandPool,
-    command_buffer: CommandBuffer,
+    command_pools: Vec<CommandPool>,
+    command_buffers: Vec<CommandBuffer>,
     graphics_queue: Queue,
+    render_pass: RenderPass,
+    texture_sampler: Sampler,
+    descriptor_set_layout: DescriptorSetLayout,
+    descriptor_pool: DescriptorPool,
+    descriptor_sets: Vec<DescriptorSet>,
+    pipeline: Pipeline,
+    pipeline_layout: PipelineLayout,
     images: Vec<Image>,
     image_views: Vec<ImageView>,
     depth: ImageData,
-    image_available: Semaphore,
-    render_finished: Semaphore,
-    in_flight: Fence,
+    mvp_buffers: Vec<StorageBufferObject>,
+    image_available: Vec<Semaphore>,
+    render_finished: Vec<Semaphore>,
+    in_flight: Vec<Fence>,
+    current_frame: usize,
 }
 
 impl Renderer {
-    pub fn new(
+    pub fn create(
         vk_instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
         surface: SurfaceKHR,
         surface_loader: &surface::Instance,
         queue_family_index: u32,
+        max_texture_count: u32,
     ) -> Self {
         let (swapchain, swapchain_loader, format, extent) = VulkanWrapper::create_swapchain(
             vk_instance,
@@ -46,13 +59,45 @@ impl Renderer {
             physical_device,
             surface_loader,
         );
-        let (command_pool, command_buffer) =
-            VulkanWrapper::create_command_buffer(device, queue_family_index);
+        let (command_pools, command_buffers) =
+            VulkanWrapper::create_command_buffers(device, queue_family_index, FRAMES_IN_FLIGHT);
         let (images, image_views) =
             VulkanWrapper::create_image_views(&swapchain_loader, swapchain, format, device);
         let graphics_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
+        let render_pass =
+            VulkanWrapper::create_render_pass(vk_instance, physical_device, device, format);
+        let texture_sampler =
+            VulkanWrapper::create_texture_sampler(vk_instance, physical_device, device);
+        let (descriptor_set_layout, descriptor_pool) =
+            VulkanWrapper::create_descriptors(device, FRAMES_IN_FLIGHT as u32, max_texture_count);
+        let descriptor_sets = VulkanWrapper::create_descriptor_sets(
+            device,
+            descriptor_pool,
+            descriptor_set_layout,
+            FRAMES_IN_FLIGHT,
+        );
+        let (pipeline_layout, pipeline) = VulkanWrapper::create_graphics_pipeline(
+            device,
+            extent,
+            render_pass,
+            &[descriptor_set_layout],
+        );
         let depth = VulkanWrapper::create_depth(vk_instance, physical_device, device, extent);
-        let (image_available, render_finished, in_flight) = VulkanWrapper::create_sync(device);
+        let mut mvp_buffers: Vec<StorageBufferObject> = Vec::with_capacity(FRAMES_IN_FLIGHT);
+        let initial_capacity = 100;
+        for descriptor_set in &descriptor_sets {
+            let ssbo =
+                StorageBufferObject::create(vk_instance, physical_device, device, initial_capacity);
+            VulkanWrapper::update_mvp_descriptors(
+                device,
+                *descriptor_set,
+                initial_capacity,
+                ssbo.get_buffer(),
+            );
+            mvp_buffers.push(ssbo);
+        }
+        let (image_available, render_finished, in_flight) =
+            VulkanWrapper::create_sync(device, FRAMES_IN_FLIGHT);
 
         Self {
             swapchain,
@@ -60,18 +105,28 @@ impl Renderer {
             swapchain_framebuffers: Vec::new(),
             format,
             extent,
-            command_pool,
-            command_buffer,
+            command_pools,
+            command_buffers,
             graphics_queue,
+            render_pass,
+            texture_sampler,
+            descriptor_set_layout,
+            descriptor_pool,
+            descriptor_sets,
+            pipeline,
+            pipeline_layout,
             images,
             image_views,
             depth,
+            mvp_buffers,
             image_available,
             render_finished,
             in_flight,
+            current_frame: 0,
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_frame(
         &mut self,
         vk_instance: &Instance,
@@ -79,19 +134,30 @@ impl Renderer {
         device: &Device,
         surface: SurfaceKHR,
         surface_loader: &surface::Instance,
-        scene: &Scene,
+        render_system: &RenderSystem,
+        textures: &[ImageView],
+        mvps: &[ModelViewProjection],
     ) {
         unsafe {
             device
-                .wait_for_fences(&[self.in_flight], true, u64::MAX)
-                .unwrap();
+                .wait_for_fences(&[self.in_flight[self.current_frame]], true, u64::MAX)
+                .expect("Waiting for fences failed!");
         };
+
+        if !textures.is_empty() {
+            VulkanWrapper::update_texture_descriptors(
+                device,
+                self.descriptor_sets[self.current_frame],
+                textures,
+                self.texture_sampler,
+            );
+        }
 
         let (image_index, _) = match unsafe {
             self.swapchain_loader.acquire_next_image(
                 self.swapchain,
                 u64::MAX,
-                self.image_available,
+                self.image_available[self.current_frame],
                 Fence::null(),
             )
         } {
@@ -103,23 +169,27 @@ impl Renderer {
                     device,
                     surface,
                     surface_loader,
-                    scene,
                 )
             }
         };
 
         unsafe {
-            device.reset_fences(&[self.in_flight]).unwrap();
+            device
+                .reset_fences(&[self.in_flight[self.current_frame]])
+                .expect("Failed to reset fences!");
 
             device
-                .reset_command_pool(self.command_pool, CommandPoolResetFlags::empty())
-                .unwrap();
+                .reset_command_pool(
+                    self.command_pools[self.current_frame],
+                    CommandPoolResetFlags::empty(),
+                )
+                .expect("Failed to reset command pool!");
         };
 
         if self.swapchain_framebuffers.is_empty() {
             self.swapchain_framebuffers = VulkanWrapper::create_framebuffers(
                 device,
-                scene.get_render_pass(),
+                self.render_pass,
                 &self.image_views,
                 self.depth.get_view(),
                 self.extent,
@@ -130,16 +200,32 @@ impl Renderer {
             device,
             &self.swapchain_framebuffers,
             image_index as usize,
-            self.command_buffer,
+            self.command_buffers[self.current_frame],
             self.extent,
-            scene,
+            self.render_pass,
+            self.pipeline,
         );
-        VulkanWrapper::draw_indexed_instanced(device, self.command_buffer, scene);
-        VulkanWrapper::end_render_pass(device, self.command_buffer);
+        self.mvp_buffers[self.current_frame].resize_if_needed(
+            vk_instance,
+            physical_device,
+            device,
+            mvps.len(),
+            self.descriptor_sets[self.current_frame],
+        );
+        VulkanWrapper::draw_indexed_instanced(
+            device,
+            self.command_buffers[self.current_frame],
+            self.pipeline_layout,
+            self.descriptor_sets[self.current_frame],
+            render_system,
+            mvps,
+            &self.mvp_buffers[self.current_frame],
+        );
+        VulkanWrapper::end_render_pass(device, self.command_buffers[self.current_frame]);
 
-        let wait_semaphores = [self.image_available];
-        let command_buffers = [self.command_buffer];
-        let signal_semaphores = [self.render_finished];
+        let wait_semaphores = [self.image_available[self.current_frame]];
+        let command_buffers = [self.command_buffers[self.current_frame]];
+        let signal_semaphores = [self.render_finished[self.current_frame]];
 
         let submit_info = SubmitInfo::default()
             .wait_semaphores(&wait_semaphores)
@@ -149,8 +235,12 @@ impl Renderer {
 
         unsafe {
             device
-                .queue_submit(self.graphics_queue, &[submit_info], self.in_flight)
-                .unwrap();
+                .queue_submit(
+                    self.graphics_queue,
+                    &[submit_info],
+                    self.in_flight[self.current_frame],
+                )
+                .expect("Failed to submit queue!");
         };
 
         let swapchains = [self.swapchain];
@@ -172,9 +262,9 @@ impl Renderer {
                 device,
                 surface,
                 surface_loader,
-                scene,
             )
         };
+        self.current_frame = (self.current_frame + 1) % FRAMES_IN_FLIGHT;
     }
 
     fn recreate_swapchain(
@@ -184,11 +274,11 @@ impl Renderer {
         device: &Device,
         surface: SurfaceKHR,
         surface_loader: &surface::Instance,
-        scene: &Scene,
     ) {
-        // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/04_Swap_chain_recreation.html#_recreating_the_swap_chain
         unsafe {
-            device.device_wait_idle().unwrap();
+            device
+                .device_wait_idle()
+                .expect("Failed to wait for device idle!");
 
             self.destroy_swapchain_elements(device);
         };
@@ -205,7 +295,7 @@ impl Renderer {
         let depth = VulkanWrapper::create_depth(vk_instance, physical_device, device, extent);
         let framebuffers = VulkanWrapper::create_framebuffers(
             device,
-            scene.get_render_pass(),
+            self.render_pass,
             &image_views,
             depth.get_view(),
             extent,
@@ -233,7 +323,7 @@ impl Renderer {
             physical_device,
             device,
             vertices,
-            self.command_pool,
+            self.command_pools[self.current_frame],
             self.graphics_queue,
         )
     }
@@ -251,7 +341,7 @@ impl Renderer {
             device,
             indices,
             self.graphics_queue,
-            self.command_pool,
+            self.command_pools[self.current_frame],
         )
     }
 
@@ -267,32 +357,39 @@ impl Renderer {
             physical_device,
             device,
             self.graphics_queue,
-            self.command_pool,
+            self.command_pools[self.current_frame],
             image,
         )
-    }
-
-    pub fn get_format(&self) -> Format {
-        self.format
-    }
-
-    pub fn get_extent(&self) -> Extent2D {
-        self.extent
     }
 
     pub unsafe fn destroy(&self, device: &Device) {
         self.destroy_sync_elements(device);
         self.destroy_swapchain_elements(device);
-        device.destroy_command_pool(self.command_pool, None);
+
+        for index in 0..FRAMES_IN_FLIGHT {
+            device.destroy_command_pool(self.command_pools[index], None);
+        }
+
+        device.destroy_pipeline(self.pipeline, None);
+        device.destroy_pipeline_layout(self.pipeline_layout, None);
+
+        device.destroy_descriptor_pool(self.descriptor_pool, None);
+        device.destroy_descriptor_set_layout(self.descriptor_set_layout, None);
+
+        for index in 0..FRAMES_IN_FLIGHT {
+            self.mvp_buffers[index].destroy(device);
+        }
+
+        device.destroy_sampler(self.texture_sampler, None);
+        device.destroy_render_pass(self.render_pass, None);
     }
 
     unsafe fn destroy_sync_elements(&self, device: &Device) {
-        device.device_wait_idle().unwrap();
-
-        device.destroy_semaphore(self.image_available, None);
-        device.destroy_semaphore(self.render_finished, None);
-
-        device.destroy_fence(self.in_flight, None);
+        for index in 0..FRAMES_IN_FLIGHT {
+            device.destroy_semaphore(self.image_available[index], None);
+            device.destroy_semaphore(self.render_finished[index], None);
+            device.destroy_fence(self.in_flight[index], None);
+        }
     }
 
     unsafe fn destroy_swapchain_elements(&self, device: &Device) {

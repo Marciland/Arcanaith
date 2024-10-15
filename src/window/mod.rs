@@ -1,19 +1,16 @@
 mod renderer;
 use crate::{
-    vulkan::{ImageData, Wrapper},
-    Scene, UniformBufferObject, Vertex, VulkanWrapper,
+    ecs::system::RenderSystem,
+    structs::{ImageData, ModelViewProjection, Vertex},
+    vulkan::{VulkanWrapper, Wrapper},
 };
 use ash::{
     khr::surface,
-    vk::{
-        Buffer, DescriptorPool, DescriptorSet, DescriptorSetLayout, DeviceMemory, ImageView,
-        PhysicalDevice, Pipeline, PipelineLayout, RenderPass, Sampler, SurfaceKHR,
-    },
+    vk::{Buffer, DeviceMemory, ImageView, PhysicalDevice, SurfaceKHR},
     Device, Entry, Instance,
 };
 use image::{ImageBuffer, Rgba};
 use renderer::Renderer;
-use std::time::{Duration, Instant};
 
 pub struct Window {
     inner: winit::window::Window,
@@ -26,7 +23,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn create(inner_window: winit::window::Window) -> Self {
+    pub fn create(inner_window: winit::window::Window, max_texture_count: u32) -> Self {
         let entry = Entry::linked();
         let vk_instance = VulkanWrapper::create_vulkan_instance(&entry, &inner_window);
         let (surface, surface_loader) =
@@ -35,13 +32,14 @@ impl Window {
             VulkanWrapper::find_physical_device(&vk_instance, &surface, &surface_loader);
         let device =
             VulkanWrapper::create_logical_device(&vk_instance, physical_device, queue_family_index);
-        let renderer = Renderer::new(
+        let renderer = Renderer::create(
             &vk_instance,
             physical_device,
             &device,
             surface,
             &surface_loader,
             queue_family_index,
+            max_texture_count,
         );
 
         inner_window.set_visible(true);
@@ -56,11 +54,18 @@ impl Window {
         }
     }
 
-    pub fn render(&mut self, scene: &Scene) -> Duration {
-        let start_time = Instant::now();
-
-        if self.inner.is_minimized().unwrap() {
-            return Instant::now() - start_time;
+    pub fn draw(
+        &mut self,
+        render_system: &RenderSystem,
+        textures: &[ImageView],
+        mvps: &[ModelViewProjection],
+    ) {
+        if self
+            .inner
+            .is_minimized()
+            .expect("Failed to determine whether window is minimized!")
+        {
+            return;
         }
 
         self.renderer.draw_frame(
@@ -69,15 +74,20 @@ impl Window {
             &self.device,
             self.surface,
             &self.surface_loader,
-            scene,
+            render_system,
+            textures,
+            mvps,
         );
-        let end_time = Instant::now();
-
-        end_time - start_time
     }
 
     pub fn request_render(&self) {
         self.inner.request_redraw();
+    }
+
+    pub unsafe fn wait_idle(&self) {
+        self.device
+            .device_wait_idle()
+            .expect("Failed to wait for device idle!")
     }
 
     pub fn create_vertex_buffer(&self, vertices: &[Vertex]) -> (Buffer, DeviceMemory) {
@@ -98,80 +108,18 @@ impl Window {
         )
     }
 
-    pub fn create_render_pass(&self) -> RenderPass {
-        VulkanWrapper::create_render_pass(
-            &self.vk_instance,
-            self.physical_device,
-            &self.device,
-            self.renderer.get_format(),
-        )
-    }
-
-    pub fn create_uniform_buffer(&self, buffer_size: u64) -> UniformBufferObject {
-        VulkanWrapper::create_uniform_buffer(
-            &self.vk_instance,
-            self.physical_device,
-            &self.device,
-            buffer_size,
-        )
-    }
-
     pub fn create_texture(&self, image: ImageBuffer<Rgba<u8>, Vec<u8>>) -> ImageData {
         self.renderer
             .create_texture(&self.vk_instance, self.physical_device, &self.device, image)
     }
 
-    pub fn create_texture_sampler(&self) -> Sampler {
-        VulkanWrapper::create_texture_sampler(&self.vk_instance, self.physical_device, &self.device)
-    }
-
-    pub fn create_descriptor_pool(
-        &self,
-        texture_count: u32,
-    ) -> (DescriptorSetLayout, DescriptorPool) {
-        VulkanWrapper::create_descriptor_pool(&self.device, texture_count)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn create_descriptor_set(
-        &self,
-        descriptor_pool: DescriptorPool,
-        descriptor_set_layout: DescriptorSetLayout,
-        texture_image_views: &[ImageView],
-        texture_sampler: Sampler,
-        object_count: usize,
-        object_count_buffer: Buffer,
-        mvp_buffer: Buffer,
-    ) -> DescriptorSet {
-        VulkanWrapper::create_descriptor_set(
-            &self.device,
-            descriptor_pool,
-            descriptor_set_layout,
-            texture_image_views,
-            texture_sampler,
-            object_count,
-            object_count_buffer,
-            mvp_buffer,
-        )
-    }
-
-    pub fn create_pipeline(
-        &self,
-        render_pass: RenderPass,
-        descriptor_set_layouts: &[DescriptorSetLayout],
-    ) -> (PipelineLayout, Pipeline) {
-        VulkanWrapper::create_graphics_pipeline(
-            &self.device,
-            self.renderer.get_extent(),
-            render_pass,
-            descriptor_set_layouts,
-        )
+    pub fn get_device(&self) -> &Device {
+        &self.device
     }
 
     #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn destroy(&self, scene: &Scene) {
+    pub unsafe fn destroy(&self) {
         self.renderer.destroy(&self.device);
-        scene.destroy(&self.device);
         self.surface_loader.destroy_surface(self.surface, None);
         self.device.destroy_device(None);
         self.vk_instance.destroy_instance(None);

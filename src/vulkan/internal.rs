@@ -28,7 +28,6 @@ impl InternalVulkan {
         usage: ImageUsageFlags,
         memory_properties: MemoryPropertyFlags,
     ) -> (Image, DeviceMemory) {
-        // https://docs.vulkan.org/tutorial/latest/06_Texture_mapping/00_Images.html#_texture_image
         let image_info = ImageCreateInfo::default()
             .image_type(ImageType::TYPE_2D)
             .extent(Extent3D {
@@ -45,11 +44,13 @@ impl InternalVulkan {
             .sharing_mode(SharingMode::EXCLUSIVE)
             .samples(SampleCountFlags::TYPE_1);
 
-        let (texture_image, memory_requirements) = unsafe {
-            let texture_image = device.create_image(&image_info, None).unwrap();
-            let memory_requirements = device.get_image_memory_requirements(texture_image);
+        let (image, memory_requirements) = unsafe {
+            let image = device
+                .create_image(&image_info, None)
+                .expect("Failed to create image!");
+            let memory_requirements = device.get_image_memory_requirements(image);
 
-            (texture_image, memory_requirements)
+            (image, memory_requirements)
         };
 
         let allocation_info = MemoryAllocateInfo::default()
@@ -61,16 +62,18 @@ impl InternalVulkan {
                 memory_properties,
             ));
 
-        let texture_image_memory = unsafe {
-            let texture_image_memory = device.allocate_memory(&allocation_info, None).unwrap();
+        let image_memory = unsafe {
+            let image_memory = device
+                .allocate_memory(&allocation_info, None)
+                .expect("Failed to allocate memory for image!");
 
             device
-                .bind_image_memory(texture_image, texture_image_memory, 0)
-                .unwrap();
-            texture_image_memory
+                .bind_image_memory(image, image_memory, 0)
+                .expect("Failed to bind image memory!");
+            image_memory
         };
 
-        (texture_image, texture_image_memory)
+        (image, image_memory)
     }
 
     fn begin_single_time_commands(device: &Device, command_pool: CommandPool) -> CommandBuffer {
@@ -79,8 +82,11 @@ impl InternalVulkan {
             .command_pool(command_pool)
             .command_buffer_count(1);
 
-        let command_buffer =
-            unsafe { device.allocate_command_buffers(&allocation_info).unwrap()[0] };
+        let command_buffer = unsafe {
+            device
+                .allocate_command_buffers(&allocation_info)
+                .expect("Failed to allocate command buffer for single time command!")[0]
+        };
 
         let begin_info =
             CommandBufferBeginInfo::default().flags(CommandBufferUsageFlags::ONE_TIME_SUBMIT);
@@ -88,7 +94,7 @@ impl InternalVulkan {
         unsafe {
             device
                 .begin_command_buffer(command_buffer, &begin_info)
-                .unwrap()
+                .expect("Failed to begin command buffer for single time command!")
         };
 
         command_buffer
@@ -100,7 +106,11 @@ impl InternalVulkan {
         command_pool: CommandPool,
         command_buffer: CommandBuffer,
     ) {
-        unsafe { device.end_command_buffer(command_buffer).unwrap() };
+        unsafe {
+            device
+                .end_command_buffer(command_buffer)
+                .expect("Failed to end command buffer for single time command!")
+        };
 
         let buffers = [command_buffer];
         let submit_info = SubmitInfo::default().command_buffers(&buffers);
@@ -108,9 +118,11 @@ impl InternalVulkan {
         unsafe {
             device
                 .queue_submit(graphics_queue, &[submit_info], Fence::null())
-                .unwrap();
+                .expect("Failed to submit single time command queue!");
 
-            device.queue_wait_idle(graphics_queue).unwrap();
+            device
+                .queue_wait_idle(graphics_queue)
+                .expect("Failed to wait for queue idle after single time command!");
             device.free_command_buffers(command_pool, &[command_buffer]);
         };
     }
@@ -123,7 +135,6 @@ impl InternalVulkan {
         old_layout: ImageLayout,
         new_layout: ImageLayout,
     ) {
-        // https://docs.vulkan.org/tutorial/latest/06_Texture_mapping/00_Images.html#_layout_transitions
         let command_buffer = InternalVulkan::begin_single_time_commands(device, command_pool);
 
         let src_access_mask;
@@ -132,7 +143,6 @@ impl InternalVulkan {
         let src_stage_mask;
         let dst_stage_mask;
 
-        // https://docs.vulkan.org/tutorial/latest/06_Texture_mapping/00_Images.html#_transition_barrier_masks
         if old_layout == ImageLayout::UNDEFINED && new_layout == ImageLayout::TRANSFER_DST_OPTIMAL {
             src_access_mask = AccessFlags::empty();
             dst_access_mask = AccessFlags::TRANSFER_WRITE;
@@ -195,7 +205,6 @@ impl InternalVulkan {
         image: Image,
         extent: Extent2D,
     ) {
-        // https://docs.vulkan.org/tutorial/latest/06_Texture_mapping/00_Images.html#_copying_buffer_to_image
         let command_buffer = InternalVulkan::begin_single_time_commands(device, command_pool);
 
         let region = BufferImageCopy::default()
@@ -241,14 +250,15 @@ impl InternalVulkan {
         usage_flags: BufferUsageFlags,
         memory_properties: MemoryPropertyFlags,
     ) -> (Buffer, DeviceMemory) {
-        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_abstracting_buffer_creation
         let buffer_create_info = BufferCreateInfo::default()
             .size(size)
             .usage(usage_flags)
             .sharing_mode(SharingMode::EXCLUSIVE);
 
         let (buffer, memory_requirements) = unsafe {
-            let buffer = device.create_buffer(&buffer_create_info, None).unwrap();
+            let buffer = device
+                .create_buffer(&buffer_create_info, None)
+                .expect("Failed to create buffer!");
             let memory_requirements = device.get_buffer_memory_requirements(buffer);
 
             (buffer, memory_requirements)
@@ -264,8 +274,12 @@ impl InternalVulkan {
             ));
 
         let buffer_memory = unsafe {
-            let buffer_memory = device.allocate_memory(&allocation_info, None).unwrap();
-            device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
+            let buffer_memory = device
+                .allocate_memory(&allocation_info, None)
+                .expect("Failed to allocate buffer memory!");
+            device
+                .bind_buffer_memory(buffer, buffer_memory, 0)
+                .expect("Failed to bind buffer memory!");
 
             buffer_memory
         };
@@ -281,7 +295,6 @@ impl InternalVulkan {
         dst: Buffer,
         size: u64,
     ) {
-        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_conclusion
         let command_buffer = InternalVulkan::begin_single_time_commands(device, command_pool);
         let copy_region = BufferCopy::default().src_offset(0).dst_offset(0).size(size);
 
@@ -312,7 +325,7 @@ impl InternalVulkan {
                     && (memory_properties.memory_types[*index as usize].property_flags & properties)
                         == properties
             })
-            .unwrap()
+            .expect("Failed to find fitting memory type!")
     }
 
     pub fn create_image_view(
@@ -336,7 +349,7 @@ impl InternalVulkan {
         unsafe {
             device
                 .create_image_view(&image_view_create_info, None)
-                .unwrap()
+                .expect("Failed to create image view!")
         }
     }
 
@@ -398,7 +411,7 @@ impl InternalVulkan {
                                 index as u32,
                                 *surface,
                             )
-                            .unwrap()
+                            .expect("Failed to get phyiscal device surface support!")
                     };
                 if supports_graphic_and_surface {
                     Some((physical_device, index as u32))

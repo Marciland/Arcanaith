@@ -1,7 +1,9 @@
-use super::{internal::InternalVulkan, ImageData};
 use crate::{
     constants::{FRAGSHADER, TITLE, VERTSHADER},
-    read_bytes_from_file, ModelViewProjection, Scene, UniformBufferObject, Vertex, VulkanWrapper,
+    ecs::system::RenderSystem,
+    read_bytes_from_file,
+    structs::{ImageData, ModelViewProjection, StorageBufferObject, Vertex},
+    vulkan::InternalVulkan,
 };
 use ash::{
     khr::{surface, swapchain},
@@ -20,8 +22,8 @@ use ash::{
         FramebufferCreateInfo, FrontFace, GraphicsPipelineCreateInfo, Image, ImageAspectFlags,
         ImageLayout, ImageTiling, ImageUsageFlags, ImageView, IndexType, InstanceCreateInfo,
         LogicOp, MemoryMapFlags, MemoryPropertyFlags, Offset2D, PhysicalDevice,
-        PhysicalDeviceFeatures, Pipeline, PipelineBindPoint, PipelineCache,
-        PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
+        PhysicalDeviceFeatures, PhysicalDeviceVulkan12Features, Pipeline, PipelineBindPoint,
+        PipelineCache, PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
         PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
         PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineLayoutCreateInfo,
         PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
@@ -41,18 +43,17 @@ use std::{
     array::from_ref,
     ffi::{c_void, CStr},
     io::Cursor,
-    mem,
-    ptr::{self, copy_nonoverlapping},
+    mem::{size_of, size_of_val},
+    ptr::copy_nonoverlapping,
 };
-use winit::{
-    raw_window_handle::{HasDisplayHandle, HasWindowHandle},
-    window::Window,
-};
+use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+
+pub struct VulkanWrapper;
 
 pub trait Wrapper {
-    fn create_vulkan_instance(entry: &Entry, window: &Window) -> Instance;
+    fn create_vulkan_instance(entry: &Entry, window: &winit::window::Window) -> Instance;
     fn create_surface(
-        window: &Window,
+        window: &winit::window::Window,
         entry: &Entry,
         instance: &Instance,
     ) -> (SurfaceKHR, surface::Instance);
@@ -98,11 +99,12 @@ pub trait Wrapper {
         depth_image_view: ImageView,
         extent: Extent2D,
     ) -> Vec<Framebuffer>;
-    fn create_command_buffer(
+    fn create_command_buffers(
         device: &Device,
         queue_family_index: u32,
-    ) -> (CommandPool, CommandBuffer);
-    fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence);
+        amount: usize,
+    ) -> (Vec<CommandPool>, Vec<CommandBuffer>);
+    fn create_sync(device: &Device, amount: usize) -> (Vec<Semaphore>, Vec<Semaphore>, Vec<Fence>);
     fn create_depth(
         instance: &Instance,
         physical_device: PhysicalDevice,
@@ -115,9 +117,18 @@ pub trait Wrapper {
         image_index: usize,
         command_buffer: CommandBuffer,
         extent: Extent2D,
-        scene: &Scene,
+        render_pass: RenderPass,
+        pipeline: Pipeline,
     );
-    fn draw_indexed_instanced(device: &Device, command_buffer: CommandBuffer, scene: &Scene);
+    fn draw_indexed_instanced(
+        device: &Device,
+        command_buffer: CommandBuffer,
+        pipeline_layout: PipelineLayout,
+        descriptor_set: DescriptorSet,
+        render_system: &RenderSystem,
+        mvps: &[ModelViewProjection],
+        mvp_buffer: &StorageBufferObject,
+    );
     fn end_render_pass(device: &Device, command_buffer: CommandBuffer);
     fn create_vertex_buffer(
         instance: &Instance,
@@ -135,27 +146,30 @@ pub trait Wrapper {
         graphics_queue: Queue,
         command_pool: CommandPool,
     ) -> (Buffer, DeviceMemory);
-    fn create_uniform_buffer(
-        instance: &Instance,
-        physical_device: PhysicalDevice,
+    fn create_descriptors(
         device: &Device,
-        buffer_size: u64,
-    ) -> UniformBufferObject;
-    fn create_descriptor_pool(
-        device: &Device,
+        in_flight: u32,
         texture_count: u32,
     ) -> (DescriptorSetLayout, DescriptorPool);
     #[allow(clippy::too_many_arguments)]
-    fn create_descriptor_set(
+    fn create_descriptor_sets(
         device: &Device,
         descriptor_pool: DescriptorPool,
         descriptor_set_layout: DescriptorSetLayout,
+        amount: usize,
+    ) -> Vec<DescriptorSet>;
+    fn update_texture_descriptors(
+        device: &Device,
+        descriptor_set: DescriptorSet,
         texture_image_views: &[ImageView],
         texture_sampler: Sampler,
-        object_count: usize,
-        object_count_buffer: Buffer,
+    );
+    fn update_mvp_descriptors(
+        device: &Device,
+        descriptor_set: DescriptorSet,
+        entity_count: usize,
         mvp_buffer: Buffer,
-    ) -> DescriptorSet;
+    );
     fn create_texture(
         instance: &Instance,
         physical_device: PhysicalDevice,
@@ -172,7 +186,7 @@ pub trait Wrapper {
 }
 
 impl Wrapper for VulkanWrapper {
-    fn create_vulkan_instance(entry: &Entry, window: &Window) -> Instance {
+    fn create_vulkan_instance(entry: &Entry, window: &winit::window::Window) -> Instance {
         let extension_names =
             enumerate_required_extensions(window.display_handle().unwrap().as_raw())
                 .unwrap()
@@ -193,7 +207,7 @@ impl Wrapper for VulkanWrapper {
     }
 
     fn create_surface(
-        window: &Window,
+        window: &winit::window::Window,
         entry: &Entry,
         instance: &Instance,
     ) -> (SurfaceKHR, surface::Instance) {
@@ -216,11 +230,15 @@ impl Wrapper for VulkanWrapper {
         surface: &SurfaceKHR,
         surface_loader: &surface::Instance,
     ) -> (PhysicalDevice, u32) {
-        // TODO BestPractices-vkCreateDevice-physical-device-features-not-retrieved
-        let devices = unsafe { instance.enumerate_physical_devices().unwrap() };
+        let devices = unsafe {
+            instance
+                .enumerate_physical_devices()
+                .expect("Failed to enumerate physical devices!")
+        };
         devices
             .iter()
             .find_map(|device| {
+                // TODO get device features here
                 let queue_family_properties =
                     unsafe { instance.get_physical_device_queue_family_properties(*device) };
 
@@ -231,7 +249,7 @@ impl Wrapper for VulkanWrapper {
                     queue_family_properties,
                 )
             })
-            .unwrap()
+            .expect("Failed to find physical device that is valid!")
     }
 
     fn create_logical_device(
@@ -244,18 +262,21 @@ impl Wrapper for VulkanWrapper {
             .queue_priorities(&[1.0]);
 
         let device_features = PhysicalDeviceFeatures::default().sampler_anisotropy(true);
-
+        let mut vulkan12_features = PhysicalDeviceVulkan12Features::default()
+            .runtime_descriptor_array(true)
+            .shader_sampled_image_array_non_uniform_indexing(true);
         let device_extensions = [swapchain::NAME.as_ptr()];
 
         let device_create_info = DeviceCreateInfo::default()
             .queue_create_infos(from_ref(&queue_create_info))
             .enabled_extension_names(&device_extensions)
-            .enabled_features(&device_features);
+            .enabled_features(&device_features)
+            .push_next(&mut vulkan12_features);
 
         unsafe {
             instance
                 .create_device(physical_device, &device_create_info, None)
-                .unwrap()
+                .expect("Failed to create logical device!")
         }
     }
 
@@ -412,22 +433,23 @@ impl Wrapper for VulkanWrapper {
         descriptor_set_layouts: &[DescriptorSetLayout],
     ) -> (PipelineLayout, Pipeline) {
         let (vert_shader_module, frag_shader_module) = unsafe {
+            let vertex_shader_code = read_spv(&mut Cursor::new(&read_bytes_from_file(VERTSHADER)))
+                .expect("Failed to read vertex shader spv!");
+            let vertex_shader_create_info =
+                ShaderModuleCreateInfo::default().code(&vertex_shader_code);
             let vert_shader_module = device
-                .create_shader_module(
-                    &ShaderModuleCreateInfo::default().code(
-                        &read_spv(&mut Cursor::new(&read_bytes_from_file(VERTSHADER))).unwrap(),
-                    ),
-                    None,
-                )
-                .unwrap();
+                .create_shader_module(&vertex_shader_create_info, None)
+                .expect("Failed to create vertex shader module!");
+
+            let fragment_shader_code =
+                read_spv(&mut Cursor::new(&read_bytes_from_file(FRAGSHADER)))
+                    .expect("Failed to read fragment shader spv!");
+            let fragment_shader_create_info =
+                ShaderModuleCreateInfo::default().code(&fragment_shader_code);
             let frag_shader_module = device
-                .create_shader_module(
-                    &ShaderModuleCreateInfo::default().code(
-                        &read_spv(&mut Cursor::new(&read_bytes_from_file(FRAGSHADER))).unwrap(),
-                    ),
-                    None,
-                )
-                .unwrap();
+                .create_shader_module(&fragment_shader_create_info, None)
+                .expect("Failed to create fragment shader module!");
+
             (vert_shader_module, frag_shader_module)
         };
 
@@ -585,40 +607,71 @@ impl Wrapper for VulkanWrapper {
         framebuffers
     }
 
-    fn create_command_buffer(
+    fn create_command_buffers(
         device: &Device,
         queue_family_index: u32,
-    ) -> (CommandPool, CommandBuffer) {
+        amount: usize,
+    ) -> (Vec<CommandPool>, Vec<CommandBuffer>) {
+        let mut command_pools: Vec<CommandPool> = Vec::with_capacity(amount);
+        let mut command_buffers: Vec<CommandBuffer> = Vec::with_capacity(amount);
+
         let pool_create_info = CommandPoolCreateInfo::default()
             .queue_family_index(queue_family_index)
             .flags(CommandPoolCreateFlags::empty());
-        let command_pool = unsafe { device.create_command_pool(&pool_create_info, None).unwrap() };
+        for _ in 0..amount {
+            let command_pool = unsafe {
+                device
+                    .create_command_pool(&pool_create_info, None)
+                    .expect("Failed to create command pool!")
+            };
+            command_pools.push(command_pool);
 
-        let allocation_info = CommandBufferAllocateInfo::default()
-            .command_pool(command_pool)
-            .level(CommandBufferLevel::PRIMARY)
-            .command_buffer_count(1);
-        let command_buffer =
-            unsafe { device.allocate_command_buffers(&allocation_info).unwrap()[0] };
+            let allocation_info = CommandBufferAllocateInfo::default()
+                .command_pool(command_pool)
+                .level(CommandBufferLevel::PRIMARY)
+                .command_buffer_count(1);
+            let command_buffer = unsafe {
+                device
+                    .allocate_command_buffers(&allocation_info)
+                    .expect("Failed to create command buffers!")[0]
+            };
+            command_buffers.push(command_buffer);
+        }
 
-        (command_pool, command_buffer)
+        (command_pools, command_buffers)
     }
 
-    fn create_sync(device: &Device) -> (Semaphore, Semaphore, Fence) {
+    fn create_sync(device: &Device, amount: usize) -> (Vec<Semaphore>, Vec<Semaphore>, Vec<Fence>) {
+        let mut image_available_semaphores: Vec<Semaphore> = Vec::with_capacity(amount);
+        let mut render_finished_semaphores: Vec<Semaphore> = Vec::with_capacity(amount);
+        let mut in_flight_fence: Vec<Fence> = Vec::with_capacity(amount);
+
         let semaphore_create_info = SemaphoreCreateInfo::default();
         let fence_create_info = FenceCreateInfo::default().flags(FenceCreateFlags::SIGNALED);
 
-        unsafe {
-            (
+        for _ in 0..amount {
+            image_available_semaphores.push(unsafe {
                 device
                     .create_semaphore(&semaphore_create_info, None)
-                    .unwrap(),
+                    .expect("Failed to create semaphore!")
+            });
+            render_finished_semaphores.push(unsafe {
                 device
                     .create_semaphore(&semaphore_create_info, None)
-                    .unwrap(),
-                device.create_fence(&fence_create_info, None).unwrap(),
-            )
+                    .expect("Failed to create semaphore!")
+            });
+            in_flight_fence.push(unsafe {
+                device
+                    .create_fence(&fence_create_info, None)
+                    .expect("Failed to create fence!")
+            });
         }
+
+        (
+            image_available_semaphores,
+            render_finished_semaphores,
+            in_flight_fence,
+        )
     }
 
     fn create_depth(
@@ -627,7 +680,6 @@ impl Wrapper for VulkanWrapper {
         device: &Device,
         extent: Extent2D,
     ) -> ImageData {
-        // https://docs.vulkan.org/tutorial/latest/07_Depth_buffering.html#_depth_image_and_view
         let depth_format = InternalVulkan::find_depth_format(instance, physical_device);
         let (depth_image, depth_image_memory) = InternalVulkan::create_image(
             instance,
@@ -646,11 +698,7 @@ impl Wrapper for VulkanWrapper {
             ImageAspectFlags::DEPTH,
         );
 
-        ImageData {
-            image: depth_image,
-            memory: depth_image_memory,
-            view: depth_image_view,
-        }
+        ImageData::create(depth_image, depth_image_memory, depth_image_view)
     }
 
     fn begin_render_pass(
@@ -659,7 +707,8 @@ impl Wrapper for VulkanWrapper {
         image_index: usize,
         command_buffer: CommandBuffer,
         extent: Extent2D,
-        scene: &Scene,
+        render_pass: RenderPass,
+        pipeline: Pipeline,
     ) {
         let begin_info = CommandBufferBeginInfo::default();
         let clear_colors = [
@@ -676,7 +725,7 @@ impl Wrapper for VulkanWrapper {
             },
         ];
         let render_pass_begin_info = RenderPassBeginInfo::default()
-            .render_pass(scene.get_render_pass())
+            .render_pass(render_pass)
             .framebuffer(framebuffers[image_index])
             .render_area(Rect2D {
                 offset: Offset2D { x: 0, y: 0 },
@@ -710,26 +759,30 @@ impl Wrapper for VulkanWrapper {
             device.cmd_set_viewport(command_buffer, 0, &viewports);
             device.cmd_set_scissor(command_buffer, 0, &scissors);
 
-            device.cmd_bind_pipeline(
-                command_buffer,
-                PipelineBindPoint::GRAPHICS,
-                scene.get_pipeline(),
-            );
+            device.cmd_bind_pipeline(command_buffer, PipelineBindPoint::GRAPHICS, pipeline);
         };
     }
 
-    fn draw_indexed_instanced(device: &Device, command_buffer: CommandBuffer, scene: &Scene) {
+    fn draw_indexed_instanced(
+        device: &Device,
+        command_buffer: CommandBuffer,
+        pipeline_layout: PipelineLayout,
+        descriptor_set: DescriptorSet,
+        render_system: &RenderSystem,
+        mvps: &[ModelViewProjection],
+        mvp_buffer: &StorageBufferObject,
+    ) {
+        mvp_buffer.update_data(mvps);
         unsafe {
-            copy_nonoverlapping(
-                scene.get_mvp_data().as_ptr(),
-                scene.get_mvp_uniform().get_mapped() as *mut ModelViewProjection,
-                scene.get_mvp_data().len(),
+            device.cmd_bind_vertex_buffers(
+                command_buffer,
+                0,
+                &[render_system.get_vertex_buffer()],
+                &[0],
             );
-
-            device.cmd_bind_vertex_buffers(command_buffer, 0, &[scene.get_vertex_buffer()], &[0]);
             device.cmd_bind_index_buffer(
                 command_buffer,
-                scene.get_index_buffer(),
+                render_system.get_index_buffer(),
                 0,
                 IndexType::UINT16,
             );
@@ -737,22 +790,16 @@ impl Wrapper for VulkanWrapper {
             device.cmd_bind_descriptor_sets(
                 command_buffer,
                 PipelineBindPoint::GRAPHICS,
-                scene.get_pipeline_layout(),
+                pipeline_layout,
                 0,
-                &[scene.get_descriptor_set()],
+                &[descriptor_set],
                 &[],
-            );
-
-            let objects = scene.get_objects();
-            ptr::write(
-                scene.get_objects_uniform().get_mapped() as *mut i32,
-                objects.len() as i32,
             );
 
             device.cmd_draw_indexed(
                 command_buffer,
-                scene.get_index_count(),
-                objects.len() as u32,
+                render_system.get_index_count(),
+                mvps.len() as u32,
                 0,
                 0,
                 0,
@@ -776,7 +823,7 @@ impl Wrapper for VulkanWrapper {
         graphics_queue: Queue,
     ) -> (Buffer, DeviceMemory) {
         // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/01_Vertex_buffer_creation.html
-        let buffer_size = mem::size_of_val(vertices) as u64;
+        let buffer_size = size_of_val(vertices) as u64;
 
         // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_using_a_staging_buffer
         let (staging_buffer, staging_buffer_memory) = InternalVulkan::create_buffer(
@@ -836,7 +883,7 @@ impl Wrapper for VulkanWrapper {
         command_pool: CommandPool,
     ) -> (Buffer, DeviceMemory) {
         // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/03_Index_buffer.html
-        let buffer_size = mem::size_of_val(indices) as u64;
+        let buffer_size = size_of_val(indices) as u64;
 
         let (staging_buffer, staging_buffer_memory) = InternalVulkan::create_buffer(
             instance,
@@ -886,113 +933,80 @@ impl Wrapper for VulkanWrapper {
         (index_buffer, index_buffer_memory)
     }
 
-    fn create_uniform_buffer(
-        instance: &Instance,
-        physical_device: PhysicalDevice,
+    fn create_descriptors(
         device: &Device,
-        buffer_size: u64,
-    ) -> UniformBufferObject {
-        let (buffer, memory) = InternalVulkan::create_buffer(
-            instance,
-            physical_device,
-            device,
-            buffer_size,
-            BufferUsageFlags::UNIFORM_BUFFER,
-            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
-        );
-        let mapped = unsafe {
-            device
-                .map_memory(memory, 0, buffer_size, MemoryMapFlags::empty())
-                .unwrap()
-        };
-
-        UniformBufferObject::create(buffer, memory, mapped)
-    }
-
-    fn create_descriptor_pool(
-        device: &Device,
+        in_flight: u32,
         texture_count: u32,
     ) -> (DescriptorSetLayout, DescriptorPool) {
-        // https://docs.vulkan.org/tutorial/latest/05_Uniform_buffers/00_Descriptor_set_layout_and_buffer.html#_descriptor_set_layout
-        let ubo_layout_binding = DescriptorSetLayoutBinding::default()
+        // layout
+        let mvp_binding = DescriptorSetLayoutBinding::default()
             .binding(0)
             .descriptor_count(1)
-            .descriptor_type(DescriptorType::UNIFORM_BUFFER)
+            .descriptor_type(DescriptorType::STORAGE_BUFFER)
             .stage_flags(ShaderStageFlags::VERTEX);
-
-        let object_count_binding = DescriptorSetLayoutBinding::default()
+        let texture_binding = DescriptorSetLayoutBinding::default()
             .binding(1)
-            .descriptor_count(1)
-            .descriptor_type(DescriptorType::UNIFORM_BUFFER)
-            .stage_flags(ShaderStageFlags::VERTEX);
-
-        let sampler_layout_binding = DescriptorSetLayoutBinding::default()
-            .binding(2)
             .descriptor_count(texture_count)
             .descriptor_type(DescriptorType::COMBINED_IMAGE_SAMPLER)
             .stage_flags(ShaderStageFlags::FRAGMENT);
 
-        let bindings = [
-            ubo_layout_binding,
-            object_count_binding,
-            sampler_layout_binding,
-        ];
+        let bindings = [mvp_binding, texture_binding];
         let layout_create_info = DescriptorSetLayoutCreateInfo::default().bindings(&bindings);
 
         let descriptor_set_layout = unsafe {
             device
                 .create_descriptor_set_layout(&layout_create_info, None)
-                .unwrap()
+                .expect("Failed to create descriptor set layout!")
         };
 
-        // https://docs.vulkan.org/tutorial/latest/05_Uniform_buffers/01_Descriptor_pool_and_sets.html#_introduction
+        //pool
         let pool_sizes = [
             DescriptorPoolSize::default()
-                .descriptor_count(2)
-                .ty(DescriptorType::UNIFORM_BUFFER),
+                .descriptor_count(in_flight)
+                .ty(DescriptorType::STORAGE_BUFFER),
             DescriptorPoolSize::default()
-                .descriptor_count(texture_count) // assuming each object has its own texture
+                .descriptor_count(texture_count * in_flight)
                 .ty(DescriptorType::COMBINED_IMAGE_SAMPLER),
         ];
         let pool_info = DescriptorPoolCreateInfo::default()
             .pool_sizes(&pool_sizes)
-            .max_sets(1);
+            .max_sets(in_flight);
 
-        let descriptor_pool = unsafe { device.create_descriptor_pool(&pool_info, None).unwrap() };
+        let descriptor_pool = unsafe {
+            device
+                .create_descriptor_pool(&pool_info, None)
+                .expect("Failed to create descriptor pool!")
+        };
 
         (descriptor_set_layout, descriptor_pool)
     }
 
-    fn create_descriptor_set(
+    fn create_descriptor_sets(
         device: &Device,
         descriptor_pool: DescriptorPool,
         descriptor_set_layout: DescriptorSetLayout,
-        texture_image_views: &[ImageView],
-        texture_sampler: Sampler,
-        object_count: usize,
-        object_count_buffer: Buffer,
-        mvp_buffer: Buffer,
-    ) -> DescriptorSet {
-        let descriptor_set_layouts = &[descriptor_set_layout];
+        amount: usize,
+    ) -> Vec<DescriptorSet> {
+        let descriptor_set_layouts = &vec![descriptor_set_layout; amount];
         let descriptor_allocation_info = DescriptorSetAllocateInfo::default()
             .descriptor_pool(descriptor_pool)
             .set_layouts(descriptor_set_layouts);
-        let descriptor_set = unsafe {
+        unsafe {
             device
                 .allocate_descriptor_sets(&descriptor_allocation_info)
-                .unwrap()[0]
-        };
+                .expect("Failed to allocate descriptor sets!")
+        }
+    }
 
-        let mvp_buffer_info = [DescriptorBufferInfo::default()
-            .buffer(mvp_buffer)
-            .offset(0)
-            .range((mem::size_of::<ModelViewProjection>() * object_count) as u64)];
-        let object_count_infos = [DescriptorBufferInfo::default()
-            .buffer(object_count_buffer)
-            .offset(0)
-            .range(mem::size_of::<i32>() as u64)];
+    fn update_texture_descriptors(
+        device: &Device,
+        descriptor_set: DescriptorSet,
+        texture_image_views: &[ImageView],
+        texture_sampler: Sampler,
+    ) {
         let mut image_infos: Vec<DescriptorImageInfo> =
             Vec::with_capacity(texture_image_views.len());
+
         for &image_view in texture_image_views.iter() {
             image_infos.push(
                 DescriptorImageInfo::default()
@@ -1002,29 +1016,34 @@ impl Wrapper for VulkanWrapper {
             );
         }
 
-        let descriptor_writes = [
-            WriteDescriptorSet::default()
-                .dst_set(descriptor_set)
-                .dst_binding(0)
-                .descriptor_type(DescriptorType::UNIFORM_BUFFER)
-                .buffer_info(&mvp_buffer_info),
-            WriteDescriptorSet::default()
-                .dst_set(descriptor_set)
-                .dst_binding(1)
-                .descriptor_type(DescriptorType::UNIFORM_BUFFER)
-                .buffer_info(&object_count_infos),
-            WriteDescriptorSet::default()
-                .dst_set(descriptor_set)
-                .dst_binding(2)
-                .descriptor_type(DescriptorType::COMBINED_IMAGE_SAMPLER)
-                .image_info(&image_infos),
-        ];
-
+        let descriptor_writes = [WriteDescriptorSet::default()
+            .dst_set(descriptor_set)
+            .dst_binding(1)
+            .descriptor_type(DescriptorType::COMBINED_IMAGE_SAMPLER)
+            .image_info(&image_infos)];
         unsafe {
             device.update_descriptor_sets(&descriptor_writes, &[]);
         };
+    }
 
-        descriptor_set
+    fn update_mvp_descriptors(
+        device: &Device,
+        descriptor_set: DescriptorSet,
+        entity_count: usize,
+        mvp_buffer: Buffer,
+    ) {
+        let mvp_buffer_info = [DescriptorBufferInfo::default()
+            .buffer(mvp_buffer)
+            .offset(0)
+            .range((size_of::<ModelViewProjection>() * entity_count) as u64)];
+        let descriptor_writes = [WriteDescriptorSet::default()
+            .dst_set(descriptor_set)
+            .dst_binding(0)
+            .descriptor_type(DescriptorType::STORAGE_BUFFER)
+            .buffer_info(&mvp_buffer_info)];
+        unsafe {
+            device.update_descriptor_sets(&descriptor_writes, &[]);
+        };
     }
 
     fn create_texture(
@@ -1115,11 +1134,7 @@ impl Wrapper for VulkanWrapper {
             ImageAspectFlags::COLOR,
         );
 
-        ImageData {
-            image: texture_image,
-            memory: image_memory,
-            view: image_view,
-        }
+        ImageData::create(texture_image, image_memory, image_view)
     }
 
     fn create_texture_sampler(

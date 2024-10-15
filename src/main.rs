@@ -11,10 +11,10 @@ fn main() {
         }
     }));
 
-    let event_loop = EventLoop::new().unwrap();
+    let event_loop = EventLoop::new().expect("Failed to create new event loop!");
     event_loop.set_control_flow(ControlFlow::Poll);
 
     let mut game = Game::default();
 
-    event_loop.run_app(&mut game).unwrap();
+    event_loop.run_app(&mut game).expect("Failed to run game!");
 }

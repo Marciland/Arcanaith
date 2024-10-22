@@ -1,18 +1,28 @@
+use crate::{
+    constants::{FRAGSHADER, VERTSHADER},
+    read_bytes_from_file,
+    structs::ShaderModules,
+};
 use ash::{
     khr::surface,
+    util::read_spv,
     vk::{
         AccessFlags, Buffer, BufferCopy, BufferCreateInfo, BufferImageCopy, BufferUsageFlags,
         CommandBuffer, CommandBufferAllocateInfo, CommandBufferBeginInfo, CommandBufferLevel,
-        CommandBufferUsageFlags, CommandPool, DependencyFlags, DeviceMemory, Extent2D, Extent3D,
-        Fence, Format, FormatFeatureFlags, Image, ImageAspectFlags, ImageCreateInfo, ImageLayout,
-        ImageMemoryBarrier, ImageSubresourceLayers, ImageSubresourceRange, ImageTiling, ImageType,
-        ImageUsageFlags, ImageView, ImageViewCreateInfo, ImageViewType, MemoryAllocateInfo,
-        MemoryPropertyFlags, MemoryRequirements, Offset3D, PhysicalDevice, PipelineStageFlags,
-        Queue, QueueFlags, SampleCountFlags, SharingMode, SubmitInfo, SurfaceKHR,
-        QUEUE_FAMILY_IGNORED,
+        CommandBufferUsageFlags, CommandPool, DependencyFlags, DescriptorSetLayout, DeviceMemory,
+        Extent2D, Extent3D, Fence, Format, FormatFeatureFlags, Image, ImageAspectFlags,
+        ImageCreateInfo, ImageLayout, ImageMemoryBarrier, ImageSubresourceLayers,
+        ImageSubresourceRange, ImageTiling, ImageType, ImageUsageFlags, ImageView,
+        ImageViewCreateInfo, ImageViewType, MemoryAllocateInfo, MemoryPropertyFlags,
+        MemoryRequirements, Offset3D, PhysicalDevice, PhysicalDeviceFeatures2,
+        PhysicalDeviceVulkan12Features, PipelineLayout, PipelineLayoutCreateInfo,
+        PipelineShaderStageCreateInfo, PipelineStageFlags, Queue, QueueFlags, SampleCountFlags,
+        ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubmitInfo, SurfaceKHR,
+        QUEUE_FAMILY_IGNORED, TRUE,
     },
     Device, Instance,
 };
+use std::{ffi::CStr, io::Cursor};
 
 pub struct InternalVulkan;
 
@@ -44,14 +54,9 @@ impl InternalVulkan {
             .sharing_mode(SharingMode::EXCLUSIVE)
             .samples(SampleCountFlags::TYPE_1);
 
-        let (image, memory_requirements) = unsafe {
-            let image = device
-                .create_image(&image_info, None)
-                .expect("Failed to create image!");
-            let memory_requirements = device.get_image_memory_requirements(image);
-
-            (image, memory_requirements)
-        };
+        let image =
+            unsafe { device.create_image(&image_info, None) }.expect("Failed to create image!");
+        let memory_requirements = unsafe { device.get_image_memory_requirements(image) };
 
         let allocation_info = MemoryAllocateInfo::default()
             .allocation_size(memory_requirements.size)
@@ -62,16 +67,10 @@ impl InternalVulkan {
                 memory_properties,
             ));
 
-        let image_memory = unsafe {
-            let image_memory = device
-                .allocate_memory(&allocation_info, None)
-                .expect("Failed to allocate memory for image!");
-
-            device
-                .bind_image_memory(image, image_memory, 0)
-                .expect("Failed to bind image memory!");
-            image_memory
-        };
+        let image_memory = unsafe { device.allocate_memory(&allocation_info, None) }
+            .expect("Failed to allocate memory for image!");
+        unsafe { device.bind_image_memory(image, image_memory, 0) }
+            .expect("Failed to bind image memory!");
 
         (image, image_memory)
     }
@@ -82,20 +81,14 @@ impl InternalVulkan {
             .command_pool(command_pool)
             .command_buffer_count(1);
 
-        let command_buffer = unsafe {
-            device
-                .allocate_command_buffers(&allocation_info)
-                .expect("Failed to allocate command buffer for single time command!")[0]
-        };
+        let command_buffer = unsafe { device.allocate_command_buffers(&allocation_info) }
+            .expect("Failed to allocate command buffer for single time command!")[0];
 
         let begin_info =
             CommandBufferBeginInfo::default().flags(CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
-        unsafe {
-            device
-                .begin_command_buffer(command_buffer, &begin_info)
-                .expect("Failed to begin command buffer for single time command!")
-        };
+        unsafe { device.begin_command_buffer(command_buffer, &begin_info) }
+            .expect("Failed to begin command buffer for single time command!");
 
         command_buffer
     }
@@ -106,23 +99,18 @@ impl InternalVulkan {
         command_pool: CommandPool,
         command_buffer: CommandBuffer,
     ) {
-        unsafe {
-            device
-                .end_command_buffer(command_buffer)
-                .expect("Failed to end command buffer for single time command!")
-        };
+        unsafe { device.end_command_buffer(command_buffer) }
+            .expect("Failed to end command buffer for single time command!");
 
         let buffers = [command_buffer];
         let submit_info = SubmitInfo::default().command_buffers(&buffers);
 
-        unsafe {
-            device
-                .queue_submit(graphics_queue, &[submit_info], Fence::null())
-                .expect("Failed to submit single time command queue!");
+        unsafe { device.queue_submit(graphics_queue, &[submit_info], Fence::null()) }
+            .expect("Failed to submit single time command queue!");
 
-            device
-                .queue_wait_idle(graphics_queue)
-                .expect("Failed to wait for queue idle after single time command!");
+        unsafe { device.queue_wait_idle(graphics_queue) }
+            .expect("Failed to wait for queue idle after single time command!");
+        unsafe {
             device.free_command_buffers(command_pool, &[command_buffer]);
         };
     }
@@ -186,8 +174,8 @@ impl InternalVulkan {
                 &[],
                 &[],
                 &[image_memory_barrier],
-            )
-        };
+            );
+        }
 
         InternalVulkan::end_single_time_commands(
             device,
@@ -255,14 +243,9 @@ impl InternalVulkan {
             .usage(usage_flags)
             .sharing_mode(SharingMode::EXCLUSIVE);
 
-        let (buffer, memory_requirements) = unsafe {
-            let buffer = device
-                .create_buffer(&buffer_create_info, None)
-                .expect("Failed to create buffer!");
-            let memory_requirements = device.get_buffer_memory_requirements(buffer);
-
-            (buffer, memory_requirements)
-        };
+        let buffer = unsafe { device.create_buffer(&buffer_create_info, None) }
+            .expect("Failed to create buffer!");
+        let memory_requirements = unsafe { device.get_buffer_memory_requirements(buffer) };
 
         let allocation_info = MemoryAllocateInfo::default()
             .allocation_size(memory_requirements.size)
@@ -273,16 +256,10 @@ impl InternalVulkan {
                 memory_properties,
             ));
 
-        let buffer_memory = unsafe {
-            let buffer_memory = device
-                .allocate_memory(&allocation_info, None)
-                .expect("Failed to allocate buffer memory!");
-            device
-                .bind_buffer_memory(buffer, buffer_memory, 0)
-                .expect("Failed to bind buffer memory!");
-
-            buffer_memory
-        };
+        let buffer_memory = unsafe { device.allocate_memory(&allocation_info, None) }
+            .expect("Failed to allocate buffer memory!");
+        unsafe { device.bind_buffer_memory(buffer, buffer_memory, 0) }
+            .expect("Failed to bind buffer memory!");
 
         (buffer, buffer_memory)
     }
@@ -346,11 +323,8 @@ impl InternalVulkan {
                 layer_count: 1,
             });
 
-        unsafe {
-            device
-                .create_image_view(&image_view_create_info, None)
-                .expect("Failed to create image view!")
-        }
+        unsafe { device.create_image_view(&image_view_create_info, None) }
+            .expect("Failed to create image view!")
     }
 
     fn find_supported_format(
@@ -394,30 +368,103 @@ impl InternalVulkan {
     }
 
     pub fn get_queue_family_index(
-        surface: &SurfaceKHR,
+        instance: &Instance,
+        surface: SurfaceKHR,
         surface_loader: &surface::Instance,
         physical_device: PhysicalDevice,
-        queue_family_properties: Vec<ash::vk::QueueFamilyProperties>,
-    ) -> Option<(PhysicalDevice, u32)> {
+    ) -> Option<u32> {
+        let queue_family_properties =
+            unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
+
         queue_family_properties
             .iter()
             .enumerate()
             .find_map(|(index, info)| {
-                let supports_graphic_and_surface = info.queue_flags.contains(QueueFlags::GRAPHICS)
-                    && unsafe {
-                        surface_loader
-                            .get_physical_device_surface_support(
-                                physical_device,
-                                index as u32,
-                                *surface,
-                            )
-                            .expect("Failed to get phyiscal device surface support!")
-                    };
-                if supports_graphic_and_surface {
-                    Some((physical_device, index as u32))
-                } else {
-                    None
+                if !info.queue_flags.contains(QueueFlags::GRAPHICS) {
+                    return None;
                 }
+
+                let surface_supported = unsafe {
+                    surface_loader.get_physical_device_surface_support(
+                        physical_device,
+                        index as u32,
+                        surface,
+                    )
+                }
+                .expect("Failed to get phyiscal device surface support!");
+                if !surface_supported {
+                    return None;
+                }
+
+                Some(index as u32)
             })
+    }
+
+    pub fn device_features_available(instance: &Instance, physical_device: PhysicalDevice) -> bool {
+        let mut features = PhysicalDeviceFeatures2::default();
+        let mut device_features_12 = PhysicalDeviceVulkan12Features::default();
+        features = features.push_next(&mut device_features_12);
+
+        unsafe {
+            instance.get_physical_device_features2(physical_device, &mut features);
+        };
+
+        features.features.sampler_anisotropy == TRUE
+            && device_features_12.runtime_descriptor_array == TRUE
+            && device_features_12.shader_sampled_image_array_non_uniform_indexing == TRUE
+    }
+
+    fn create_shader_modules(device: &Device) -> ShaderModules {
+        let vertex_shader_code = read_spv(&mut Cursor::new(&read_bytes_from_file(VERTSHADER)))
+            .expect("Failed to read vertex shader spv!");
+        let vertex_shader_create_info = ShaderModuleCreateInfo::default().code(&vertex_shader_code);
+        let vertex_module =
+            unsafe { device.create_shader_module(&vertex_shader_create_info, None) }
+                .expect("Failed to create vertex shader module!");
+
+        let fragment_shader_code = read_spv(&mut Cursor::new(&read_bytes_from_file(FRAGSHADER)))
+            .expect("Failed to read fragment shader spv!");
+        let fragment_shader_create_info =
+            ShaderModuleCreateInfo::default().code(&fragment_shader_code);
+        let fragment_module =
+            unsafe { device.create_shader_module(&fragment_shader_create_info, None) }
+                .expect("Failed to create fragment shader module!");
+
+        ShaderModules {
+            vertex_module,
+            fragment_module,
+        }
+    }
+
+    pub fn create_pipeline_layout(
+        device: &Device,
+        descriptor_set_layouts: &[DescriptorSetLayout],
+    ) -> PipelineLayout {
+        let pipeline_layout_info =
+            PipelineLayoutCreateInfo::default().set_layouts(descriptor_set_layouts);
+
+        unsafe { device.create_pipeline_layout(&pipeline_layout_info, None) }
+            .expect("Failed to create pipeline layout!")
+    }
+
+    pub fn create_shader_stages(
+        device: &Device,
+    ) -> (Vec<PipelineShaderStageCreateInfo>, ShaderModules) {
+        let shader_modules = InternalVulkan::create_shader_modules(device);
+
+        let stage_entry_point = CStr::from_bytes_with_nul("main\0".as_bytes())
+            .expect("Failed to convert bytes to cstr!");
+        let shader_stages = vec![
+            PipelineShaderStageCreateInfo::default()
+                .stage(ShaderStageFlags::VERTEX)
+                .module(shader_modules.vertex_module)
+                .name(stage_entry_point),
+            PipelineShaderStageCreateInfo::default()
+                .stage(ShaderStageFlags::FRAGMENT)
+                .module(shader_modules.fragment_module)
+                .name(stage_entry_point),
+        ];
+
+        (shader_stages, shader_modules)
     }
 }

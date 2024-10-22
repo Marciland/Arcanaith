@@ -43,16 +43,16 @@ impl VisualComponent {
 }
 
 pub enum Layer {
-    Interface,
-    Game,
+    _Interface,
+    _Game,
     Background,
 }
 
 impl Layer {
     pub fn value(&self) -> u8 {
         match self {
-            Layer::Interface => 0,
-            Layer::Game => 1,
+            Layer::_Interface => 0,
+            Layer::_Game => 1,
             Layer::Background => 2,
         }
     }

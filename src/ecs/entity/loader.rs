@@ -1,32 +1,19 @@
 use crate::ecs::{
-    component::{Layer, PositionComponent, VisualComponent},
+    component::{ComponentManager, Layer, PositionComponent, VisualComponent},
+    entity::EntityManager,
     system::ResourceSystem,
-    ComponentManager,
 };
 use glam::Vec3;
-use std::collections::HashSet;
 
-pub type Entity = u32;
+pub struct EntityLoader;
 
-pub struct EntityManager {
-    next_id: Entity,
-    entities: HashSet<Entity>,
-}
-
-impl EntityManager {
-    pub fn new() -> Self {
-        Self {
-            next_id: 0,
-            entities: HashSet::new(),
-        }
-    }
-
+impl EntityLoader {
     pub fn load_main_menu(
-        &mut self,
+        entity_manager: &mut EntityManager,
         component_manager: &mut ComponentManager,
         resource_system: &ResourceSystem,
     ) {
-        let background = self.create_entity();
+        let background = entity_manager.create_entity();
         component_manager.visual_storage.add(
             background,
             VisualComponent::new(
@@ -53,20 +40,17 @@ impl EntityManager {
         );
     }
 
-    fn create_entity(&mut self) -> Entity {
-        let entity = self.next_id;
-        self.entities.insert(entity);
-        self.next_id += 1;
-        entity
+    pub fn load_game(
+        _entity_manager: &mut EntityManager,
+        _component_manager: &mut ComponentManager,
+        _resource_system: &ResourceSystem,
+    ) {
     }
 
-    /*
-    fn remove_entity(&mut self, entity: Entity) {
-        self.entities.remove(&entity);
+    pub fn load_pause_menu(
+        _entity_manager: &mut EntityManager,
+        _component_manager: &mut ComponentManager,
+        _resource_system: &ResourceSystem,
+    ) {
     }
-
-    fn is_valid(&self, entity: Entity) -> bool {
-        self.entities.contains(&entity)
-    }
-    */
 }

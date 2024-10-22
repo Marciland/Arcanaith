@@ -1,6 +1,6 @@
 use crate::{
     constants::{FPS, FULLSCREEN, ICONPATH, TITLE},
-    ecs::{ComponentManager, EntityManager, SystemManager},
+    ecs::{component::ComponentManager, entity::EntityManager, system::SystemManager},
     Window,
 };
 use std::{
@@ -18,10 +18,17 @@ use winit::{
     window::{Fullscreen::Borderless, Icon, WindowId},
 };
 
+pub enum GameState {
+    Menu,
+    _Game,
+    _Pause,
+}
+
 pub struct Game {
     window: Option<Window>,
     is_running: Arc<AtomicBool>,
     frame_time: Duration,
+    current_state: GameState,
     entity_manager: EntityManager,
     component_manager: ComponentManager,
     system_manager: SystemManager,
@@ -32,12 +39,12 @@ impl Game {
         event_loop.exit();
         self.is_running.store(false, Ordering::Release);
 
+        let window_ref = self
+            .window
+            .as_ref()
+            .expect("Failed to get window ref while exiting!");
+        window_ref.wait_idle();
         unsafe {
-            let window_ref = self
-                .window
-                .as_ref()
-                .expect("Failed to get window ref while exiting!");
-            window_ref.wait_idle();
             self.system_manager.destroy(window_ref.get_device());
             window_ref.destroy();
         }
@@ -49,7 +56,8 @@ impl Default for Game {
         Game {
             window: None,
             is_running: Arc::new(AtomicBool::new(true)),
-            frame_time: Duration::from_secs_f64(1.0 / FPS as f64),
+            frame_time: Duration::from_secs_f64(1.0 / f64::from(FPS)),
+            current_state: GameState::Menu,
             entity_manager: EntityManager::new(),
             component_manager: ComponentManager::new(),
             system_manager: SystemManager::create(),
@@ -80,13 +88,14 @@ impl ApplicationHandler for Game {
             .create_window(attributes)
             .expect("Failed to create inner window!");
 
-        let texture_count = self.system_manager.resource_system.get_texture_count();
+        let texture_count = self.system_manager.resource.get_texture_count();
         let window = Window::create(inner_window, texture_count);
-        self.system_manager.render_system.initialize(&window);
-        self.system_manager.resource_system.initialize(&window);
-        self.entity_manager.load_main_menu(
+        self.system_manager.render.initialize(&window);
+        self.system_manager.resource.initialize(&window);
+        self.entity_manager.load(
+            &self.current_state,
             &mut self.component_manager,
-            &self.system_manager.resource_system,
+            &self.system_manager.resource,
         );
         self.window = Some(window);
     }
@@ -100,9 +109,13 @@ impl ApplicationHandler for Game {
         match event {
             WindowEvent::CloseRequested => self.exit(event_loop),
             WindowEvent::RedrawRequested => {
-                let render_time = self.system_manager.render_system.render(
+                self.system_manager
+                    .input
+                    .process_inputs(&self.current_state);
+
+                let render_time = self.system_manager.render.draw(
                     &mut self.component_manager,
-                    &self.system_manager.resource_system,
+                    &self.system_manager.resource,
                     self.window
                         .as_mut()
                         .expect("Window was lost while rendering!"),
@@ -112,7 +125,7 @@ impl ApplicationHandler for Game {
 
                 let remaining_time = self.frame_time.saturating_sub(render_time);
                 if !remaining_time.is_zero() {
-                    thread::sleep(remaining_time)
+                    thread::sleep(remaining_time);
                 }
 
                 self.window
@@ -120,8 +133,29 @@ impl ApplicationHandler for Game {
                     .expect("Window was lost while rendering!")
                     .request_render();
             }
-            _ => (), //println!("event: {:?}", event),
-                     // TODO collect input events and process them in the input system
+            WindowEvent::KeyboardInput {
+                device_id: _,
+                event,
+                is_synthetic: _,
+            } => {
+                self.system_manager.input.add_keyboard_input(event);
+            }
+            WindowEvent::CursorMoved {
+                device_id,
+                position,
+            } => {
+                self.system_manager
+                    .input
+                    .update_cursor_position(device_id, position);
+            }
+            WindowEvent::MouseInput {
+                device_id: _,
+                state,
+                button,
+            } => {
+                self.system_manager.input.add_mouse_input(button, state);
+            }
+            _ => (), //println!("unprocessed event: {:?}", event),
         }
     }
 }

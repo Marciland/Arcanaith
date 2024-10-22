@@ -1,25 +1,30 @@
 use ash::Device;
-pub use render::RenderSystem;
-pub use resource::ResourceSystem;
+mod input;
 mod render;
 mod resource;
 
+pub use input::InputSystem;
+pub use render::RenderSystem;
+pub use resource::ResourceSystem;
+
 pub struct SystemManager {
-    pub render_system: RenderSystem,
-    pub resource_system: ResourceSystem,
+    pub render: RenderSystem,
+    pub resource: ResourceSystem,
+    pub input: InputSystem,
 }
 
 impl SystemManager {
     pub fn create() -> Self {
         Self {
-            render_system: RenderSystem::create(),
-            resource_system: ResourceSystem::create(),
+            render: RenderSystem::create(),
+            resource: ResourceSystem::create(),
+            input: InputSystem::new(),
         }
     }
 
     #[allow(clippy::missing_safety_doc)]
     pub unsafe fn destroy(&self, device: &Device) {
-        self.render_system.destroy(device);
-        self.resource_system.destroy(device);
+        self.render.destroy(device);
+        self.resource.destroy(device);
     }
 }

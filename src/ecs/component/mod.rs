@@ -1,6 +1,6 @@
 mod position;
 mod visual;
-use super::entity::Entity;
+use crate::ecs::entity::Entity;
 pub use position::PositionComponent;
 use std::collections::HashMap;
 pub use visual::{Layer, VisualComponent};
@@ -26,8 +26,8 @@ impl<T> ComponentStorage<T> {
     }
     */
 
-    pub fn get(&self, entity: &Entity) -> Option<&T> {
-        self.components.get(entity)
+    pub fn get(&self, entity: Entity) -> Option<&T> {
+        self.components.get(&entity)
     }
 
     pub fn size(&self) -> usize {

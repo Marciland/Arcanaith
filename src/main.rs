@@ -1,13 +1,14 @@
+use std::panic;
 use winit::event_loop::{ControlFlow, EventLoop};
 use witch_s_ascendancy::Game;
 
 fn main() {
-    std::panic::set_hook(Box::new(|panic_info| {
-        if let Some(s) = panic_info.payload().downcast_ref::<String>() {
-            println!("{s:?}");
+    panic::set_hook(Box::new(|panic_info| {
+        if let Some(payload) = panic_info.payload().downcast_ref::<String>() {
+            println!("{payload}");
         }
-        if let Some(l) = panic_info.location() {
-            println!("{l:?}");
+        if let Some(panic_location) = panic_info.location() {
+            println!("{panic_location}");
         }
     }));
 

@@ -1,8 +1,7 @@
 use crate::{
     ecs::{
-        component::{PositionComponent, VisualComponent},
+        component::{ComponentManager, PositionComponent, VisualComponent},
         system::ResourceSystem,
-        ComponentManager,
     },
     structs::{ModelViewProjection, Vertex},
     Window,
@@ -11,7 +10,7 @@ use ash::{
     vk::{Buffer, DeviceMemory, ImageView},
     Device,
 };
-use glam::Vec2;
+use glam::{Mat4, Vec2};
 use std::{
     cmp::Ordering,
     time::{Duration, Instant},
@@ -57,7 +56,7 @@ impl RenderSystem {
             window.create_vertex_buffer(&self.vertices);
     }
 
-    pub fn render(
+    pub fn draw(
         &mut self,
         component_manager: &mut ComponentManager,
         resource_system: &ResourceSystem,
@@ -69,7 +68,7 @@ impl RenderSystem {
         let mut components: Vec<VisualWithPosition> =
             Vec::with_capacity(component_manager.visual_storage.size());
         for (entity, visual) in component_manager.visual_storage.iter_mut() {
-            if let Some(position) = component_manager.position_storage.get(&entity) {
+            if let Some(position) = component_manager.position_storage.get(entity) {
                 components.push(VisualWithPosition { visual, position });
             }
         }
@@ -101,7 +100,8 @@ impl RenderSystem {
             .iter()
             .map(|visual_with_position| ModelViewProjection {
                 model: visual_with_position.position.to_model_matrix(),
-                ..Default::default()
+                view: Mat4::IDENTITY,
+                projection: ModelViewProjection::get_projection(),
             })
             .collect();
 

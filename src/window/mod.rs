@@ -2,7 +2,7 @@ mod renderer;
 use crate::{
     ecs::system::RenderSystem,
     structs::{ImageData, ModelViewProjection, Vertex},
-    vulkan::{VulkanWrapper, Wrapper},
+    vulkan::VulkanWrapper,
 };
 use ash::{
     khr::surface,
@@ -29,7 +29,7 @@ impl Window {
         let (surface, surface_loader) =
             VulkanWrapper::create_surface(&inner_window, &entry, &vk_instance);
         let (physical_device, queue_family_index) =
-            VulkanWrapper::find_physical_device(&vk_instance, &surface, &surface_loader);
+            VulkanWrapper::find_physical_device(&vk_instance, surface, &surface_loader);
         let device =
             VulkanWrapper::create_logical_device(&vk_instance, physical_device, queue_family_index);
         let renderer = Renderer::create(
@@ -84,10 +84,8 @@ impl Window {
         self.inner.request_redraw();
     }
 
-    pub unsafe fn wait_idle(&self) {
-        self.device
-            .device_wait_idle()
-            .expect("Failed to wait for device idle!")
+    pub fn wait_idle(&self) {
+        unsafe { self.device.device_wait_idle() }.expect("Failed to wait for device idle!");
     }
 
     pub fn create_vertex_buffer(&self, vertices: &[Vertex]) -> (Buffer, DeviceMemory) {

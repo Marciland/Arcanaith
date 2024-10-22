@@ -1,9 +1,9 @@
-mod loading;
+mod loader;
 mod sprites;
 use crate::{structs::ImageData, Window};
 use ash::Device;
 use image::DynamicImage;
-use loading::ResourceLoader;
+use loader::load_all_images;
 use std::collections::HashMap;
 
 pub struct ResourceSystem {
@@ -15,7 +15,7 @@ pub struct ResourceSystem {
 impl ResourceSystem {
     pub fn create() -> Self {
         let mut texture_indices = HashMap::new();
-        let images = ResourceLoader::load_all_images(&mut texture_indices);
+        let images = load_all_images(&mut texture_indices);
         let textures = Vec::with_capacity(images.len());
 
         Self {

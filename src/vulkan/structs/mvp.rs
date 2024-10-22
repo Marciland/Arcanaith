@@ -28,14 +28,8 @@ impl ModelViewProjection {
         self
     }
     */
-}
 
-impl Default for ModelViewProjection {
-    fn default() -> Self {
-        Self {
-            model: Mat4::IDENTITY,
-            view: Mat4::IDENTITY,
-            projection: Mat4::orthographic_rh(-1.0, 1.0, -1.0, 1.0, 0.0, 1.0), // TODO is this OK?
-        }
+    pub fn get_projection() -> Mat4 {
+        Mat4::orthographic_rh(-1.0, 1.0, -1.0, 1.0, 0.0, 1.0)
     }
 }

@@ -6,11 +6,11 @@ pub fn load_sprite_from_file(sprite_file: &str, cols: u32, rows: u32) -> Vec<Dyn
     let sprite_width = sprite.width() / cols;
     let sprite_height = sprite.height() / rows;
 
-    load_sprite(sprite, cols, rows, sprite_width, sprite_height)
+    load_sprite(&sprite, cols, rows, sprite_width, sprite_height)
 }
 
 fn load_sprite(
-    sprite_image: DynamicImage,
+    sprite_image: &DynamicImage,
     cols: u32,
     rows: u32,
     sprite_width: u32,
@@ -26,7 +26,7 @@ fn load_sprite(
                 row * sprite_height,
                 sprite_width,
                 sprite_height,
-            ))
+            ));
         }
     }
 

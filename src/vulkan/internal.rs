@@ -415,15 +415,21 @@ impl InternalVulkan {
     }
 
     fn create_shader_modules(device: &Device) -> ShaderModules {
-        let vertex_shader_code = read_spv(&mut Cursor::new(&read_bytes_from_file(VERTSHADER)))
-            .expect("Failed to read vertex shader spv!");
+        let vertex_shader_code = read_spv(&mut Cursor::new(
+            &read_bytes_from_file(VERTSHADER)
+                .expect(&("Could not read file: ".to_string() + VERTSHADER)),
+        ))
+        .expect("Failed to read vertex shader spv!");
         let vertex_shader_create_info = ShaderModuleCreateInfo::default().code(&vertex_shader_code);
         let vertex_module =
             unsafe { device.create_shader_module(&vertex_shader_create_info, None) }
                 .expect("Failed to create vertex shader module!");
 
-        let fragment_shader_code = read_spv(&mut Cursor::new(&read_bytes_from_file(FRAGSHADER)))
-            .expect("Failed to read fragment shader spv!");
+        let fragment_shader_code = read_spv(&mut Cursor::new(
+            &read_bytes_from_file(FRAGSHADER)
+                .expect(&("Could not read file: ".to_string() + FRAGSHADER)),
+        ))
+        .expect("Failed to read fragment shader spv!");
         let fragment_shader_create_info =
             ShaderModuleCreateInfo::default().code(&fragment_shader_code);
         let fragment_module =

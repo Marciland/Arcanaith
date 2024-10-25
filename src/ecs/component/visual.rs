@@ -1,9 +1,12 @@
+use super::ComponentStorage;
+
 pub struct VisualComponent {
     texture_indices: Vec<usize>,
     current_texture: usize,
     layer: Layer,
     frame_duration: usize,
     current_frame: usize,
+    visible: bool,
 }
 
 impl VisualComponent {
@@ -19,6 +22,7 @@ impl VisualComponent {
             layer,
             frame_duration,
             current_frame,
+            visible: true,
         }
     }
 
@@ -40,10 +44,22 @@ impl VisualComponent {
     pub fn get_layer(&self) -> u8 {
         self.layer.value()
     }
+
+    pub fn should_render(&self) -> bool {
+        self.visible
+    }
+}
+
+impl ComponentStorage<VisualComponent> {
+    pub fn hide_all(&mut self) {
+        for component in self.components.values_mut() {
+            component.visible = false;
+        }
+    }
 }
 
 pub enum Layer {
-    _Interface,
+    Interface,
     _Game,
     Background,
 }
@@ -51,7 +67,7 @@ pub enum Layer {
 impl Layer {
     pub fn value(&self) -> u8 {
         match self {
-            Layer::_Interface => 0,
+            Layer::Interface => 0,
             Layer::_Game => 1,
             Layer::Background => 2,
         }

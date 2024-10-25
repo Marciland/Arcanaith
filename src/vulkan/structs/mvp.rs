@@ -1,4 +1,4 @@
-use glam::Mat4;
+use glam::{Mat4, Vec2, Vec3};
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -9,8 +9,8 @@ pub struct ModelViewProjection {
 }
 
 impl ModelViewProjection {
-    /*
-    pub fn scale(mut self, scaling: Vec2) -> Self {
+    pub fn _scale(mut self, scaling: Vec2) -> Self {
+        //TODO use this
         self.model *= Mat4::from_scale(Vec3 {
             x: scaling.x,
             y: scaling.y,
@@ -19,7 +19,8 @@ impl ModelViewProjection {
         self
     }
 
-    pub fn translate(mut self, translation: Vec2) -> Self {
+    pub fn _translate(mut self, translation: Vec2) -> Self {
+        //TODO use this
         self.model *= Mat4::from_translation(Vec3 {
             x: translation.x,
             y: translation.y,
@@ -27,9 +28,8 @@ impl ModelViewProjection {
         });
         self
     }
-    */
 
     pub fn get_projection() -> Mat4 {
-        Mat4::orthographic_rh(-1.0, 1.0, -1.0, 1.0, 0.0, 1.0)
+        Mat4::orthographic_rh(-1.0, 1.0, -1.0, 1.0, 0.0, -1.0)
     }
 }

@@ -618,10 +618,8 @@ impl VulkanWrapper {
         command_pool: CommandPool,
         graphics_queue: Queue,
     ) -> (Buffer, DeviceMemory) {
-        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/01_Vertex_buffer_creation.html
         let buffer_size = size_of_val(vertices) as u64;
 
-        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_using_a_staging_buffer
         let (staging_buffer, staging_buffer_memory) = internal::InternalVulkan::create_buffer(
             instance,
             physical_device,
@@ -680,7 +678,6 @@ impl VulkanWrapper {
         graphics_queue: Queue,
         command_pool: CommandPool,
     ) -> (Buffer, DeviceMemory) {
-        // https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/03_Index_buffer.html
         let buffer_size = size_of_val(indices) as u64;
 
         let (staging_buffer, staging_buffer_memory) = internal::InternalVulkan::create_buffer(
@@ -757,7 +754,7 @@ impl VulkanWrapper {
             unsafe { device.create_descriptor_set_layout(&layout_create_info, None) }
                 .expect("Failed to create descriptor set layout!");
 
-        //pool
+        // pool
         let pool_sizes = [
             DescriptorPoolSize::default()
                 .descriptor_count(in_flight)
@@ -846,12 +843,10 @@ impl VulkanWrapper {
         command_pool: CommandPool,
         image: ImageBuffer<Rgba<u8>, Vec<u8>>,
     ) -> ImageData {
-        // https://docs.vulkan.org/tutorial/latest/06_Texture_mapping/00_Images.html#_loading_an_image
         let (width, height) = image.dimensions();
         let image_size = u64::from(width * height * 4);
         let image_extent = Extent2D { width, height };
 
-        // https://docs.vulkan.org/tutorial/latest/06_Texture_mapping/00_Images.html#_staging_buffer
         let (staging_buffer, staging_buffer_memory) = internal::InternalVulkan::create_buffer(
             instance,
             physical_device,
@@ -889,7 +884,6 @@ impl VulkanWrapper {
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
 
-        // https://docs.vulkan.org/tutorial/latest/06_Texture_mapping/00_Images.html#_preparing_the_texture_image
         internal::InternalVulkan::transition_image_layout(
             device,
             graphics_queue,
@@ -920,7 +914,6 @@ impl VulkanWrapper {
             device.free_memory(staging_buffer_memory, None);
         };
 
-        // https://docs.vulkan.org/tutorial/latest/06_Texture_mapping/01_Image_view_and_sampler.html#_texture_image_view
         let image_view = internal::InternalVulkan::create_image_view(
             device,
             texture_image,

@@ -13,14 +13,23 @@ use std::{
 };
 use winit::{
     application::ApplicationHandler,
-    event::WindowEvent,
-    event_loop::ActiveEventLoop,
+    event::{ElementState, KeyEvent, WindowEvent},
+    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Fullscreen::Borderless, Icon, WindowId},
 };
 
+#[derive(Debug)]
+pub enum GameEvent {
+    ExitGame,
+    SettingsMenu,
+    Back,
+}
+
+#[derive(PartialEq, Clone)]
 pub enum GameState {
-    Menu,
-    _Game,
+    MainMenu,
+    Settings,
+    Game,
     _Pause,
 }
 
@@ -28,13 +37,30 @@ pub struct Game {
     window: Option<Window>,
     is_running: Arc<AtomicBool>,
     frame_time: Duration,
+    previous_state: Option<GameState>,
     current_state: GameState,
     entity_manager: EntityManager,
     component_manager: ComponentManager,
     system_manager: SystemManager,
+    event_proxy: EventLoopProxy<GameEvent>,
 }
 
 impl Game {
+    #[must_use]
+    pub fn new(event_loop: &EventLoop<GameEvent>) -> Self {
+        Self {
+            window: None,
+            is_running: Arc::new(AtomicBool::new(true)),
+            frame_time: Duration::from_secs_f64(1.0 / f64::from(FPS)),
+            previous_state: None,
+            current_state: GameState::MainMenu,
+            entity_manager: EntityManager::new(),
+            component_manager: ComponentManager::new(),
+            system_manager: SystemManager::create(),
+            event_proxy: event_loop.create_proxy(),
+        }
+    }
+
     fn exit(&mut self, event_loop: &ActiveEventLoop) {
         event_loop.exit();
         self.is_running.store(false, Ordering::Release);
@@ -51,21 +77,7 @@ impl Game {
     }
 }
 
-impl Default for Game {
-    fn default() -> Self {
-        Game {
-            window: None,
-            is_running: Arc::new(AtomicBool::new(true)),
-            frame_time: Duration::from_secs_f64(1.0 / f64::from(FPS)),
-            current_state: GameState::Menu,
-            entity_manager: EntityManager::new(),
-            component_manager: ComponentManager::new(),
-            system_manager: SystemManager::create(),
-        }
-    }
-}
-
-impl ApplicationHandler for Game {
+impl ApplicationHandler<GameEvent> for Game {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let (icon_rgba, icon_width, icon_height) = {
             let image = image::open(ICONPATH)
@@ -100,6 +112,60 @@ impl ApplicationHandler for Game {
         self.window = Some(window);
     }
 
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: GameEvent) {
+        match event {
+            GameEvent::ExitGame => self.exit(event_loop),
+
+            // can be send from main menu and pause menu
+            GameEvent::SettingsMenu => {
+                match self.current_state {
+                    GameState::MainMenu => {
+                        self.entity_manager.clear(&mut self.component_manager);
+                    }
+                    GameState::_Pause => {
+                        self.component_manager.visual_storage.hide_all();
+                    }
+                    _ => panic!("SettingsMenu event should not have been send!"),
+                }
+
+                self.previous_state = Some(self.current_state.clone());
+                self.current_state = GameState::Settings;
+                self.entity_manager.load(
+                    &self.current_state,
+                    &mut self.component_manager,
+                    &self.system_manager.resource,
+                );
+            }
+
+            // can be send from settings menu and pause menu
+            GameEvent::Back => match self.current_state {
+                GameState::_Pause => {
+                    self.current_state = GameState::Game;
+                    todo!("unhide game and remove settings entities, continue updating")
+                }
+                GameState::Settings => match self.previous_state {
+                    Some(GameState::_Pause) => {
+                        todo!("remove settings menu entitites and show pause menu entities")
+                    }
+                    Some(GameState::MainMenu) => {
+                        self.entity_manager.clear(&mut self.component_manager);
+
+                        self.previous_state = None;
+                        self.current_state = GameState::MainMenu;
+
+                        self.entity_manager.load(
+                            &self.current_state,
+                            &mut self.component_manager,
+                            &self.system_manager.resource,
+                        );
+                    }
+                    _ => panic!("No previous state when trying to go back!"),
+                },
+                _ => panic!("Back event should not have been send!"),
+            },
+        }
+    }
+
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -108,10 +174,13 @@ impl ApplicationHandler for Game {
     ) {
         match event {
             WindowEvent::CloseRequested => self.exit(event_loop),
+
             WindowEvent::RedrawRequested => {
-                self.system_manager
-                    .input
-                    .process_inputs(&self.current_state);
+                self.system_manager.input.process_inputs(
+                    &self.current_state,
+                    &mut self.component_manager,
+                    &self.event_proxy,
+                );
 
                 let render_time = self.system_manager.render.draw(
                     &mut self.component_manager,
@@ -133,13 +202,19 @@ impl ApplicationHandler for Game {
                     .expect("Window was lost while rendering!")
                     .request_render();
             }
+
             WindowEvent::KeyboardInput {
-                device_id: _,
-                event,
-                is_synthetic: _,
+                event:
+                    KeyEvent {
+                        logical_key: key,
+                        state: ElementState::Pressed,
+                        ..
+                    },
+                ..
             } => {
-                self.system_manager.input.add_keyboard_input(event);
+                self.system_manager.input.add_keyboard_input(key);
             }
+
             WindowEvent::CursorMoved {
                 device_id,
                 position,
@@ -148,6 +223,7 @@ impl ApplicationHandler for Game {
                     .input
                     .update_cursor_position(device_id, position);
             }
+
             WindowEvent::MouseInput {
                 device_id: _,
                 state,
@@ -155,7 +231,24 @@ impl ApplicationHandler for Game {
             } => {
                 self.system_manager.input.add_mouse_input(button, state);
             }
-            _ => (), //println!("unprocessed event: {:?}", event),
+
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        state: ElementState::Released,
+                        ..
+                    },
+                ..
+            }
+            | WindowEvent::Moved(_)
+            | WindowEvent::Resized(_)
+            | WindowEvent::CursorEntered { device_id: _ }
+            | WindowEvent::CursorLeft { device_id: _ } => {
+                // ignoring key releases for now
+                // println!("ignored event: {event:?}")
+            }
+
+            _ => println!("unprocessed event: {event:?}"),
         }
     }
 }

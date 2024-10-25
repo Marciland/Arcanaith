@@ -1,0 +1,34 @@
+{
+    "menu_background": {
+        "path": "res/menu/background.png",
+        "sprite_size": 1
+    },
+    "menu_title": {
+        "path": "res/menu/title.png",
+        "sprite_size": 1
+    },
+    "main_menu_banner": {
+        "path": "res/menu/main_menu/banner.png",
+        "sprite_size": 1
+    },
+    "main_menu_start_game": {
+        "path": "res/menu/main_menu/start_game.png",
+        "sprite_size": 1
+    },
+    "main_menu_settings": {
+        "path": "res/menu/main_menu/settings.png",
+        "sprite_size": 1
+    },
+    "main_menu_exit": {
+        "path": "res/menu/main_menu/exit.png",
+        "sprite_size": 1
+    },
+    "settings_back": {
+        "path": "res/menu/settings/back.png",
+        "sprite_size": 1
+    },
+    "player_walking": {
+        "path": "res/sprites/player_walking.png",
+        "sprite_size": 4
+    }
+}

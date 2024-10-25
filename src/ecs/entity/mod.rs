@@ -27,15 +27,23 @@ impl EntityManager {
         component_manager: &mut ComponentManager,
         resource_system: &ResourceSystem,
     ) {
+        let mut loader = EntityLoader {
+            component_manager,
+            resource_system,
+        };
+
         match game_state {
-            GameState::Menu => {
-                EntityLoader::load_main_menu(self, component_manager, resource_system);
+            GameState::MainMenu => {
+                loader.load_main_menu(self);
             }
-            GameState::_Game => {
-                EntityLoader::load_game(self, component_manager, resource_system);
+            GameState::Game => {
+                todo!("load game")
             }
             GameState::_Pause => {
-                EntityLoader::load_pause_menu(self, component_manager, resource_system);
+                todo!("load pause menu")
+            }
+            GameState::Settings => {
+                loader.load_settings_menu(self);
             }
         }
     }
@@ -47,13 +55,10 @@ impl EntityManager {
         entity
     }
 
-    /*
-    fn remove_entity(&mut self, entity: Entity) {
-        self.entities.remove(&entity);
+    pub fn clear(&mut self, component_manager: &mut ComponentManager) {
+        for entity in &self.entities {
+            component_manager.clear_entity(*entity);
+        }
+        self.entities.clear();
     }
-
-    fn is_valid(&self, entity: Entity) -> bool {
-        self.entities.contains(&entity)
-    }
-    */
 }

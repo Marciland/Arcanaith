@@ -68,6 +68,9 @@ impl RenderSystem {
         let mut components: Vec<VisualWithPosition> =
             Vec::with_capacity(component_manager.visual_storage.size());
         for (entity, visual) in component_manager.visual_storage.iter_mut() {
+            if !visual.should_render() {
+                continue;
+            }
             if let Some(position) = component_manager.position_storage.get(entity) {
                 components.push(VisualWithPosition { visual, position });
             }
@@ -91,9 +94,8 @@ impl RenderSystem {
         let textures: Vec<ImageView> = components
             .iter()
             .map(|visual_with_position| {
-                resource_system
-                    .get_texture(visual_with_position.visual.get_current_texture())
-                    .get_view()
+                let texture_index = visual_with_position.visual.get_current_texture();
+                resource_system.get_texture(texture_index).get_view()
             })
             .collect();
         let mvps: Vec<ModelViewProjection> = components

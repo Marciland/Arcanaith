@@ -6,7 +6,7 @@ use crate::{
 };
 use ash::{
     khr::surface,
-    vk::{Buffer, DeviceMemory, ImageView, PhysicalDevice, SurfaceKHR},
+    vk::{Buffer, DeviceMemory, Extent2D, ImageView, PhysicalDevice, SurfaceKHR},
     Device, Entry, Instance,
 };
 use image::{ImageBuffer, Rgba};
@@ -109,6 +109,10 @@ impl Window {
     pub fn create_texture(&self, image: ImageBuffer<Rgba<u8>, Vec<u8>>) -> ImageData {
         self.renderer
             .create_texture(&self.vk_instance, self.physical_device, &self.device, image)
+    }
+
+    pub fn get_current_size(&self) -> Extent2D {
+        self.renderer.get_extent()
     }
 
     pub fn get_device(&self) -> &Device {

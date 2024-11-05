@@ -5,18 +5,11 @@ use glam::Vec2;
 use std::mem::{offset_of, size_of};
 
 pub struct Vertex {
-    position: Vec2,
-    texture_coordinates: Vec2,
+    pub position: Vec2,
+    pub texture_coordinates: Vec2,
 }
 
 impl Vertex {
-    pub fn new(xy: Vec2, uv: Vec2) -> Self {
-        Self {
-            position: xy,
-            texture_coordinates: uv,
-        }
-    }
-
     pub fn get_binding_description() -> VertexInputBindingDescription {
         VertexInputBindingDescription::default()
             .binding(0)

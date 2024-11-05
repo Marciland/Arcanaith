@@ -1,3 +1,4 @@
+pub mod composition;
 mod input;
 mod position;
 mod visual;

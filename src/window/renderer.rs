@@ -64,8 +64,10 @@ impl Renderer {
         let (images, image_views) =
             VulkanWrapper::create_image_views(&swapchain_loader, swapchain, format, device);
         let graphics_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
-        let render_pass = VulkanWrapper::create_render_pass(vk_instance, physical_device, device, format);
-        let texture_sampler = VulkanWrapper::create_texture_sampler(vk_instance, physical_device, device);
+        let render_pass =
+            VulkanWrapper::create_render_pass(vk_instance, physical_device, device, format);
+        let texture_sampler =
+            VulkanWrapper::create_texture_sampler(vk_instance, physical_device, device);
         let (descriptor_set_layout, descriptor_pool) =
             VulkanWrapper::create_descriptors(device, FRAMES_IN_FLIGHT as u32, max_texture_count);
         let descriptor_sets = VulkanWrapper::create_descriptor_sets(
@@ -74,8 +76,12 @@ impl Renderer {
             descriptor_set_layout,
             FRAMES_IN_FLIGHT,
         );
-        let (pipeline_layout, pipeline) =
-            VulkanWrapper::create_graphics_pipeline(device, extent, render_pass, &[descriptor_set_layout]);
+        let (pipeline_layout, pipeline) = VulkanWrapper::create_graphics_pipeline(
+            device,
+            extent,
+            render_pass,
+            &[descriptor_set_layout],
+        );
         let depth = VulkanWrapper::create_depth(vk_instance, physical_device, device, extent);
         let mut mvp_buffers: Vec<StorageBufferObject> = Vec::with_capacity(FRAMES_IN_FLIGHT);
         let initial_capacity = 100;
@@ -386,6 +392,10 @@ impl Renderer {
             self.command_pools[self.current_frame],
             image,
         )
+    }
+
+    pub fn get_extent(&self) -> Extent2D {
+        self.extent
     }
 
     pub unsafe fn destroy(&self, device: &Device) {

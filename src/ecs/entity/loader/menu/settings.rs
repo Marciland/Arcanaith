@@ -29,6 +29,7 @@ pub fn load(loader: &mut EntityLoader, entity_manager: &mut EntityManager) {
         },
         Some(InputComponent {
             is_active: true,
+            previous: back,
             next: back,
             activate: back_fn,
         }),
@@ -38,5 +39,5 @@ pub fn load(loader: &mut EntityLoader, entity_manager: &mut EntityManager) {
 fn back_fn(event_proxy: &EventLoopProxy<GameEvent>) {
     event_proxy
         .send_event(GameEvent::Back)
-        .expect("Failed to send back event!");
+        .expect("Failed to send back event by pressing back button in settings!");
 }

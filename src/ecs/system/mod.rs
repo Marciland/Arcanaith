@@ -3,8 +3,8 @@ mod input;
 mod render;
 mod resource;
 
-pub use input::InputSystem;
-pub use render::RenderSystem;
+pub use input::{mouse, InputSystem};
+pub use render::{Quad, RenderSystem};
 pub use resource::ResourceSystem;
 
 pub struct SystemManager {

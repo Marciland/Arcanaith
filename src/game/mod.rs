@@ -1,19 +1,20 @@
+mod event;
 use crate::{
     constants::{FPS, FULLSCREEN, ICONPATH, TITLE},
     ecs::{component::ComponentManager, entity::EntityManager, system::SystemManager},
     Window,
 };
+use event::{UserEventHandler, WindowEventHandler};
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    thread,
     time::Duration,
 };
 use winit::{
     application::ApplicationHandler,
-    event::{ElementState, KeyEvent, WindowEvent},
+    event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Fullscreen::Borderless, Icon, WindowId},
 };
@@ -116,51 +117,19 @@ impl ApplicationHandler<GameEvent> for Game {
         match event {
             GameEvent::ExitGame => self.exit(event_loop),
 
-            // can be send from main menu and pause menu
-            GameEvent::SettingsMenu => {
-                match self.current_state {
-                    GameState::MainMenu => {
-                        self.entity_manager.clear(&mut self.component_manager);
-                    }
-                    GameState::_Pause => {
-                        self.component_manager.visual_storage.hide_all();
-                    }
-                    _ => panic!("SettingsMenu event should not have been send!"),
-                }
+            GameEvent::SettingsMenu => self.load_settings_menu(),
 
-                self.previous_state = Some(self.current_state.clone());
-                self.current_state = GameState::Settings;
-                self.entity_manager.load(
-                    &self.current_state,
-                    &mut self.component_manager,
-                    &self.system_manager.resource,
-                );
-            }
-
-            // can be send from settings menu and pause menu
+            #[allow(clippy::match_wildcard_for_single_variants)]
             GameEvent::Back => match self.current_state {
-                GameState::_Pause => {
-                    self.current_state = GameState::Game;
-                    todo!("unhide game and remove settings entities, continue updating")
+                GameState::MainMenu => {
+                    self.exit(event_loop);
+                    todo!("ask if user really wants to exit");
                 }
-                GameState::Settings => match self.previous_state {
-                    Some(GameState::_Pause) => {
-                        todo!("remove settings menu entitites and show pause menu entities")
-                    }
-                    Some(GameState::MainMenu) => {
-                        self.entity_manager.clear(&mut self.component_manager);
-
-                        self.previous_state = None;
-                        self.current_state = GameState::MainMenu;
-
-                        self.entity_manager.load(
-                            &self.current_state,
-                            &mut self.component_manager,
-                            &self.system_manager.resource,
-                        );
-                    }
-                    _ => panic!("No previous state when trying to go back!"),
-                },
+                GameState::_Pause => self.back_from_pause(),
+                GameState::Settings => {
+                    self.back_from_settings();
+                    todo!("ask if user wants to save settings");
+                }
                 _ => panic!("Back event should not have been send!"),
             },
         }
@@ -175,78 +144,48 @@ impl ApplicationHandler<GameEvent> for Game {
         match event {
             WindowEvent::CloseRequested => self.exit(event_loop),
 
-            WindowEvent::RedrawRequested => {
-                self.system_manager.input.process_inputs(
-                    &self.current_state,
-                    &mut self.component_manager,
-                    &self.event_proxy,
-                );
-
-                let render_time = self.system_manager.render.draw(
-                    &mut self.component_manager,
-                    &self.system_manager.resource,
-                    self.window
-                        .as_mut()
-                        .expect("Window was lost while rendering!"),
-                );
-
-                // println!("{:?}", render_time);
-
-                let remaining_time = self.frame_time.saturating_sub(render_time);
-                if !remaining_time.is_zero() {
-                    thread::sleep(remaining_time);
-                }
-
-                self.window
-                    .as_ref()
-                    .expect("Window was lost while rendering!")
-                    .request_render();
-            }
+            WindowEvent::RedrawRequested => self.redraw_requested(),
 
             WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        logical_key: key,
-                        state: ElementState::Pressed,
-                        ..
-                    },
+                event,
+                is_synthetic: false,
                 ..
             } => {
-                self.system_manager.input.add_keyboard_input(key);
+                self.system_manager
+                    .input
+                    .add_keyboard_input(event.state, event.logical_key);
             }
 
             WindowEvent::CursorMoved {
                 device_id,
                 position,
             } => {
-                self.system_manager
-                    .input
-                    .update_cursor_position(device_id, position);
+                let window_ref = self
+                    .window
+                    .as_ref()
+                    .expect("Window was lost while updating cursor position!");
+
+                self.system_manager.input.update_cursor_position(
+                    device_id,
+                    position,
+                    window_ref.get_current_size(),
+                );
             }
 
             WindowEvent::MouseInput {
-                device_id: _,
+                device_id,
                 state,
                 button,
             } => {
-                self.system_manager.input.add_mouse_input(button, state);
+                self.system_manager
+                    .input
+                    .add_mouse_input(device_id, button, state);
             }
 
-            WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        state: ElementState::Released,
-                        ..
-                    },
-                ..
-            }
-            | WindowEvent::Moved(_)
+            WindowEvent::Moved(_)
             | WindowEvent::Resized(_)
             | WindowEvent::CursorEntered { device_id: _ }
-            | WindowEvent::CursorLeft { device_id: _ } => {
-                // ignoring key releases for now
-                // println!("ignored event: {event:?}")
-            }
+            | WindowEvent::CursorLeft { device_id: _ } => (),
 
             _ => println!("unprocessed event: {event:?}"),
         }

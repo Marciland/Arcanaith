@@ -33,6 +33,7 @@ pub fn load(loader: &mut EntityLoader, entity_manager: &mut EntityManager) {
         },
         Some(InputComponent {
             is_active: true,
+            previous: exit,
             next: settings,
             activate: start_game_fn,
         }),
@@ -53,6 +54,7 @@ pub fn load(loader: &mut EntityLoader, entity_manager: &mut EntityManager) {
         },
         Some(InputComponent {
             is_active: false,
+            previous: start_game,
             next: exit,
             activate: settings_fn,
         }),
@@ -73,6 +75,7 @@ pub fn load(loader: &mut EntityLoader, entity_manager: &mut EntityManager) {
         },
         Some(InputComponent {
             is_active: false,
+            previous: settings,
             next: start_game,
             activate: exit_fn,
         }),

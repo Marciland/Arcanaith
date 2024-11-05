@@ -1,6 +1,6 @@
 use crate::{
     ecs::{
-        component::{ComponentManager, PositionComponent, VisualComponent},
+        component::{composition::VisualWithPosition, ComponentManager},
         system::ResourceSystem,
     },
     structs::{ModelViewProjection, Vertex},
@@ -16,44 +16,30 @@ use std::{
     time::{Duration, Instant},
 };
 
-struct VisualWithPosition<'component> {
-    visual: &'component mut VisualComponent,
-    position: &'component PositionComponent,
-}
-
 pub struct RenderSystem {
-    vertices: Vec<Vertex>,
+    geometry: Quad,
     vertex_buffer: Buffer,
     vertex_buffer_memory: DeviceMemory,
-    indices: Vec<u16>,
     index_buffer: Buffer,
     index_buffer_memory: DeviceMemory,
 }
 
 impl RenderSystem {
     pub fn create() -> Self {
-        let bottom_left = Vertex::new(Vec2 { x: -0.5, y: -0.5 }, Vec2 { x: 0.0, y: 0.0 });
-        let bottom_right = Vertex::new(Vec2 { x: 0.5, y: -0.5 }, Vec2 { x: 1.0, y: 0.0 });
-        let top_right = Vertex::new(Vec2 { x: 0.5, y: 0.5 }, Vec2 { x: 1.0, y: 1.0 });
-        let top_left = Vertex::new(Vec2 { x: -0.5, y: 0.5 }, Vec2 { x: 0.0, y: 1.0 });
-
-        let vertices: Vec<Vertex> = vec![bottom_left, bottom_right, top_right, top_left];
-        let indices: Vec<u16> = vec![0, 1, 2, 2, 3, 0];
-
         Self {
-            vertices,
+            geometry: Quad::new(),
             vertex_buffer: Buffer::null(),
             vertex_buffer_memory: DeviceMemory::null(),
-            indices,
             index_buffer: Buffer::null(),
             index_buffer_memory: DeviceMemory::null(),
         }
     }
 
     pub fn initialize(&mut self, window: &Window) {
-        (self.index_buffer, self.index_buffer_memory) = window.create_index_buffer(&self.indices);
+        (self.index_buffer, self.index_buffer_memory) =
+            window.create_index_buffer(&self.geometry.indices);
         (self.vertex_buffer, self.vertex_buffer_memory) =
-            window.create_vertex_buffer(&self.vertices);
+            window.create_vertex_buffer(self.geometry.get_vertices());
     }
 
     pub fn draw(
@@ -123,7 +109,7 @@ impl RenderSystem {
     }
 
     pub fn get_index_count(&self) -> u32 {
-        self.indices.len() as u32
+        self.geometry.indices.len() as u32
     }
 
     #[allow(clippy::missing_safety_doc)]
@@ -133,5 +119,73 @@ impl RenderSystem {
 
         device.destroy_buffer(self.vertex_buffer, None);
         device.free_memory(self.vertex_buffer_memory, None);
+    }
+}
+
+pub struct Quad {
+    pub top_right: Vec2,
+    pub top_left: Vec2,
+    pub bottom_left: Vec2,
+    pub bottom_right: Vec2,
+    vertices: Vec<Vertex>,
+    indices: Vec<u16>,
+}
+
+impl Quad {
+    pub fn new() -> Self {
+        let bottom_left = Vertex {
+            position: Vec2 { x: -0.5, y: -0.5 },
+            texture_coordinates: Vec2 { x: 0.0, y: 0.0 },
+        };
+        let bottom_right = Vertex {
+            position: Vec2 { x: 0.5, y: -0.5 },
+            texture_coordinates: Vec2 { x: 1.0, y: 0.0 },
+        };
+        let top_right = Vertex {
+            position: Vec2 { x: 0.5, y: 0.5 },
+            texture_coordinates: Vec2 { x: 1.0, y: 1.0 },
+        };
+        let top_left = Vertex {
+            position: Vec2 { x: -0.5, y: 0.5 },
+            texture_coordinates: Vec2 { x: 0.0, y: 1.0 },
+        };
+
+        Self {
+            top_right: top_right.position,
+            top_left: top_left.position,
+            bottom_left: bottom_left.position,
+            bottom_right: bottom_right.position,
+            vertices: vec![bottom_left, bottom_right, top_right, top_left],
+            indices: vec![0, 1, 2, 2, 3, 0],
+        }
+    }
+
+    pub fn get_vertices(&self) -> &[Vertex] {
+        &self.vertices
+    }
+
+    pub fn position_is_inside(&self, position: Vec2) -> bool {
+        // https://en.wikipedia.org/wiki/Point_in_polygon#Ray_casting_algorithm
+        let mut intersections = 0;
+
+        let edges = [
+            (self.top_left, self.top_right),
+            (self.top_right, self.bottom_right),
+            (self.bottom_right, self.bottom_left),
+            (self.bottom_left, self.top_left),
+        ];
+
+        for (start, end) in &edges {
+            if (start.y > position.y) != (end.y > position.y) {
+                let slope = (end.x - start.x) / (end.y - start.y);
+                let intersect_x = start.x + slope * (position.y - start.y);
+
+                if position.x < intersect_x {
+                    intersections += 1;
+                }
+            }
+        }
+
+        intersections % 2 != 0
     }
 }

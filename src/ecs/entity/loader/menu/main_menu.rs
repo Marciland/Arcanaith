@@ -98,8 +98,10 @@ pub fn load(loader: &mut EntityLoader, entity_manager: &mut EntityManager) {
     );
 }
 
-fn start_game_fn(_event_proxy: &EventLoopProxy<GameEvent>) {
-    todo!("start game pressed")
+fn start_game_fn(event_proxy: &EventLoopProxy<GameEvent>) {
+    event_proxy
+        .send_event(GameEvent::NewGame)
+        .expect("Failed to send new game event!");
 }
 
 fn settings_fn(event_proxy: &EventLoopProxy<GameEvent>) {

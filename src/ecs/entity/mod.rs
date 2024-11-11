@@ -37,7 +37,7 @@ impl EntityManager {
                 loader.load_main_menu(self);
             }
             GameState::Game => {
-                todo!("load game")
+                loader.load_game(self);
             }
             GameState::_Pause => {
                 todo!("load pause menu")

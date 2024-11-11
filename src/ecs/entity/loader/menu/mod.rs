@@ -31,7 +31,6 @@ impl<'loading> EntityLoader<'loading> {
                 vec![self.resource_system.get_texture_index(texture)],
                 layer,
                 0,
-                0,
             ),
         );
 

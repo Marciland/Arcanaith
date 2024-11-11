@@ -1,9 +1,13 @@
 pub mod composition;
+mod hover;
 mod input;
+pub mod player;
 mod position;
 mod visual;
 use crate::ecs::entity::Entity;
+pub use hover::HoverComponent;
 pub use input::InputComponent;
+pub use player::Player;
 pub use position::PositionComponent;
 use std::collections::HashMap;
 pub use visual::{Layer, VisualComponent};
@@ -47,17 +51,21 @@ impl<T> ComponentStorage<T> {
 }
 
 pub struct ComponentManager {
+    pub player_entity: Option<Player>,
     pub visual_storage: ComponentStorage<VisualComponent>,
     pub position_storage: ComponentStorage<PositionComponent>,
     pub input_storage: ComponentStorage<InputComponent>,
+    pub hover_storage: ComponentStorage<HoverComponent>,
 }
 
 impl ComponentManager {
     pub fn new() -> Self {
         Self {
+            player_entity: None,
             visual_storage: ComponentStorage::new(),
             position_storage: ComponentStorage::new(),
             input_storage: ComponentStorage::new(),
+            hover_storage: ComponentStorage::new(),
         }
     }
 
@@ -65,5 +73,6 @@ impl ComponentManager {
         self.visual_storage.remove(entity);
         self.position_storage.remove(entity);
         self.input_storage.remove(entity);
+        self.hover_storage.remove(entity);
     }
 }

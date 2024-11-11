@@ -21,6 +21,7 @@ use winit::{
 
 #[derive(Debug)]
 pub enum GameEvent {
+    NewGame,
     ExitGame,
     SettingsMenu,
     Back,
@@ -115,6 +116,8 @@ impl ApplicationHandler<GameEvent> for Game {
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: GameEvent) {
         match event {
+            GameEvent::NewGame => self.start_new_game(),
+
             GameEvent::ExitGame => self.exit(event_loop),
 
             GameEvent::SettingsMenu => self.load_settings_menu(),
@@ -153,7 +156,7 @@ impl ApplicationHandler<GameEvent> for Game {
             } => {
                 self.system_manager
                     .input
-                    .add_keyboard_input(event.state, event.logical_key);
+                    .update_keyboard_input(event.state, event.logical_key);
             }
 
             WindowEvent::CursorMoved {

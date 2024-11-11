@@ -39,7 +39,7 @@ impl Texture {
             let sprite_amount = texture.sprite_size * texture.sprite_size;
             images.extend(load_sprite_from_file(&texture.path, texture.sprite_size));
             for index in 0..sprite_amount {
-                texture_indices.insert(key.to_owned() + &index.to_string(), next_id);
+                texture_indices.insert(key.to_owned() + "_" + &index.to_string(), next_id);
                 next_id += 1;
             }
         }

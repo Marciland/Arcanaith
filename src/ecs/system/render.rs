@@ -1,8 +1,9 @@
 use crate::{
     ecs::{
-        component::{composition::VisualWithPosition, ComponentManager},
+        component::{composition::VisualWithPosition, ComponentManager, Layer},
         system::ResourceSystem,
     },
+    game::GameState,
     structs::{ModelViewProjection, Vertex},
     Window,
 };
@@ -44,6 +45,7 @@ impl RenderSystem {
 
     pub fn draw(
         &mut self,
+        current_state: &GameState,
         component_manager: &mut ComponentManager,
         resource_system: &ResourceSystem,
         window: &mut Window,
@@ -69,7 +71,11 @@ impl RenderSystem {
 
         // sort by layer and by individual z inside layers
         components.sort_by(|a, b| {
-            let layer_ordering = a.visual.get_layer().cmp(&b.visual.get_layer());
+            let layer_ordering = a
+                .visual
+                .get_layer()
+                .value()
+                .cmp(&b.visual.get_layer().value());
             if layer_ordering == Ordering::Equal {
                 a.position.xyz.z.total_cmp(&b.position.xyz.z)
             } else {
@@ -84,12 +90,41 @@ impl RenderSystem {
                 resource_system.get_texture(texture_index).get_view()
             })
             .collect();
+
+        let view_matrix = match current_state {
+            GameState::Game => {
+                let player_id = component_manager
+                    .player_entity
+                    .as_ref()
+                    .expect("No player entity when determining view matrix in game state!")
+                    .id;
+
+                let player_position = component_manager
+                    .position_storage
+                    .get(player_id)
+                    .expect("Failed to get position of player!")
+                    .xyz;
+
+                Mat4::from_translation(-player_position)
+            }
+            // never move anything outside of game
+            _ => Mat4::IDENTITY,
+        };
+
         let mvps: Vec<ModelViewProjection> = components
             .iter()
-            .map(|visual_with_position| ModelViewProjection {
-                model: visual_with_position.position.to_model_matrix(),
-                view: Mat4::IDENTITY,
-                projection: ModelViewProjection::get_projection(),
+            .map(|visual_with_position| {
+                let view = match visual_with_position.visual.get_layer() {
+                    // never move interface entities
+                    Layer::Interface => Mat4::IDENTITY,
+                    Layer::Game | Layer::Background => view_matrix,
+                };
+
+                ModelViewProjection {
+                    model: visual_with_position.position.to_model_matrix(),
+                    view,
+                    projection: ModelViewProjection::get_projection(),
+                }
             })
             .collect();
 

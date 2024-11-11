@@ -5,6 +5,7 @@ pub trait UserEventHandler {
     fn load_settings_menu(&mut self);
     fn back_from_pause(&mut self);
     fn back_from_settings(&mut self);
+    fn start_new_game(&mut self);
 }
 
 pub trait WindowEventHandler {
@@ -56,6 +57,18 @@ impl UserEventHandler for Game {
             _ => panic!("No previous state when trying to go back!"),
         }
     }
+
+    fn start_new_game(&mut self) {
+        self.entity_manager.clear(&mut self.component_manager);
+
+        self.current_state = GameState::Game;
+
+        self.entity_manager.load(
+            &self.current_state,
+            &mut self.component_manager,
+            &self.system_manager.resource,
+        );
+    }
 }
 
 impl WindowEventHandler for Game {
@@ -63,10 +76,12 @@ impl WindowEventHandler for Game {
         self.system_manager.input.process_inputs(
             &self.current_state,
             &mut self.component_manager,
+            &self.system_manager.resource,
             &self.event_proxy,
         );
 
         let render_time = self.system_manager.render.draw(
+            &self.current_state,
             &mut self.component_manager,
             &self.system_manager.resource,
             self.window

@@ -10,26 +10,27 @@ pub struct VisualComponent {
 }
 
 impl VisualComponent {
-    pub fn new(
-        texture_indices: Vec<usize>,
-        layer: Layer,
-        frame_duration: usize,
-        current_frame: usize,
-    ) -> Self {
+    pub fn new(texture_indices: Vec<usize>, layer: Layer, frame_duration: usize) -> Self {
         Self {
             texture_indices,
             current_texture: 0,
             layer,
             frame_duration,
-            current_frame,
+            current_frame: 0,
             visible: true,
         }
     }
 
+    pub fn reset_animation(mut self) -> Self {
+        self.current_frame = 0;
+        self
+    }
+
     pub fn update_animation(&mut self) {
-        if self.texture_indices.len() == 1 {
+        if self.frame_duration == 0 || self.texture_indices.len() == 1 {
             return;
         }
+
         self.current_frame += 1;
         if self.current_frame >= self.frame_duration {
             self.current_frame = 0;
@@ -37,12 +38,17 @@ impl VisualComponent {
         }
     }
 
+    pub fn update_animation_speed(mut self, frame_duration: usize) -> Self {
+        self.frame_duration = frame_duration;
+        self
+    }
+
     pub fn get_current_texture(&self) -> usize {
         self.texture_indices[self.current_texture]
     }
 
-    pub fn get_layer(&self) -> u8 {
-        self.layer.value()
+    pub fn get_layer(&self) -> &Layer {
+        &self.layer
     }
 
     pub fn should_render(&self) -> bool {
@@ -60,7 +66,7 @@ impl ComponentStorage<VisualComponent> {
 
 pub enum Layer {
     Interface,
-    _Game,
+    Game,
     Background,
 }
 
@@ -68,7 +74,7 @@ impl Layer {
     pub fn value(&self) -> u8 {
         match self {
             Layer::Interface => 0,
-            Layer::_Game => 1,
+            Layer::Game => 1,
             Layer::Background => 2,
         }
     }

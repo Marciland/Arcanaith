@@ -1,9 +1,11 @@
+mod game;
 mod menu;
 pub mod mouse;
 use crate::{
     ecs::{
         component::{composition::InputWithPosition, ComponentManager},
         entity::Entity,
+        system::ResourceSystem,
     },
     game::{GameEvent, GameState},
 };
@@ -11,7 +13,7 @@ use ash::vk::Extent2D;
 use glam::Vec2;
 use indexmap::IndexSet;
 use mouse::{MouseButton, MouseEvent, MousePosition};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use winit::{
     dpi::PhysicalPosition,
     event::{DeviceId, ElementState},
@@ -21,9 +23,9 @@ use winit::{
 
 pub struct InputSystem {
     cursor_positions: HashMap<DeviceId, Vec2>,
-    // set -> only 1 key per frame
+    // set -> only once per key per frame
     keyboard_pressed_inputs: IndexSet<Key>,
-    keyboard_released_inputs: IndexSet<Key>,
+    active_keyboard_inputs: HashSet<Key>,
     // don't clear, keeps track over frames
     partial_mouse_inputs: HashMap<MouseButton, MousePosition>,
     mouse_inputs: Vec<MouseEvent>,
@@ -34,7 +36,7 @@ impl InputSystem {
         Self {
             cursor_positions: HashMap::with_capacity(2),
             keyboard_pressed_inputs: IndexSet::with_capacity(10),
-            keyboard_released_inputs: IndexSet::with_capacity(10),
+            active_keyboard_inputs: HashSet::with_capacity(5),
             partial_mouse_inputs: HashMap::with_capacity(10),
             mouse_inputs: Vec::with_capacity(10),
         }
@@ -53,13 +55,14 @@ impl InputSystem {
         self.cursor_positions.insert(id, normalized_position);
     }
 
-    pub fn add_keyboard_input(&mut self, state: ElementState, key: Key) {
+    pub fn update_keyboard_input(&mut self, state: ElementState, key: Key) {
         match state {
             ElementState::Pressed => {
-                self.keyboard_pressed_inputs.insert(key);
+                self.keyboard_pressed_inputs.insert(key.clone());
+                self.active_keyboard_inputs.insert(key);
             }
             ElementState::Released => {
-                self.keyboard_released_inputs.insert(key);
+                self.active_keyboard_inputs.remove(&key);
             }
         }
     }
@@ -92,13 +95,9 @@ impl InputSystem {
         &mut self,
         game_state: &GameState,
         component_manager: &mut ComponentManager,
+        resource_system: &ResourceSystem,
         event_proxy: &EventLoopProxy<GameEvent>,
     ) {
-        // start from the front as pop removes the last entry
-        self.keyboard_pressed_inputs.reverse();
-        self.keyboard_released_inputs.reverse();
-        self.mouse_inputs.reverse();
-
         // get all positions of components that have both an input and a position
         let mut components: Vec<InputWithPosition> =
             Vec::with_capacity(component_manager.input_storage.size());
@@ -124,13 +123,20 @@ impl InputSystem {
                 );
             }
             GameState::Game => {
-                todo!("event in game");
+                game::handle_player_events(
+                    &self.keyboard_pressed_inputs,
+                    &self.active_keyboard_inputs,
+                    &self.mouse_inputs,
+                    component_manager,
+                    resource_system,
+                );
+                game::handle_mouse_events(&self.mouse_inputs);
+                game::handle_key_events(&self.keyboard_pressed_inputs);
             }
         }
 
         // clear each frame
         self.mouse_inputs.clear();
         self.keyboard_pressed_inputs.clear();
-        self.keyboard_released_inputs.clear();
     }
 }

@@ -27,8 +27,24 @@
         "path": "res/menu/settings/back.png",
         "sprite_size": 1
     },
-    "player_walking": {
-        "path": "res/sprites/player_walking.png",
+    "player": {
+        "path": "res/sprites/player.png",
         "sprite_size": 4
+    },
+    "game_background": {
+        "path": "res/game/background.png",
+        "sprite_size": 1
+    },
+    "empty_bar": {
+        "path": "res/game/gui/empty_bar.png",
+        "sprite_size": 1
+    },
+    "money_bag": {
+        "path": "res/game/gui/money_bag.png",
+        "sprite_size": 1
+    },
+    "bag": {
+        "path": "res/game/gui/bag.png",
+        "sprite_size": 1
     }
 }

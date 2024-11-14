@@ -30,7 +30,7 @@ impl<'loading> EntityLoader<'loading> {
         texture: &str,
         xyz: Vec3,
         scale: Vec3,
-        input: InputComponent,
+        input: fn(&EventLoopProxy<GameEvent>) -> (),
     ) {
         self.component_manager.visual_storage.add(
             entity,
@@ -45,7 +45,15 @@ impl<'loading> EntityLoader<'loading> {
             .position_storage
             .add(entity, PositionComponent { xyz, scale });
 
-        self.component_manager.input_storage.add(entity, input);
+        self.component_manager.input_storage.add(
+            entity,
+            InputComponent {
+                is_active: false,
+                previous: entity,
+                next: entity,
+                activate: input,
+            },
+        );
     }
 }
 
@@ -61,6 +69,7 @@ impl<'overlay, 'loader> OverlayLoader<'overlay, 'loader> {
         self.create_exp_bar();
         self.create_money();
         self.create_inventory();
+        self.create_wave_counter();
         self.create_highscore();
         self.create_pause();
     }
@@ -158,21 +167,88 @@ impl<'overlay, 'loader> OverlayLoader<'overlay, 'loader> {
                 y: 0.1,
                 z: 1.0,
             },
-            InputComponent {
-                is_active: true,
-                previous: inventory,
-                next: inventory,
-                activate: open_inventory,
+            open_inventory,
+        );
+    }
+
+    fn create_wave_counter(&mut self) {
+        let wave_counter = self.entity_manager.create_entity();
+        self.loader.component_manager.visual_storage.add(
+            wave_counter,
+            VisualComponent::new(
+                vec![self
+                    .loader
+                    .resource_system
+                    .get_texture_index("wave_counter")],
+                Layer::Interface,
+                0,
+            ),
+        );
+        self.loader.component_manager.position_storage.add(
+            wave_counter,
+            PositionComponent {
+                xyz: Vec3 {
+                    x: 0.0,
+                    y: -0.8,
+                    z: 0.0,
+                },
+                scale: Vec3 {
+                    x: 0.6,
+                    y: 0.1,
+                    z: 1.0,
+                },
             },
         );
     }
 
     fn create_highscore(&mut self) {
-        todo!("highscore display")
+        let highscore = self.entity_manager.create_entity();
+        self.loader.component_manager.visual_storage.add(
+            highscore,
+            VisualComponent::new(
+                vec![self.loader.resource_system.get_texture_index("highscore")],
+                Layer::Interface,
+                0,
+            ),
+        );
+        self.loader.component_manager.position_storage.add(
+            highscore,
+            PositionComponent {
+                xyz: Vec3 {
+                    x: 0.0,
+                    y: -0.9,
+                    z: 0.0,
+                },
+                scale: Vec3 {
+                    x: 0.6,
+                    y: 0.1,
+                    z: 1.0,
+                },
+            },
+        );
     }
     fn create_pause(&mut self) {
-        todo!("pause button")
+        let pause_button = self.entity_manager.create_entity();
+        self.loader.create_clickable(
+            pause_button,
+            "",
+            Vec3 {
+                x: -0.925,
+                y: -0.925,
+                z: 0.0,
+            },
+            Vec3 {
+                x: 0.05,
+                y: 0.05,
+                z: 1.0,
+            },
+            pause_clicked,
+        );
     }
+}
+
+fn pause_clicked(_event_proxy: &EventLoopProxy<GameEvent>) {
+    todo!("pause clicked")
 }
 
 fn open_inventory(_event_proxy: &EventLoopProxy<GameEvent>) {

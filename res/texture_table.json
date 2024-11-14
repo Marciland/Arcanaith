@@ -1,55 +1,63 @@
 {
-    "textures": [
-        {
-            "name": "menu_background",
-            "path": "res/menu/background.png"
-        },
-        {
-            "name": "menu_title",
-            "path": "res/menu/title.png"
-        },
-        {
-            "name": "main_menu_banner",
-            "path": "res/menu/main_menu/banner.png"
-        },
-        {
-            "name": "main_menu_start_game",
-            "path": "res/menu/main_menu/start_game.png"
-        },
-        {
-            "name": "main_menu_settings",
-            "path": "res/menu/main_menu/settings.png"
-        },
-        {
-            "name": "main_menu_exit",
-            "path": "res/menu/main_menu/exit.png"
-        },
-        {
-            "name": "settings_back",
-            "path": "res/menu/settings/back.png"
-        },
-        {
-            "name": "game_background",
-            "path": "res/game/background.png"
-        },
-        {
-            "name": "empty_bar",
-            "path": "res/game/gui/empty_bar.png"
-        },
-        {
-            "name": "money_bag",
-            "path": "res/game/gui/money_bag.png"
-        },
-        {
-            "name": "bag",
-            "path": "res/game/gui/bag.png"
-        }
-    ],
-    "sprites": [
-        {
-            "name": "player",
-            "path": "res/sprites/player.png",
-            "sprite_size": 4
-        }
-    ]
+  "textures": [
+    {
+      "name": "menu_background",
+      "path": "res/menu/background.png"
+    },
+    {
+      "name": "menu_title",
+      "path": "res/menu/title.png"
+    },
+    {
+      "name": "main_menu_banner",
+      "path": "res/menu/main_menu/banner.png"
+    },
+    {
+      "name": "main_menu_start_game",
+      "path": "res/menu/main_menu/start_game.png"
+    },
+    {
+      "name": "main_menu_settings",
+      "path": "res/menu/main_menu/settings.png"
+    },
+    {
+      "name": "main_menu_exit",
+      "path": "res/menu/main_menu/exit.png"
+    },
+    {
+      "name": "settings_back",
+      "path": "res/menu/settings/back.png"
+    },
+    {
+      "name": "game_background",
+      "path": "res/game/background.png"
+    },
+    {
+      "name": "empty_bar",
+      "path": "res/game/gui/empty_bar.png"
+    },
+    {
+      "name": "money_bag",
+      "path": "res/game/gui/money_bag.png"
+    },
+    {
+      "name": "bag",
+      "path": "res/game/gui/bag.png"
+    },
+    {
+      "name": "wave_counter",
+      "path": "res/game/gui/waves.png"
+    },
+    {
+      "name": "highscore",
+      "path": "res/game/gui/highscore.png"
+    }
+  ],
+  "sprites": [
+    {
+      "name": "player",
+      "path": "res/sprites/player.png",
+      "sprite_size": 4
+    }
+  ]
 }

@@ -51,6 +51,10 @@
     {
       "name": "highscore",
       "path": "res/game/gui/highscore.png"
+    },
+    {
+      "name": "pause_button",
+      "path": "res/game/gui/pause.png"
     }
   ],
   "sprites": [

@@ -231,7 +231,7 @@ impl<'overlay, 'loader> OverlayLoader<'overlay, 'loader> {
         let pause_button = self.entity_manager.create_entity();
         self.loader.create_clickable(
             pause_button,
-            "",
+            "pause_button",
             Vec3 {
                 x: -0.925,
                 y: -0.925,

@@ -1,10 +1,7 @@
 mod overlay;
 mod player;
-use crate::ecs::{
-    component::{Layer, PositionComponent, VisualComponent},
-    entity::{EntityLoader, EntityManager},
-};
-use glam::Vec3;
+use crate::ecs::entity::{EntityLoader, EntityManager};
+use overlay::OverlayLoader;
 
 pub fn load_new_game(loader: &mut EntityLoader, entity_manager: &mut EntityManager) {
     loader.component_manager.player_entity = Some(player::create(loader, entity_manager));
@@ -34,7 +31,12 @@ pub fn load_new_game(loader: &mut EntityLoader, entity_manager: &mut EntityManag
             ),
         );
     */
-    overlay::load(loader, entity_manager);
+
+    OverlayLoader {
+        loader,
+        entity_manager,
+    }
+    .load();
 
     let _monster_spawner = entity_manager.create_entity();
 }

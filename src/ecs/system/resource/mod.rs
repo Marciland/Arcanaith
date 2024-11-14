@@ -1,9 +1,9 @@
-mod texture;
-use crate::{structs::ImageData, Window};
+mod assets;
+use crate::{constants::TEXTURE_TABLE, structs::ImageData, Window};
 use ash::Device;
+use assets::TextureTable;
 use image::DynamicImage;
 use std::collections::HashMap;
-use texture::Texture;
 
 pub struct ResourceSystem {
     images: Vec<DynamicImage>,
@@ -13,11 +13,8 @@ pub struct ResourceSystem {
 
 impl ResourceSystem {
     pub fn create() -> Self {
-        let (images, texture_indices) = {
-            let texture_table: HashMap<String, Texture> =
-                Texture::parse_table_from_json().expect("Failed to parse texture table!");
-            Texture::load_images(&texture_table)
-        };
+        let texture_table = TextureTable::from_json(TEXTURE_TABLE);
+        let (images, texture_indices) = texture_table.load_images();
         let textures = Vec::with_capacity(images.len());
 
         Self {

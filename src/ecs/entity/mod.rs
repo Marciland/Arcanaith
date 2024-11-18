@@ -1,9 +1,4 @@
-mod loader;
-use crate::{
-    ecs::{component::ComponentManager, system::ResourceSystem},
-    game::GameState,
-};
-use loader::EntityLoader;
+use crate::ecs::{component::ComponentManager, system::ResourceSystem};
 use std::collections::HashSet;
 
 pub type Entity = u32;
@@ -21,34 +16,7 @@ impl EntityManager {
         }
     }
 
-    pub fn load(
-        &mut self,
-        game_state: &GameState,
-        component_manager: &mut ComponentManager,
-        resource_system: &ResourceSystem,
-    ) {
-        let mut loader = EntityLoader {
-            component_manager,
-            resource_system,
-        };
-
-        match game_state {
-            GameState::MainMenu => {
-                loader.load_main_menu(self);
-            }
-            GameState::Game => {
-                loader.load_game(self);
-            }
-            GameState::_Pause => {
-                todo!("load pause menu")
-            }
-            GameState::Settings => {
-                loader.load_settings_menu(self);
-            }
-        }
-    }
-
-    fn create_entity(&mut self) -> Entity {
+    pub fn create_entity(&mut self) -> Entity {
         let entity = self.next_id;
         self.entities.insert(entity);
         self.next_id += 1;
@@ -61,4 +29,9 @@ impl EntityManager {
         }
         self.entities.clear();
     }
+}
+
+pub struct EntityLoader<'loading> {
+    pub component_manager: &'loading mut ComponentManager,
+    pub resource_system: &'loading ResourceSystem,
 }

@@ -2,6 +2,7 @@ mod event;
 use crate::{
     constants::{FPS, FULLSCREEN, ICONPATH, TITLE},
     ecs::{component::ComponentManager, entity::EntityManager, system::SystemManager},
+    scenes::create_main_menu,
     Window,
 };
 use event::{UserEventHandler, WindowEventHandler};
@@ -106,11 +107,13 @@ impl ApplicationHandler<GameEvent> for Game {
         let window = Window::create(inner_window, texture_count);
         self.system_manager.render.initialize(&window);
         self.system_manager.resource.initialize(&window);
-        self.entity_manager.load(
-            &self.current_state,
+
+        create_main_menu(
             &mut self.component_manager,
             &self.system_manager.resource,
+            &mut self.entity_manager,
         );
+
         self.window = Some(window);
     }
 

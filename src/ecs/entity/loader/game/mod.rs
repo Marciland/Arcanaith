@@ -42,5 +42,5 @@ pub fn load_new_game(loader: &mut EntityLoader, entity_manager: &mut EntityManag
     }
     .load();
 
-    todo!("spawn waves mechanic")
+    // todo!("spawn waves mechanic")
 }

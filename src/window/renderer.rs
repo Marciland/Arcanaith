@@ -40,6 +40,7 @@ pub struct Renderer {
     render_finished: Vec<Semaphore>,
     in_flight: Vec<Fence>,
     current_frame: usize,
+    suboptimal_timer: usize,
 }
 
 impl Renderer {
@@ -123,6 +124,7 @@ impl Renderer {
             render_finished,
             in_flight,
             current_frame: 0,
+            suboptimal_timer: 0,
         }
     }
 
@@ -219,7 +221,19 @@ impl Renderer {
             );
         }
 
-        let Ok((image_index, _suboptimal)) = (unsafe {
+        // after 30 suboptimal frames, recreate swapchain without return but before acquire image!
+        if self.suboptimal_timer == 30 {
+            self.recreate_swapchain(
+                vk_instance,
+                physical_device,
+                device,
+                surface,
+                surface_loader,
+            );
+            self.suboptimal_timer = 0;
+        }
+
+        let Ok((image_index, suboptimal)) = (unsafe {
             self.swapchain_loader.acquire_next_image(
                 self.swapchain,
                 u64::MAX,
@@ -236,6 +250,10 @@ impl Renderer {
             );
             return None;
         };
+
+        if suboptimal {
+            self.suboptimal_timer += 1;
+        }
 
         unsafe { device.reset_fences(&[self.in_flight[self.current_frame]]) }
             .expect("Failed to reset fences!");

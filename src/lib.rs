@@ -1,6 +1,7 @@
 mod constants;
 mod ecs;
 mod game;
+mod scenes;
 mod vulkan;
 mod window;
 pub use game::{Game, GameEvent};

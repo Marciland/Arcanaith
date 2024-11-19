@@ -1,4 +1,5 @@
 use super::{Game, GameState};
+use crate::scenes::{create_main_menu, create_new_game, create_settings_menu};
 use std::thread;
 
 pub trait UserEventHandler {
@@ -27,10 +28,11 @@ impl UserEventHandler for Game {
 
         self.previous_state = Some(self.current_state.clone());
         self.current_state = GameState::Settings;
-        self.entity_manager.load(
-            &self.current_state,
+
+        create_settings_menu(
             &mut self.component_manager,
             &self.system_manager.resource,
+            &mut self.entity_manager,
         );
     }
     fn back_from_pause(&mut self) {
@@ -48,10 +50,10 @@ impl UserEventHandler for Game {
                 self.previous_state = None;
                 self.current_state = GameState::MainMenu;
 
-                self.entity_manager.load(
-                    &self.current_state,
+                create_main_menu(
                     &mut self.component_manager,
                     &self.system_manager.resource,
+                    &mut self.entity_manager,
                 );
             }
             _ => panic!("No previous state when trying to go back!"),
@@ -63,10 +65,10 @@ impl UserEventHandler for Game {
 
         self.current_state = GameState::Game;
 
-        self.entity_manager.load(
-            &self.current_state,
+        create_new_game(
             &mut self.component_manager,
             &self.system_manager.resource,
+            &mut self.entity_manager,
         );
     }
 }

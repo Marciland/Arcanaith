@@ -1,7 +1,8 @@
 use crate::{
     ecs::{
-        component::InputComponent,
+        component::{ComponentManager, InputComponent},
         entity::{EntityLoader, EntityManager},
+        system::ResourceSystem,
     },
     GameEvent,
 };
@@ -9,7 +10,16 @@ use glam::Vec3;
 use winit::event_loop::EventLoopProxy;
 
 #[allow(clippy::too_many_lines)]
-pub fn load(loader: &mut EntityLoader, entity_manager: &mut EntityManager) {
+pub fn create(
+    component_manager: &mut ComponentManager,
+    resource_system: &ResourceSystem,
+    entity_manager: &mut EntityManager,
+) {
+    let mut loader = EntityLoader {
+        component_manager,
+        resource_system,
+    };
+
     let start_game = entity_manager.create_entity();
     let settings = entity_manager.create_entity();
     let exit = entity_manager.create_entity();

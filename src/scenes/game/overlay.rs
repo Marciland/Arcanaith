@@ -1,61 +1,12 @@
 use crate::{
     ecs::{
-        component::{InputComponent, Layer, PositionComponent, VisualComponent},
-        entity::{Entity, EntityLoader, EntityManager},
+        component::{Layer, PositionComponent, VisualComponent},
+        entity::{EntityLoader, EntityManager},
     },
     GameEvent,
 };
 use glam::Vec3;
 use winit::event_loop::EventLoopProxy;
-
-impl<'loading> EntityLoader<'loading> {
-    fn create_empty_bar(&mut self, entity: Entity, xyz: Vec3, scale: Vec3) {
-        self.component_manager.visual_storage.add(
-            entity,
-            VisualComponent::new(
-                vec![self.resource_system.get_texture_index("empty_bar")],
-                Layer::Interface,
-                0,
-            ),
-        );
-
-        self.component_manager
-            .position_storage
-            .add(entity, PositionComponent { xyz, scale });
-    }
-
-    fn create_clickable(
-        &mut self,
-        entity: Entity,
-        texture: &str,
-        xyz: Vec3,
-        scale: Vec3,
-        input: fn(&EventLoopProxy<GameEvent>) -> (),
-    ) {
-        self.component_manager.visual_storage.add(
-            entity,
-            VisualComponent::new(
-                vec![self.resource_system.get_texture_index(texture)],
-                Layer::Interface,
-                0,
-            ),
-        );
-
-        self.component_manager
-            .position_storage
-            .add(entity, PositionComponent { xyz, scale });
-
-        self.component_manager.input_storage.add(
-            entity,
-            InputComponent {
-                is_active: false,
-                previous: entity,
-                next: entity,
-                activate: input,
-            },
-        );
-    }
-}
 
 pub struct OverlayLoader<'overlay, 'loader> {
     pub loader: &'overlay mut EntityLoader<'loader>,

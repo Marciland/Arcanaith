@@ -1,12 +1,12 @@
-mod main_menu;
-mod settings;
 use crate::ecs::{
     component::{InputComponent, Layer, PositionComponent, VisualComponent},
     entity::{Entity, EntityLoader, EntityManager},
 };
 use glam::Vec3;
-pub use main_menu::load as load_main_menu;
-pub use settings::load as load_settings_menu;
+mod main_menu;
+mod settings_menu;
+pub use main_menu::create as create_main_menu;
+pub use settings_menu::create as create_settings_menu;
 
 impl<'loading> EntityLoader<'loading> {
     fn create_menu_entity(

@@ -1,14 +1,24 @@
 use crate::{
     ecs::{
-        component::InputComponent,
+        component::{ComponentManager, InputComponent},
         entity::{EntityLoader, EntityManager},
+        system::ResourceSystem,
     },
     GameEvent,
 };
 use glam::Vec3;
 use winit::event_loop::EventLoopProxy;
 
-pub fn load(loader: &mut EntityLoader, entity_manager: &mut EntityManager) {
+pub fn create(
+    component_manager: &mut ComponentManager,
+    resource_system: &ResourceSystem,
+    entity_manager: &mut EntityManager,
+) {
+    let mut loader = EntityLoader {
+        component_manager,
+        resource_system,
+    };
+
     let back = entity_manager.create_entity();
 
     loader.create_background(entity_manager);

@@ -115,7 +115,7 @@ impl Window {
                 width: image.width(),
                 height: image.height(),
             },
-            image.into_raw(),
+            &image.into_raw(),
         )
     }
 

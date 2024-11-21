@@ -841,7 +841,7 @@ impl VulkanWrapper {
         graphics_queue: Queue,
         command_pool: CommandPool,
         image_extent: Extent2D,
-        image_data: Vec<u8>,
+        image_data: &[u8],
     ) -> ImageData {
         let image_size = u64::from(image_extent.width * image_extent.height * 4);
 

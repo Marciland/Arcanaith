@@ -1,4 +1,5 @@
 use crate::ecs::{component::ComponentManager, system::ResourceSystem};
+use ash::Device;
 use std::collections::HashSet;
 
 pub type Entity = u32;
@@ -23,9 +24,9 @@ impl EntityManager {
         entity
     }
 
-    pub fn clear(&mut self, component_manager: &mut ComponentManager) {
+    pub fn clear(&mut self, component_manager: &mut ComponentManager, device: &Device) {
         for entity in &self.entities {
-            component_manager.clear_entity(*entity);
+            component_manager.clear_entity(*entity, device);
         }
         self.entities.clear();
     }

@@ -9,7 +9,7 @@ pub fn create_font_map() -> HashMap<String, FontVec> {
     let mut font_map = HashMap::with_capacity(font_files.len());
 
     for font_file in font_files {
-        let Some(file_name) = font_file.file_name().and_then(|name| name.to_str()) else {
+        let Some(file_name) = font_file.file_stem().and_then(|name| name.to_str()) else {
             continue;
         };
 

@@ -1,6 +1,10 @@
-use crate::{ecs::system::ResourceSystem, structs::ImageData, Window};
+use crate::{
+    ecs::{component::ComponentStorage, entity::Entity, system::ResourceSystem},
+    structs::ImageData,
+    Window,
+};
 use ab_glyph::{point, Font, FontVec, Glyph, OutlinedGlyph, Point, PxScale, Rect, ScaleFont};
-use ash::vk::ImageView;
+use ash::{vk::ImageView, Device};
 use image::{DynamicImage, ImageBuffer, Rgba};
 
 pub struct TextComponent {
@@ -8,7 +12,20 @@ pub struct TextComponent {
     font_size: f32,
     font: String,
     bitmap: Option<ImageData>,
-    // TODO destroy imagedata
+}
+
+impl ComponentStorage<TextComponent> {
+    pub fn destroy(&mut self, device: &Device) {
+        for component in self.components.values_mut() {
+            component.destroy(device);
+        }
+    }
+
+    pub fn destroy_entity(&mut self, entity: Entity, device: &Device) {
+        if let Some(mut component) = self.components.remove(&entity) {
+            component.destroy(device);
+        }
+    }
 }
 
 impl TextComponent {
@@ -43,6 +60,12 @@ impl TextComponent {
         let image = create_image_from_gylphs(outlined, px_bounds);
 
         self.bitmap = Some(window.create_image_data(image));
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        if let Some(image_data) = self.bitmap.take() {
+            unsafe { image_data.destroy(device) }
+        }
     }
 }
 

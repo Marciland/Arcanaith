@@ -400,7 +400,7 @@ impl Renderer {
         physical_device: PhysicalDevice,
         device: &Device,
         image_extent: Extent2D,
-        image_data: Vec<u8>,
+        image_data: &[u8],
     ) -> ImageData {
         VulkanWrapper::create_image_data(
             instance,

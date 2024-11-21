@@ -72,9 +72,12 @@ impl Game {
             .window
             .as_ref()
             .expect("Failed to get window ref while exiting!");
+        let device_ref = window_ref.get_device();
+
         window_ref.wait_idle();
+        self.component_manager.text_storage.destroy(device_ref);
         unsafe {
-            self.system_manager.destroy(window_ref.get_device());
+            self.system_manager.destroy(device_ref);
             window_ref.destroy();
         }
     }

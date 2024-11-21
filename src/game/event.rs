@@ -18,7 +18,13 @@ impl UserEventHandler for Game {
         // can be send from main menu and pause menu
         match self.current_state {
             GameState::MainMenu => {
-                self.entity_manager.clear(&mut self.component_manager);
+                let device_ref = self
+                    .window
+                    .as_ref()
+                    .expect("Failed to get window while loading settings menu!")
+                    .get_device();
+                self.entity_manager
+                    .clear(&mut self.component_manager, device_ref);
             }
             GameState::_Pause => {
                 self.component_manager.visual_storage.hide_all();
@@ -45,7 +51,14 @@ impl UserEventHandler for Game {
                 todo!("remove settings menu entitites and show pause menu entities")
             }
             Some(GameState::MainMenu) => {
-                self.entity_manager.clear(&mut self.component_manager);
+                let device_ref = self
+                    .window
+                    .as_ref()
+                    .expect("Failed to get window while going back from settings menu!")
+                    .get_device();
+
+                self.entity_manager
+                    .clear(&mut self.component_manager, device_ref);
 
                 self.previous_state = None;
                 self.current_state = GameState::MainMenu;
@@ -61,7 +74,14 @@ impl UserEventHandler for Game {
     }
 
     fn start_new_game(&mut self) {
-        self.entity_manager.clear(&mut self.component_manager);
+        let device_ref = self
+            .window
+            .as_ref()
+            .expect("Failed to get window while starting new game!")
+            .get_device();
+
+        self.entity_manager
+            .clear(&mut self.component_manager, device_ref);
 
         self.current_state = GameState::Game;
 

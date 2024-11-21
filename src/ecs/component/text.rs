@@ -1,7 +1,96 @@
-use ab_glyph::FontVec;
+use crate::{ecs::system::ResourceSystem, structs::ImageData, Window};
+use ab_glyph::{Font, FontVec, Glyph, OutlinedGlyph, Point, PxScale, Rect};
+use ash::vk::ImageView;
+use image::{DynamicImage, ImageBuffer, Rgba};
 
 pub struct TextComponent {
     content: String,
     font_size: f32,
-    font: FontVec,
+    font: String,
+    bitmap: Option<ImageData>,
+    // TODO destroy imagedata
+}
+
+impl TextComponent {
+    pub fn create(text: &str, font: &str, font_size: f32) -> Self {
+        Self {
+            content: text.to_owned(),
+            font_size,
+            font: font.to_owned(),
+            bitmap: None,
+        }
+    }
+
+    pub fn get_bitmap(&mut self, window: &Window, resource_system: &ResourceSystem) -> ImageView {
+        match &self.bitmap {
+            Some(bitmap) => bitmap.get_view(),
+            None => {
+                self.create_bitmap(window, resource_system);
+                self.bitmap.as_ref().unwrap().get_view()
+            }
+        }
+    }
+
+    fn create_bitmap(&mut self, window: &Window, resource_system: &ResourceSystem) {
+        let font = resource_system.get_font(&self.font);
+        let scale = PxScale::from(self.font_size);
+        let scaled_font = font.as_scaled(scale);
+        let mut glyphs: Vec<Glyph> = Vec::with_capacity(self.content.len());
+
+        // gather glyphs
+
+        let (outlined, px_bounds) = get_glyph_outlines(glyphs, font);
+
+        let image = create_image_from_gylphs(outlined, px_bounds);
+
+        self.bitmap = Some(window.create_image_data(image));
+    }
+}
+
+fn get_glyph_outlines(glyphs: Vec<Glyph>, font: &FontVec) -> (Vec<OutlinedGlyph>, Rect) {
+    let outlined: Vec<OutlinedGlyph> = glyphs
+        .into_iter()
+        .filter_map(|glyph| font.outline_glyph(glyph))
+        .collect();
+    let Some(px_bounds) = outlined
+        .iter()
+        .map(OutlinedGlyph::px_bounds)
+        .reduce(|b, next| Rect {
+            min: Point {
+                x: b.min.x.min(next.min.x),
+                y: b.min.y.min(next.min.y),
+            },
+            max: Point {
+                x: b.max.x.max(next.max.x),
+                y: b.max.y.max(next.max.y),
+            },
+        })
+    else {
+        panic!("no outlines?")
+    };
+
+    (outlined, px_bounds)
+}
+
+fn create_image_from_gylphs(
+    glyphs: Vec<OutlinedGlyph>,
+    boundary: Rect,
+) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+    let mut image =
+        DynamicImage::new_rgba8(boundary.width() as u32, boundary.height() as u32).to_rgba8();
+
+    for glyph in glyphs {
+        let bounds = glyph.px_bounds();
+
+        let img_left = bounds.min.x as u32 - boundary.min.x as u32;
+        let img_top = bounds.min.y as u32 - boundary.min.y as u32;
+
+        glyph.draw(|x, y, v| {
+            let px = image.get_pixel_mut(img_left + x, img_top + y);
+
+            *px = Rgba([255, 255, 255, px.0[3].saturating_add((v * 255.0) as u8)]);
+        });
+    }
+
+    image
 }

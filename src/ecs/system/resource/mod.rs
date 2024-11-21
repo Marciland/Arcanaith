@@ -12,7 +12,7 @@ pub struct ResourceSystem {
     images: Vec<DynamicImage>,
     fonts: HashMap<String, FontVec>,
     textures: Vec<ImageData>,
-    texture_indices: HashMap<String, usize>,
+    texture_indices: HashMap<String, usize>, // combine?
 }
 
 impl ResourceSystem {
@@ -33,7 +33,7 @@ impl ResourceSystem {
     pub fn initialize(&mut self, window: &Window) {
         for image in &self.images {
             self.textures
-                .push(window.create_texture(image.clone().into_rgba8()));
+                .push(window.create_image_data(image.clone().into_rgba8()));
         }
     }
 

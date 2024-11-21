@@ -31,6 +31,11 @@ impl<T> ComponentStorage<T> {
         self.components.remove(&entity);
     }
 
+    fn destroy(&mut self, entity: Entity) {
+        if let Some(component) = self.components.remove(&entity) {
+            drop(component);
+        }
+    }
     pub fn get(&self, entity: Entity) -> Option<&T> {
         self.components.get(&entity)
     }
@@ -73,6 +78,6 @@ impl ComponentManager {
         self.visual_storage.remove(entity);
         self.position_storage.remove(entity);
         self.input_storage.remove(entity);
-        self.text_storage.remove(entity);
+        self.text_storage.destroy(entity);
     }
 }

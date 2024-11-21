@@ -14,7 +14,6 @@ use ash::{
     },
     Device, Instance,
 };
-use image::{ImageBuffer, Rgba};
 
 pub struct Renderer {
     swapchain: SwapchainKHR,
@@ -395,20 +394,22 @@ impl Renderer {
         )
     }
 
-    pub fn create_texture(
+    pub fn create_image_data(
         &self,
         instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
-        image: ImageBuffer<Rgba<u8>, Vec<u8>>,
+        image_extent: Extent2D,
+        image_data: Vec<u8>,
     ) -> ImageData {
-        VulkanWrapper::create_texture(
+        VulkanWrapper::create_image_data(
             instance,
             physical_device,
             device,
             self.graphics_queue,
             self.command_pools[self.current_frame],
-            image,
+            image_extent,
+            image_data,
         )
     }
 

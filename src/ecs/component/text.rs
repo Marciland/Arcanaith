@@ -1,5 +1,5 @@
 use crate::{ecs::system::ResourceSystem, structs::ImageData, Window};
-use ab_glyph::{Font, FontVec, Glyph, OutlinedGlyph, Point, PxScale, Rect};
+use ab_glyph::{point, Font, FontVec, Glyph, OutlinedGlyph, Point, PxScale, Rect, ScaleFont};
 use ash::vk::ImageView;
 use image::{DynamicImage, ImageBuffer, Rgba};
 
@@ -35,9 +35,8 @@ impl TextComponent {
         let font = resource_system.get_font(&self.font);
         let scale = PxScale::from(self.font_size);
         let scaled_font = font.as_scaled(scale);
-        let mut glyphs: Vec<Glyph> = Vec::with_capacity(self.content.len());
 
-        // gather glyphs
+        let glyphs = gather_glyphs(scaled_font, &self.content);
 
         let (outlined, px_bounds) = get_glyph_outlines(glyphs, font);
 
@@ -45,6 +44,36 @@ impl TextComponent {
 
         self.bitmap = Some(window.create_image_data(image));
     }
+}
+
+fn gather_glyphs<F, SF>(font: SF, text: &str) -> Vec<Glyph>
+where
+    F: Font,
+    SF: ScaleFont<F>,
+{
+    // https://github.com/alexheretic/ab-glyph/blob/main/dev/src/layout.rs#L7
+
+    let mut glyphs: Vec<Glyph> = Vec::with_capacity(text.len());
+    let mut last_glyph: Option<Glyph> = None;
+    let mut caret = point(0.0, font.ascent());
+
+    for char in text.chars() {
+        let mut glyph = font.scaled_glyph(char);
+
+        if let Some(previous) = last_glyph.take() {
+            caret.x += font.kern(previous.id, glyph.id);
+        }
+        glyph.position = caret;
+
+        last_glyph = Some(glyph.clone());
+        caret.x += font.h_advance(glyph.id);
+
+        // line breaks?
+
+        glyphs.push(glyph);
+    }
+
+    glyphs
 }
 
 fn get_glyph_outlines(glyphs: Vec<Glyph>, font: &FontVec) -> (Vec<OutlinedGlyph>, Rect) {

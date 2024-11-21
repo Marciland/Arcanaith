@@ -128,7 +128,7 @@ impl<'overlay, 'loader> OverlayLoader<'overlay, 'loader> {
         self.loader
             .component_manager
             .text_storage
-            .add(wave_counter, TextComponent::create("waves", "test", 16.0));
+            .add(wave_counter, TextComponent::create("waves", "test", 56.0));
 
         self.loader.component_manager.position_storage.add(
             wave_counter,
@@ -152,7 +152,7 @@ impl<'overlay, 'loader> OverlayLoader<'overlay, 'loader> {
         self.loader
             .component_manager
             .text_storage
-            .add(highscore, TextComponent::create("highscores", "test", 16.0));
+            .add(highscore, TextComponent::create("highscores", "test", 60.0));
         self.loader.component_manager.position_storage.add(
             highscore,
             PositionComponent {
@@ -168,6 +168,7 @@ impl<'overlay, 'loader> OverlayLoader<'overlay, 'loader> {
                 },
             },
         );
+        todo!("this is not rendering because of the sorting of textures in render system!");
     }
     fn create_pause(&mut self) {
         let pause_button = self.entity_manager.create_entity();

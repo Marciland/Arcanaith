@@ -43,7 +43,6 @@ impl StorageBufferObject {
         }
 
         // add 50% more capacity
-        #[allow(clippy::cast_sign_loss)]
         let new_size = (entity_count as f32 * 1.5) as usize;
         let (buffer, memory, mapped) =
             VulkanWrapper::create_ssbo(instance, physical_device, device, new_size);

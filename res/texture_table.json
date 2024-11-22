@@ -45,14 +45,6 @@
       "path": "res/game/gui/bag.png"
     },
     {
-      "name": "wave_counter",
-      "path": "res/game/gui/waves.png"
-    },
-    {
-      "name": "highscore",
-      "path": "res/game/gui/highscore.png"
-    },
-    {
       "name": "pause_button",
       "path": "res/game/gui/pause.png"
     }

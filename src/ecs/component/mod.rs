@@ -2,12 +2,15 @@ pub mod composition;
 mod input;
 pub mod player;
 mod position;
+mod text;
 mod visual;
 use crate::ecs::entity::Entity;
+use ash::Device;
 pub use input::InputComponent;
 pub use player::Player;
 pub use position::PositionComponent;
 use std::collections::HashMap;
+pub use text::TextComponent;
 pub use visual::{Layer, VisualComponent};
 
 pub struct ComponentStorage<T> {
@@ -53,6 +56,7 @@ pub struct ComponentManager {
     pub visual_storage: ComponentStorage<VisualComponent>,
     pub position_storage: ComponentStorage<PositionComponent>,
     pub input_storage: ComponentStorage<InputComponent>,
+    pub text_storage: ComponentStorage<TextComponent>,
 }
 
 impl ComponentManager {
@@ -62,12 +66,14 @@ impl ComponentManager {
             visual_storage: ComponentStorage::new(),
             position_storage: ComponentStorage::new(),
             input_storage: ComponentStorage::new(),
+            text_storage: ComponentStorage::new(),
         }
     }
 
-    pub fn clear_entity(&mut self, entity: Entity) {
+    pub fn clear_entity(&mut self, entity: Entity, device: &Device) {
         self.visual_storage.remove(entity);
         self.position_storage.remove(entity);
         self.input_storage.remove(entity);
+        self.text_storage.destroy_entity(entity, device);
     }
 }

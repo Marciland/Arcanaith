@@ -1,6 +1,6 @@
 use crate::{
     ecs::{
-        component::{Layer, PositionComponent, VisualComponent},
+        component::{Layer, PositionComponent, TextComponent, VisualComponent},
         entity::{EntityLoader, EntityManager},
     },
     GameEvent,
@@ -124,17 +124,12 @@ impl<'overlay, 'loader> OverlayLoader<'overlay, 'loader> {
 
     fn create_wave_counter(&mut self) {
         let wave_counter = self.entity_manager.create_entity();
-        self.loader.component_manager.visual_storage.add(
-            wave_counter,
-            VisualComponent::new(
-                vec![self
-                    .loader
-                    .resource_system
-                    .get_texture_index("wave_counter")],
-                Layer::Interface,
-                0,
-            ),
-        );
+
+        self.loader
+            .component_manager
+            .text_storage
+            .add(wave_counter, TextComponent::create("waves", "test", 56.0));
+
         self.loader.component_manager.position_storage.add(
             wave_counter,
             PositionComponent {
@@ -154,14 +149,10 @@ impl<'overlay, 'loader> OverlayLoader<'overlay, 'loader> {
 
     fn create_highscore(&mut self) {
         let highscore = self.entity_manager.create_entity();
-        self.loader.component_manager.visual_storage.add(
-            highscore,
-            VisualComponent::new(
-                vec![self.loader.resource_system.get_texture_index("highscore")],
-                Layer::Interface,
-                0,
-            ),
-        );
+        self.loader
+            .component_manager
+            .text_storage
+            .add(highscore, TextComponent::create("highscores", "test", 60.0));
         self.loader.component_manager.position_storage.add(
             highscore,
             PositionComponent {

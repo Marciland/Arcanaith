@@ -1,14 +1,18 @@
 mod assets;
+mod font;
 use crate::{constants::TEXTURE_TABLE, structs::ImageData, Window};
+use ab_glyph::FontVec;
 use ash::Device;
 use assets::TextureTable;
+use font::create_font_map;
 use image::DynamicImage;
 use std::collections::HashMap;
 
 pub struct ResourceSystem {
     images: Vec<DynamicImage>,
+    fonts: HashMap<String, FontVec>,
     textures: Vec<ImageData>,
-    texture_indices: HashMap<String, usize>,
+    texture_indices: HashMap<String, usize>, // combine?
 }
 
 impl ResourceSystem {
@@ -16,9 +20,11 @@ impl ResourceSystem {
         let texture_table = TextureTable::from_json(TEXTURE_TABLE);
         let (images, texture_indices) = texture_table.load_images();
         let textures = Vec::with_capacity(images.len());
+        let fonts = create_font_map();
 
         Self {
             images,
+            fonts,
             textures,
             texture_indices,
         }
@@ -27,7 +33,7 @@ impl ResourceSystem {
     pub fn initialize(&mut self, window: &Window) {
         for image in &self.images {
             self.textures
-                .push(window.create_texture(image.clone().into_rgba8()));
+                .push(window.create_image_data(image.clone().into_rgba8()));
         }
     }
 
@@ -46,6 +52,12 @@ impl ResourceSystem {
         self.textures
             .get(texture_index)
             .expect(&("Failed to get texture: ".to_string() + &texture_index.to_string()))
+    }
+
+    pub fn get_font(&self, font: &str) -> &FontVec {
+        self.fonts
+            .get(font)
+            .expect(&("Failed to get font: ".to_string() + font))
     }
 
     #[allow(clippy::missing_safety_doc)]

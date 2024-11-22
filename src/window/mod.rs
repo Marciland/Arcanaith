@@ -106,9 +106,17 @@ impl Window {
         )
     }
 
-    pub fn create_texture(&self, image: ImageBuffer<Rgba<u8>, Vec<u8>>) -> ImageData {
-        self.renderer
-            .create_texture(&self.vk_instance, self.physical_device, &self.device, image)
+    pub fn create_image_data(&self, image: ImageBuffer<Rgba<u8>, Vec<u8>>) -> ImageData {
+        self.renderer.create_image_data(
+            &self.vk_instance,
+            self.physical_device,
+            &self.device,
+            Extent2D {
+                width: image.width(),
+                height: image.height(),
+            },
+            &image.into_raw(),
+        )
     }
 
     pub fn get_current_size(&self) -> Extent2D {

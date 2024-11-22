@@ -35,7 +35,6 @@ use ash::{
     Device, Entry, Instance,
 };
 use ash_window::{create_surface, enumerate_required_extensions};
-use image::{ImageBuffer, Rgba};
 use std::{
     array::from_ref,
     ffi::CStr,
@@ -835,17 +834,16 @@ impl VulkanWrapper {
         };
     }
 
-    pub fn create_texture(
+    pub fn create_image_data(
         instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
         graphics_queue: Queue,
         command_pool: CommandPool,
-        image: ImageBuffer<Rgba<u8>, Vec<u8>>,
+        image_extent: Extent2D,
+        image_data: &[u8],
     ) -> ImageData {
-        let (width, height) = image.dimensions();
-        let image_size = u64::from(width * height * 4);
-        let image_extent = Extent2D { width, height };
+        let image_size = u64::from(image_extent.width * image_extent.height * 4);
 
         let (staging_buffer, staging_buffer_memory) = internal::InternalVulkan::create_buffer(
             instance,
@@ -864,16 +862,16 @@ impl VulkanWrapper {
                 MemoryMapFlags::empty(),
             )
         }
-        .expect("Failed to map memory for staging texture!")
+        .expect("Failed to map memory for staging buffer while creating image data!")
         .cast::<u8>();
-        let pixels = image.into_raw();
+
         unsafe {
-            copy_nonoverlapping(pixels.as_ptr(), data, pixels.len());
+            copy_nonoverlapping(image_data.as_ptr(), data, image_data.len());
             device.unmap_memory(staging_buffer_memory);
         };
 
         let format = Format::R8G8B8A8_SRGB;
-        let (texture_image, image_memory) = internal::InternalVulkan::create_image(
+        let (image, image_memory) = internal::InternalVulkan::create_image(
             instance,
             physical_device,
             device,
@@ -888,7 +886,7 @@ impl VulkanWrapper {
             device,
             graphics_queue,
             command_pool,
-            texture_image,
+            image,
             ImageLayout::UNDEFINED,
             ImageLayout::TRANSFER_DST_OPTIMAL,
         );
@@ -897,14 +895,14 @@ impl VulkanWrapper {
             command_pool,
             graphics_queue,
             staging_buffer,
-            texture_image,
+            image,
             image_extent,
         );
         internal::InternalVulkan::transition_image_layout(
             device,
             graphics_queue,
             command_pool,
-            texture_image,
+            image,
             ImageLayout::TRANSFER_DST_OPTIMAL,
             ImageLayout::SHADER_READ_ONLY_OPTIMAL,
         );
@@ -916,12 +914,12 @@ impl VulkanWrapper {
 
         let image_view = internal::InternalVulkan::create_image_view(
             device,
-            texture_image,
+            image,
             format,
             ImageAspectFlags::COLOR,
         );
 
-        ImageData::create(texture_image, image_memory, image_view)
+        ImageData::create(image, image_memory, image_view)
     }
 
     pub fn create_texture_sampler(

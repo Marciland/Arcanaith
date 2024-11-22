@@ -4,7 +4,7 @@ mod render;
 mod resource;
 
 pub use input::{mouse, InputSystem};
-pub use render::{Quad, RenderSystem};
+pub use render::RenderSystem;
 pub use resource::ResourceSystem;
 
 pub struct SystemManager {

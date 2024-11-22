@@ -1,4 +1,3 @@
-mod quad;
 use crate::{
     ecs::{
         component::{
@@ -8,6 +7,7 @@ use crate::{
         system::ResourceSystem,
     },
     game::GameState,
+    objects::Quad,
     structs::ModelViewProjection,
     Window,
 };
@@ -16,7 +16,6 @@ use ash::{
     Device,
 };
 use glam::Mat4;
-pub use quad::Quad;
 use std::{
     cmp::Ordering,
     time::{Duration, Instant},

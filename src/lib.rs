@@ -1,6 +1,7 @@
 mod constants;
 mod ecs;
 mod game;
+mod objects;
 mod scenes;
 mod vulkan;
 mod window;

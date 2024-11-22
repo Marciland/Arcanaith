@@ -168,7 +168,6 @@ impl<'overlay, 'loader> OverlayLoader<'overlay, 'loader> {
                 },
             },
         );
-        todo!("this is not rendering because of the sorting of textures in render system!");
     }
     fn create_pause(&mut self) {
         let pause_button = self.entity_manager.create_entity();

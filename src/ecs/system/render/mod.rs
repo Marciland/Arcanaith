@@ -56,16 +56,22 @@ impl RenderSystem {
         window: &mut Window,
     ) -> Duration {
         let start_time = Instant::now();
+        let entity_amount =
+            component_manager.visual_storage.size() + component_manager.text_storage.size();
+        let mut image_data: Vec<ImageView> = Vec::with_capacity(entity_amount);
+        let mut positions: Vec<ModelViewProjection> = Vec::with_capacity(entity_amount);
 
-        let (mut textures, mut mvps) =
-            prepare_visual_components(current_state, component_manager, resource_system);
-
-        let (bitmaps, positions) =
+        let (bitmaps, text_positions) =
             prepare_text_components(component_manager, resource_system, window);
-        textures.extend(bitmaps);
-        mvps.extend(positions);
+        image_data.extend(bitmaps);
+        positions.extend(text_positions);
 
-        window.draw(self, &textures, &mvps);
+        let (visual_textures, visual_positions) =
+            prepare_visual_components(current_state, component_manager, resource_system);
+        image_data.extend(visual_textures);
+        positions.extend(visual_positions);
+
+        window.draw(self, &image_data, &positions);
 
         let end_time = Instant::now();
 

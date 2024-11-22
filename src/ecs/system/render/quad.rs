@@ -1,3 +1,5 @@
+// TODO move
+
 use crate::vulkan::structs::Vertex;
 use glam::Vec2;
 

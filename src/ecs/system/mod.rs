@@ -1,7 +1,8 @@
-use ash::Device;
 mod input;
 mod render;
 mod resource;
+
+use ash::Device;
 
 pub use input::{mouse, InputSystem};
 pub use render::RenderSystem;

@@ -1,6 +1,7 @@
 use crate::{ecs::component::composition::InputWithPosition, GameEvent};
 use glam::Vec2;
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use winit::{event::DeviceId, event_loop::EventLoopProxy};
 
 #[derive(Eq, Hash, PartialEq)]
@@ -19,54 +20,63 @@ pub struct MouseEvent {
     pub position: MousePosition,
 }
 
-pub fn handle_pressed(
-    partial_mouse_inputs: &mut HashMap<MouseButton, MousePosition>,
-    cursor_positions: &HashMap<DeviceId, Vec2>,
+pub fn handle_pressed<Hasher>(
+    partial_mouse_inputs: &mut HashMap<MouseButton, MousePosition, Hasher>,
+    cursor_positions: &HashMap<DeviceId, Vec2, Hasher>,
     mouse_button: winit::event::MouseButton,
     device_id: DeviceId,
-) {
+) where
+    Hasher: BuildHasher,
+{
+    let Some(pressed) = cursor_positions.get(&device_id) else {
+        return;
+    };
+
     partial_mouse_inputs.insert(
         MouseButton {
             mouse_button,
             device_id,
         },
         MousePosition {
-            pressed: *cursor_positions
-                .get(&device_id)
-                .expect("Mouse event for unknown device!"),
+            pressed: *pressed,
             released: None,
         },
     );
 }
 
-pub fn handle_released(
-    partial_mouse_inputs: &mut HashMap<MouseButton, MousePosition>,
+pub fn handle_released<Hasher>(
+    partial_mouse_inputs: &mut HashMap<MouseButton, MousePosition, Hasher>,
     mouse_inputs: &mut Vec<MouseEvent>,
-    cursor_positions: &HashMap<DeviceId, Vec2>,
+    cursor_positions: &HashMap<DeviceId, Vec2, Hasher>,
     mouse_button: winit::event::MouseButton,
     device_id: DeviceId,
-) {
-    if let Some(position) = partial_mouse_inputs.remove(&MouseButton {
+) where
+    Hasher: BuildHasher,
+{
+    let Some(position) = partial_mouse_inputs.remove(&MouseButton {
         mouse_button,
         device_id,
-    }) {
-        let release_position = *cursor_positions
-            .get(&device_id)
-            .expect("Mouse event for unknown device!");
+    }) else {
+        return;
+    };
 
-        mouse_inputs.push(MouseEvent {
-            button: MouseButton {
-                mouse_button,
-                device_id,
-            },
-            position: MousePosition {
-                pressed: position.pressed,
-                released: Some(release_position),
-            },
-        });
-    }
+    let Some(released) = cursor_positions.get(&device_id) else {
+        return;
+    };
+
+    mouse_inputs.push(MouseEvent {
+        button: MouseButton {
+            mouse_button,
+            device_id,
+        },
+        position: MousePosition {
+            pressed: position.pressed,
+            released: Some(*released),
+        },
+    });
 }
 
+#[must_use]
 pub fn any_component_was_clicked(
     components: &[InputWithPosition],
     mouse_position: &MousePosition,

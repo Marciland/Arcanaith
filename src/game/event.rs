@@ -18,19 +18,21 @@ pub trait WindowEventHandler {
 
 impl UserEventHandler for Game {
     fn load_settings_menu(&mut self) {
+        let mut factory = ObjectFactory {
+            entity_manager: &mut self.entity_manager,
+            component_manager: &mut self.component_manager,
+            system_manager: &mut self.system_manager,
+        };
+        let device_ref = self
+            .window
+            .as_ref()
+            .expect("Failed to get window while loading settings menu!")
+            .get_device();
+
         // can be send from main menu and pause menu
-        match self.current_state {
-            GameState::MainMenu => {
-                let device_ref = self
-                    .window
-                    .as_ref()
-                    .expect("Failed to get window while loading settings menu!")
-                    .get_device();
-                self.entity_manager
-                    .clear(&mut self.component_manager, device_ref);
-            }
-            GameState::_Pause => {
-                self.component_manager.visual_storage.hide_all();
+        match self.current_scene {
+            Scene::MainMenu(_) => {
+                self.current_scene.destroy(device_ref, &mut factory);
             }
             _ => panic!("SettingsMenu event should not have been send!"),
         }
@@ -38,11 +40,7 @@ impl UserEventHandler for Game {
         self.previous_state = Some(self.current_state.clone());
         self.current_state = GameState::Settings;
 
-        self.current_scene = Scene::SettingsMenu(SettingsMenu::create(&mut ObjectFactory {
-            entity_manager: &mut self.entity_manager,
-            component_manager: &mut self.component_manager,
-            system_manager: &mut self.system_manager,
-        }));
+        self.current_scene = Scene::SettingsMenu(SettingsMenu::create(&mut factory));
     }
     fn back_from_pause(&mut self) {
         self.current_state = GameState::Game;

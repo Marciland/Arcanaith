@@ -1,5 +1,6 @@
 mod assets;
 mod font;
+
 use crate::{constants::TEXTURE_TABLE, structs::ImageData, Window};
 use ab_glyph::FontVec;
 use ash::Device;

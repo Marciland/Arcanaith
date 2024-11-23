@@ -1,6 +1,9 @@
-use crate::ecs::{
-    component::{player::PlayerState, ComponentManager},
-    system::{mouse::MouseEvent, ResourceSystem},
+use crate::{
+    ecs::{
+        component::{player::PlayerState, ComponentManager},
+        system::ResourceSystem,
+    },
+    mouse::MouseEvent,
 };
 use indexmap::IndexSet;
 use std::collections::HashSet;

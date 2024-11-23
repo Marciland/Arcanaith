@@ -1,4 +1,5 @@
 mod event;
+
 use crate::{
     constants::{FPS, FULLSCREEN, ICONPATH, TITLE},
     ecs::{component::ComponentManager, entity::EntityManager, system::SystemManager},

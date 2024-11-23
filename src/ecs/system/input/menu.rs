@@ -1,9 +1,9 @@
-use super::{mouse::any_component_was_clicked, MouseEvent};
 use crate::{
     ecs::{
         component::{composition::InputWithPosition, ComponentManager},
         entity::Entity,
     },
+    mouse::{any_component_was_clicked, MouseEvent},
     GameEvent,
 };
 use indexmap::IndexSet;

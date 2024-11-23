@@ -1,6 +1,6 @@
 mod game;
 mod menu;
-pub mod mouse;
+
 use crate::{
     ecs::{
         component::{composition::InputWithPosition, ComponentManager},
@@ -20,6 +20,8 @@ use winit::{
     event_loop::EventLoopProxy,
     keyboard::Key,
 };
+
+pub mod mouse;
 
 pub struct InputSystem {
     cursor_positions: HashMap<DeviceId, Vec2>,

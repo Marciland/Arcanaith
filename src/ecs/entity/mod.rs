@@ -1,19 +1,19 @@
 use crate::ecs::{component::ComponentManager, system::ResourceSystem};
 use ash::Device;
-use indexmap::IndexSet;
+use std::collections::HashSet;
 
 pub type Entity = u32;
 
 pub struct EntityManager {
     next_id: Entity,
-    entities: IndexSet<Entity>,
+    entities: HashSet<Entity>,
 }
 
 impl EntityManager {
     pub fn new() -> Self {
         Self {
             next_id: 0,
-            entities: IndexSet::new(),
+            entities: HashSet::new(),
         }
     }
 
@@ -22,6 +22,10 @@ impl EntityManager {
         self.entities.insert(entity);
         self.next_id += 1;
         entity
+    }
+
+    pub fn destroy_entity(&mut self, entity: Entity) {
+        self.entities.remove(&entity);
     }
 
     pub fn clear(&mut self, component_manager: &mut ComponentManager, device: &Device) {

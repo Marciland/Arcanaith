@@ -1,15 +1,18 @@
-pub mod composition;
 mod input;
-pub mod player;
 mod position;
 mod text;
 mod visual;
+
 use crate::ecs::entity::Entity;
 use ash::Device;
+use std::collections::HashMap;
+
+pub mod composition;
+pub mod player;
+
 pub use input::InputComponent;
 pub use player::Player;
 pub use position::PositionComponent;
-use std::collections::HashMap;
 pub use text::TextComponent;
 pub use visual::{Layer, VisualComponent};
 

@@ -1,12 +1,11 @@
-use super::{ObjectFactory, TextContent};
+use super::ObjectFactory;
 use crate::ecs::{
-    component::{Layer, PositionComponent, TextComponent, VisualComponent},
+    component::{Layer, PositionComponent, VisualComponent},
     entity::Entity,
 };
 use glam::{Vec2, Vec3};
 
 pub enum LabelContent<'a> {
-    Text(TextContent<'a>),
     Image { name: &'a str, layer: Layer },
 }
 
@@ -48,15 +47,6 @@ impl<'building> ObjectFactory<'building> {
         );
 
         match content {
-            LabelContent::Text(TextContent {
-                text,
-                font,
-                font_size,
-            }) => {
-                self.component_manager
-                    .text_storage
-                    .add(id, TextComponent::create(text, font, font_size));
-            }
             LabelContent::Image { name, layer } => {
                 self.component_manager.visual_storage.add(
                     id,

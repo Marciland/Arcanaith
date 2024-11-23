@@ -1,3 +1,5 @@
+mod overlay;
+
 use crate::{
     ecs::{
         component::{
@@ -9,7 +11,6 @@ use crate::{
     GameEvent,
 };
 use glam::Vec3;
-mod overlay;
 use overlay::OverlayLoader;
 use winit::event_loop::EventLoopProxy;
 

@@ -1,54 +1,27 @@
 use crate::{
     ecs::component::Layer,
-    objects::{Button, Label, LabelContent, ObjectFactory, TextContent},
+    objects::{Button, Label, LabelContent, Object, ObjectFactory, TextContent},
+    scenes::Menu,
     GameEvent,
 };
-use glam::{Vec2, Vec3};
+use ash::Device;
+use glam::Vec2;
 use winit::event_loop::EventLoopProxy;
 
-pub struct MainMenu {
-    pub background: Label,
-    pub title: Label,
-    pub banner: Label,
-    pub new_game: Button,
-    pub settings: Button,
-    pub exit: Button,
-}
-
-impl MainMenu {
-    pub fn create(factory: &mut ObjectFactory) -> Self {
-        let background = factory.new_label(
-            Vec3 {
-                x: 0.0,
-                y: 0.0,
-                z: 0.1,
-            },
-            Vec2 { x: 2.0, y: 2.0 },
-            LabelContent::Image {
-                name: "menu_background",
-                layer: Layer::Background,
-            },
-        );
-
-        let title = factory.new_label(
-            Vec2 { x: 0.0, y: -0.8 },
-            Vec2 { x: 1.5, y: 0.5 },
-            LabelContent::Image {
-                name: "menu_title",
-                layer: Layer::Background,
-            },
-        );
-
-        let banner = factory.new_label(
+impl Menu {
+    fn create_banner(factory: &mut ObjectFactory) -> Label {
+        factory.new_label(
             Vec2 { x: 0.0, y: 0.5 },
             Vec2 { x: 1.5, y: 0.5 },
             LabelContent::Image {
                 name: "main_menu_banner",
                 layer: Layer::Background,
             },
-        );
+        )
+    }
 
-        let new_game = factory.new_button(
+    fn create_new_game_button(factory: &mut ObjectFactory) -> Button {
+        factory.new_button(
             Vec2 { x: -0.5, y: 0.0 },
             Vec2 { x: 0.5, y: 0.5 },
             &TextContent {
@@ -58,9 +31,11 @@ impl MainMenu {
             },
             true,
             new_game_fn,
-        );
+        )
+    }
 
-        let settings = factory.new_button(
+    fn create_settings_button(factory: &mut ObjectFactory) -> Button {
+        factory.new_button(
             Vec2 { x: 0.0, y: 0.0 },
             Vec2 { x: 0.5, y: 0.5 },
             &TextContent {
@@ -70,9 +45,11 @@ impl MainMenu {
             },
             false,
             settings_fn,
-        );
+        )
+    }
 
-        let exit = factory.new_button(
+    fn create_exit_button(factory: &mut ObjectFactory) -> Button {
+        factory.new_button(
             Vec2 { x: 0.5, y: 0.0 },
             Vec2 { x: 0.5, y: 0.5 },
             &TextContent {
@@ -82,15 +59,45 @@ impl MainMenu {
             },
             false,
             exit_fn,
-        );
+        )
+    }
+}
 
-        Self {
-            background,
-            title,
-            banner,
-            new_game,
-            settings,
-            exit,
+pub struct MainMenu {
+    objects: Vec<Object>,
+}
+
+impl MainMenu {
+    pub fn create(factory: &mut ObjectFactory) -> Self {
+        let mut objects: Vec<Object> = Vec::with_capacity(6);
+
+        let background = Menu::create_background(factory);
+        objects.push(Object::Label(background));
+
+        let title = Menu::create_title(factory);
+        objects.push(Object::Label(title));
+
+        let banner = Menu::create_banner(factory);
+        objects.push(Object::Label(banner));
+
+        let new_game = Menu::create_new_game_button(factory);
+        objects.push(Object::Button(new_game));
+
+        let settings = Menu::create_settings_button(factory);
+        objects.push(Object::Button(settings));
+
+        let exit = Menu::create_exit_button(factory);
+        objects.push(Object::Button(exit));
+
+        Self { objects }
+    }
+
+    pub fn destroy(&self, device: &Device, factory: &mut ObjectFactory) {
+        for obj in &self.objects {
+            let entity = obj.id();
+
+            factory.component_manager.clear_entity(entity, device);
+            factory.entity_manager.destroy_entity(entity);
         }
     }
 }

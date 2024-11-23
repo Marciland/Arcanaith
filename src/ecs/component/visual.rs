@@ -1,5 +1,3 @@
-use super::ComponentStorage;
-
 pub struct VisualComponent {
     texture_indices: Vec<usize>,
     current_texture: usize,
@@ -53,14 +51,6 @@ impl VisualComponent {
 
     pub fn should_render(&self) -> bool {
         self.visible
-    }
-}
-
-impl ComponentStorage<VisualComponent> {
-    pub fn hide_all(&mut self) {
-        for component in self.components.values_mut() {
-            component.visible = false;
-        }
     }
 }
 

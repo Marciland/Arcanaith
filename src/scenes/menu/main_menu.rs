@@ -1,114 +1,101 @@
 use crate::{
-    ecs::{
-        component::{ComponentManager, InputComponent},
-        entity::{EntityLoader, EntityManager},
-        system::ResourceSystem,
-    },
+    ecs::component::Layer,
+    objects::{Button, Label, LabelContent, ObjectFactory, TextContent},
     GameEvent,
 };
-use glam::Vec3;
+use glam::{Vec2, Vec3};
 use winit::event_loop::EventLoopProxy;
 
-#[allow(clippy::too_many_lines)]
-pub fn create(
-    component_manager: &mut ComponentManager,
-    resource_system: &ResourceSystem,
-    entity_manager: &mut EntityManager,
-) {
-    let mut loader = EntityLoader {
-        component_manager,
-        resource_system,
-    };
-
-    let start_game = entity_manager.create_entity();
-    let settings = entity_manager.create_entity();
-    let exit = entity_manager.create_entity();
-    let banner = entity_manager.create_entity();
-
-    loader.create_background(entity_manager);
-    loader.create_title(entity_manager);
-
-    loader.create_menu_entity(
-        start_game,
-        "main_menu_start_game",
-        Vec3 {
-            x: -0.5,
-            y: 0.0,
-            z: 0.0,
-        },
-        Vec3 {
-            x: 0.5,
-            y: 0.5,
-            z: 1.0,
-        },
-        Some(InputComponent {
-            is_active: true,
-            previous: exit,
-            next: settings,
-            activate: start_game_fn,
-        }),
-    );
-
-    loader.create_menu_entity(
-        settings,
-        "main_menu_settings",
-        Vec3 {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        },
-        Vec3 {
-            x: 0.5,
-            y: 0.5,
-            z: 1.0,
-        },
-        Some(InputComponent {
-            is_active: false,
-            previous: start_game,
-            next: exit,
-            activate: settings_fn,
-        }),
-    );
-
-    loader.create_menu_entity(
-        exit,
-        "main_menu_exit",
-        Vec3 {
-            x: 0.5,
-            y: 0.0,
-            z: 0.0,
-        },
-        Vec3 {
-            x: 0.5,
-            y: 0.5,
-            z: 1.0,
-        },
-        Some(InputComponent {
-            is_active: false,
-            previous: settings,
-            next: start_game,
-            activate: exit_fn,
-        }),
-    );
-
-    loader.create_menu_entity(
-        banner,
-        "main_menu_banner",
-        Vec3 {
-            x: 0.0,
-            y: 0.5,
-            z: 0.0,
-        },
-        Vec3 {
-            x: 1.5,
-            y: 0.5,
-            z: 1.0,
-        },
-        None,
-    );
+pub struct MainMenu {
+    pub background: Label,
+    pub title: Label,
+    pub banner: Label,
+    pub new_game: Button,
+    pub settings: Button,
+    pub exit: Button,
 }
 
-fn start_game_fn(event_proxy: &EventLoopProxy<GameEvent>) {
+impl MainMenu {
+    pub fn create(factory: &mut ObjectFactory) -> Self {
+        let background = factory.new_label(
+            Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.1,
+            },
+            Vec2 { x: 2.0, y: 2.0 },
+            LabelContent::Image {
+                name: "menu_background",
+                layer: Layer::Background,
+            },
+        );
+
+        let title = factory.new_label(
+            Vec2 { x: 0.0, y: -0.8 },
+            Vec2 { x: 1.5, y: 0.5 },
+            LabelContent::Image {
+                name: "menu_title",
+                layer: Layer::Background,
+            },
+        );
+
+        let banner = factory.new_label(
+            Vec2 { x: 0.0, y: 0.5 },
+            Vec2 { x: 1.5, y: 0.5 },
+            LabelContent::Image {
+                name: "main_menu_banner",
+                layer: Layer::Background,
+            },
+        );
+
+        let new_game = factory.new_button(
+            Vec2 { x: -0.5, y: 0.0 },
+            Vec2 { x: 0.5, y: 0.5 },
+            &TextContent {
+                text: "New Game",
+                font: "test",    // TODO adjust font
+                font_size: 50.0, // TODO adjust font size
+            },
+            true,
+            new_game_fn,
+        );
+
+        let settings = factory.new_button(
+            Vec2 { x: 0.0, y: 0.0 },
+            Vec2 { x: 0.5, y: 0.5 },
+            &TextContent {
+                text: "Settings",
+                font: "test",    // TODO adjust font
+                font_size: 50.0, // TODO adjust font size
+            },
+            false,
+            settings_fn,
+        );
+
+        let exit = factory.new_button(
+            Vec2 { x: 0.5, y: 0.0 },
+            Vec2 { x: 0.5, y: 0.5 },
+            &TextContent {
+                text: "Exit",
+                font: "test",    // TODO adjust font
+                font_size: 50.0, // TODO adjust font size
+            },
+            false,
+            exit_fn,
+        );
+
+        Self {
+            background,
+            title,
+            banner,
+            new_game,
+            settings,
+            exit,
+        }
+    }
+}
+
+fn new_game_fn(event_proxy: &EventLoopProxy<GameEvent>) {
     event_proxy
         .send_event(GameEvent::NewGame)
         .expect("Failed to send new game event!");

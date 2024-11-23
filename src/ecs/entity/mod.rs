@@ -1,19 +1,19 @@
 use crate::ecs::{component::ComponentManager, system::ResourceSystem};
 use ash::Device;
-use std::collections::HashSet;
+use indexmap::IndexSet;
 
 pub type Entity = u32;
 
 pub struct EntityManager {
     next_id: Entity,
-    entities: HashSet<Entity>,
+    entities: IndexSet<Entity>,
 }
 
 impl EntityManager {
     pub fn new() -> Self {
         Self {
             next_id: 0,
-            entities: HashSet::new(),
+            entities: IndexSet::new(),
         }
     }
 

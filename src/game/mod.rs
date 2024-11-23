@@ -2,7 +2,8 @@ mod event;
 use crate::{
     constants::{FPS, FULLSCREEN, ICONPATH, TITLE},
     ecs::{component::ComponentManager, entity::EntityManager, system::SystemManager},
-    scenes::create_main_menu,
+    objects::ObjectFactory,
+    scenes::{MainMenu, Scene},
     Window,
 };
 use event::{UserEventHandler, WindowEventHandler};
@@ -15,6 +16,7 @@ use std::{
 };
 use winit::{
     application::ApplicationHandler,
+    dpi::{PhysicalSize, Size},
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Fullscreen::Borderless, Icon, WindowId},
@@ -46,6 +48,7 @@ pub struct Game {
     component_manager: ComponentManager,
     system_manager: SystemManager,
     event_proxy: EventLoopProxy<GameEvent>,
+    current_scene: Scene,
 }
 
 impl Game {
@@ -61,6 +64,7 @@ impl Game {
             component_manager: ComponentManager::new(),
             system_manager: SystemManager::create(),
             event_proxy: event_loop.create_proxy(),
+            current_scene: Scene::None,
         }
     }
 
@@ -98,7 +102,11 @@ impl ApplicationHandler<GameEvent> for Game {
         let mut attributes = winit::window::Window::default_attributes()
             .with_title(TITLE)
             .with_window_icon(Some(icon))
-            .with_visible(false);
+            .with_visible(false)
+            .with_inner_size(Size::Physical(PhysicalSize {
+                width: 1600 - 26,
+                height: 1200 - 71,
+            })); // TODO?!
         if FULLSCREEN {
             attributes = attributes.with_fullscreen(Some(Borderless(None)));
         }
@@ -111,11 +119,11 @@ impl ApplicationHandler<GameEvent> for Game {
         self.system_manager.render.initialize(&window);
         self.system_manager.resource.initialize(&window);
 
-        create_main_menu(
-            &mut self.component_manager,
-            &self.system_manager.resource,
-            &mut self.entity_manager,
-        );
+        self.current_scene = Scene::MainMenu(MainMenu::create(&mut ObjectFactory {
+            entity_manager: &mut self.entity_manager,
+            component_manager: &mut self.component_manager,
+            system_manager: &mut self.system_manager,
+        }));
 
         self.window = Some(window);
     }

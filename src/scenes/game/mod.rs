@@ -54,9 +54,9 @@ impl<'loading> EntityLoader<'loading> {
             entity,
             InputComponent {
                 is_active: false,
-                previous: entity,
-                next: entity,
                 activate: input,
+                next: None,
+                previous: None,
             },
         );
     }

@@ -63,38 +63,38 @@ pub fn handle_mouse_events(
     }
 }
 
-fn set_active_entity_to_inactive(active: Entity, component_manager: &mut ComponentManager) {
+fn set_next_entity_to_active(active: Entity, component_manager: &mut ComponentManager) {
     let active_input = component_manager
         .input_storage
         .get_mut(active)
-        .expect("Failed to get mut ref on active entity!");
-    active_input.is_active = false;
-}
-
-fn set_next_entity_to_active(active: Entity, component_manager: &mut ComponentManager) {
-    set_active_entity_to_inactive(active, component_manager);
-
-    let active_input = component_manager
-        .input_storage
-        .get(active)
         .expect("Failed to get ref on active entity!");
-    let next = component_manager
-        .input_storage
-        .get_mut(active_input.next)
-        .expect("Input component has no valid next entity!");
-    next.is_active = true;
+
+    if let Some(next_entity) = active_input.next {
+        active_input.is_active = false;
+
+        let next = component_manager
+            .input_storage
+            .get_mut(next_entity)
+            .expect("Input component has no valid next entity!");
+
+        next.is_active = true;
+    }
 }
 
 fn set_previous_entity_to_active(active: Entity, component_manager: &mut ComponentManager) {
-    set_active_entity_to_inactive(active, component_manager);
-
     let active_input = component_manager
         .input_storage
-        .get(active)
+        .get_mut(active)
         .expect("Failed to get ref on active entity!");
-    let previous = component_manager
-        .input_storage
-        .get_mut(active_input.previous)
-        .expect("Input component has no valid previous entity!");
-    previous.is_active = true;
+
+    if let Some(previous_entity) = active_input.previous {
+        active_input.is_active = false;
+
+        let previous = component_manager
+            .input_storage
+            .get_mut(previous_entity)
+            .expect("Input component has no valid previous entity!");
+
+        previous.is_active = true;
+    }
 }

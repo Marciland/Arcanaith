@@ -1,79 +1,86 @@
-use crate::ecs::{
-    component::{InputComponent, Layer, PositionComponent, VisualComponent},
-    entity::{Entity, EntityLoader, EntityManager},
-};
-use glam::Vec3;
 mod main_menu;
 mod settings_menu;
-pub use main_menu::create as create_main_menu;
-pub use settings_menu::create as create_settings_menu;
 
-impl<'loading> EntityLoader<'loading> {
-    fn create_menu_entity(
-        &mut self,
-        entity: Entity,
-        texture: &str,
-        xyz: Vec3,
-        scale: Vec3,
-        input: Option<InputComponent>,
-    ) {
-        let layer = match input {
-            Some(component) => {
-                self.component_manager.input_storage.add(entity, component);
-                Layer::Interface
-            }
-            None => Layer::Background,
-        };
+pub use main_menu::MainMenu;
+pub use settings_menu::SettingsMenu;
 
-        self.component_manager.visual_storage.add(
-            entity,
-            VisualComponent::new(
-                vec![self.resource_system.get_texture_index(texture)],
-                layer,
-                0,
-            ),
-        );
+use crate::{
+    ecs::{
+        component::{ComponentManager, Layer},
+        entity::Entity,
+    },
+    objects::{Content, Label, Object},
+    ECS,
+};
+use ash::Device;
+use glam::{Vec2, Vec3};
 
-        self.component_manager
-            .position_storage
-            .add(entity, PositionComponent { xyz, scale });
-    }
+pub enum Menu {
+    MainMenu(MainMenu),
+    SettingsMenu(SettingsMenu),
+}
 
-    fn create_background(&mut self, entity_manager: &mut EntityManager) {
-        let background = entity_manager.create_entity();
-        self.create_menu_entity(
-            background,
-            "menu_background",
+impl Menu {
+    pub fn create_background(ecs: &mut ECS) -> Label {
+        ecs.new_label(
             Vec3 {
                 x: 0.0,
                 y: 0.0,
                 z: 0.1,
             },
-            Vec3 {
-                x: 2.0,
-                y: 2.0,
-                z: 1.0,
+            Vec2 { x: 2.0, y: 2.0 },
+            Content::Image {
+                name: "menu_background",
+                layer: Layer::Background,
             },
-            None,
-        );
+        )
     }
 
-    fn create_title(&mut self, entity_manager: &mut EntityManager) {
-        let title = entity_manager.create_entity();
-        self.create_menu_entity(
-            title,
-            "menu_title",
-            Vec3 {
-                x: 0.0,
-                y: -0.8,
-                z: 0.0,
+    pub fn create_title(ecs: &mut ECS) -> Label {
+        ecs.new_label(
+            Vec2 { x: 0.0, y: -0.8 },
+            Vec2 { x: 1.5, y: 0.5 },
+            Content::Image {
+                name: "menu_title",
+                layer: Layer::Background,
             },
-            Vec3 {
-                x: 1.5,
-                y: 0.5,
-                z: 1.0,
-            },
-            None,
-        );
+        )
+    }
+
+    pub fn get_active(&self, component_manager: &ComponentManager) -> Option<Entity> {
+        let objects = match self {
+            Menu::MainMenu(main_menu) => &main_menu.objects,
+            Menu::SettingsMenu(settings_menu) => &settings_menu.objects,
+        };
+
+        for obj in objects {
+            let Some(input) = component_manager.input_storage.get(obj.id()) else {
+                continue;
+            };
+
+            if input.is_active {
+                return Some(obj.id());
+            }
+        }
+
+        None
+    }
+
+    pub fn get_objects(&self) -> &[Object] {
+        match self {
+            Menu::MainMenu(main_menu) => &main_menu.objects,
+            Menu::SettingsMenu(settings_menu) => &settings_menu.objects,
+        }
+    }
+
+    pub fn destroy(&self, device: &Device, ecs: &mut ECS) {
+        let objects = match self {
+            Menu::MainMenu(main_menu) => &main_menu.objects,
+            Menu::SettingsMenu(settings_menu) => &settings_menu.objects,
+        };
+
+        for obj in objects {
+            ecs.destroy_entity(obj.id(), device);
+        }
     }
 }

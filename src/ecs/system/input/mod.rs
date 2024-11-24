@@ -1,13 +1,10 @@
 mod game;
 mod menu;
-pub mod mouse;
+
 use crate::{
-    ecs::{
-        component::{composition::InputWithPosition, ComponentManager},
-        entity::Entity,
-        system::ResourceSystem,
-    },
-    game::{GameEvent, GameState},
+    ecs::{component::ComponentManager, system::ResourceSystem},
+    game::GameEvent,
+    scenes::Scene,
 };
 use ash::vk::Extent2D;
 use glam::Vec2;
@@ -21,6 +18,8 @@ use winit::{
     keyboard::Key,
 };
 
+pub mod mouse;
+
 pub struct InputSystem {
     cursor_positions: HashMap<DeviceId, Vec2>,
     // set -> only once per key per frame
@@ -29,6 +28,12 @@ pub struct InputSystem {
     // don't clear, keeps track over frames
     partial_mouse_inputs: HashMap<MouseButton, MousePosition>,
     mouse_inputs: Vec<MouseEvent>,
+}
+
+impl Default for InputSystem {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl InputSystem {
@@ -93,37 +98,16 @@ impl InputSystem {
 
     pub fn process_inputs(
         &mut self,
-        game_state: &GameState,
+        current_scene: &Scene,
         component_manager: &mut ComponentManager,
         resource_system: &ResourceSystem,
         event_proxy: &EventLoopProxy<GameEvent>,
     ) {
-        // get all positions of components that have both an input and a position
-        let mut components: Vec<InputWithPosition> =
-            Vec::with_capacity(component_manager.input_storage.size());
-        let mut active_entity: Option<Entity> = None;
-        for (entity, input) in component_manager.input_storage.iter_mut() {
-            if input.is_active {
-                active_entity = Some(entity);
-            }
-            if let Some(position) = component_manager.position_storage.get(entity) {
-                components.push(InputWithPosition { input, position });
-            }
-        }
-
         // handling events
-        match game_state {
-            GameState::MainMenu | GameState::Settings | GameState::_Pause => {
-                menu::handle_mouse_events(&self.mouse_inputs, &components, event_proxy);
-                menu::handle_key_events(
-                    &self.keyboard_pressed_inputs,
-                    active_entity.expect("At least one active entity expected!"),
-                    component_manager,
-                    event_proxy,
-                );
-            }
-            GameState::Game => {
+        match current_scene {
+            Scene::Game(game) => {
                 game::handle_player_events(
+                    game,
                     &self.keyboard_pressed_inputs,
                     &self.active_keyboard_inputs,
                     &self.mouse_inputs,
@@ -132,6 +116,15 @@ impl InputSystem {
                 );
                 game::handle_mouse_events(&self.mouse_inputs);
                 game::handle_key_events(&self.keyboard_pressed_inputs);
+            }
+            Scene::Menu(menu) => {
+                menu::handle_mouse_events(&self.mouse_inputs, menu, component_manager, event_proxy);
+                menu::handle_key_events(
+                    &self.keyboard_pressed_inputs,
+                    menu,
+                    component_manager,
+                    event_proxy,
+                );
             }
         }
 

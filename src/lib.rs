@@ -5,7 +5,10 @@ mod objects;
 mod scenes;
 mod vulkan;
 mod window;
+
+pub use ecs::{system::mouse, ECS};
 pub use game::{Game, GameEvent};
+
 use std::{
     fs::File,
     io::{Read, Result},

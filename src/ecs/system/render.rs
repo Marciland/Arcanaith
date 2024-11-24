@@ -6,8 +6,8 @@ use crate::{
         },
         system::ResourceSystem,
     },
-    game::GameState,
-    objects::Quad,
+    objects::{Object, Quad},
+    scenes::Scene,
     structs::ModelViewProjection,
     Window,
 };
@@ -49,7 +49,7 @@ impl RenderSystem {
 
     pub fn draw(
         &mut self,
-        current_state: &GameState,
+        current_scene: &Scene,
         component_manager: &mut ComponentManager,
         resource_system: &ResourceSystem,
         window: &mut Window,
@@ -66,7 +66,7 @@ impl RenderSystem {
         positions.extend(text_positions);
 
         let (visual_textures, visual_positions) =
-            prepare_visual_components(current_state, component_manager, resource_system);
+            prepare_visual_components(current_scene, component_manager, resource_system);
         image_data.extend(visual_textures);
         positions.extend(visual_positions);
 
@@ -89,18 +89,19 @@ impl RenderSystem {
         self.geometry.get_indices().len() as u32
     }
 
-    #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn destroy(&self, device: &Device) {
-        device.destroy_buffer(self.index_buffer, None);
-        device.free_memory(self.index_buffer_memory, None);
+    pub fn destroy(&self, device: &Device) {
+        unsafe {
+            device.destroy_buffer(self.index_buffer, None);
+            device.free_memory(self.index_buffer_memory, None);
 
-        device.destroy_buffer(self.vertex_buffer, None);
-        device.free_memory(self.vertex_buffer_memory, None);
+            device.destroy_buffer(self.vertex_buffer, None);
+            device.free_memory(self.vertex_buffer_memory, None);
+        }
     }
 }
 
 fn prepare_visual_components(
-    current_state: &GameState,
+    current_scene: &Scene,
     component_manager: &mut ComponentManager,
     resource_system: &ResourceSystem,
 ) -> (Vec<ImageView>, Vec<ModelViewProjection>) {
@@ -143,24 +144,29 @@ fn prepare_visual_components(
         })
         .collect();
 
-    let view_matrix = match current_state {
-        GameState::Game => {
-            let player_id = component_manager
-                .player_entity
-                .as_ref()
-                .expect("No player entity when determining view matrix in game state!")
-                .id;
+    let view_matrix = match current_scene {
+        Scene::Game(game) => {
+            let mut player_id: Option<u32> = None;
 
-            let player_position = component_manager
-                .position_storage
-                .get(player_id)
-                .expect("Failed to get position of player!")
-                .xyz;
+            for obj in &game.objects {
+                player_id = match obj {
+                    Object::Player(player) => Some(player.id),
+                    _ => None,
+                };
+            }
 
-            Mat4::from_translation(-player_position)
+            let Some(player_id) = player_id else {
+                panic!("No player id in game!")
+            };
+
+            let Some(player_position) = component_manager.position_storage.get(player_id) else {
+                panic!("Player has no position!")
+            };
+
+            Mat4::from_translation(-player_position.xyz)
         }
         // never move anything outside of game
-        _ => Mat4::IDENTITY,
+        Scene::Menu(_) => Mat4::IDENTITY,
     };
 
     let mvps: Vec<ModelViewProjection> = visual_components

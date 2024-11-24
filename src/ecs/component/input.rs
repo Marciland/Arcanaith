@@ -3,7 +3,7 @@ use winit::event_loop::EventLoopProxy;
 
 pub struct InputComponent {
     pub is_active: bool,
-    pub previous: Entity,
-    pub next: Entity,
     pub activate: fn(event_proxy: &EventLoopProxy<GameEvent>) -> (),
+    pub next: Option<Entity>,
+    pub previous: Option<Entity>,
 }

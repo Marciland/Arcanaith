@@ -1,53 +1,50 @@
 use crate::{
-    ecs::{
-        component::{ComponentManager, InputComponent},
-        entity::{EntityLoader, EntityManager},
-        system::ResourceSystem,
-    },
-    GameEvent,
+    objects::{Button, Content, Object, TextContent},
+    scenes::Menu,
+    GameEvent, ECS,
 };
-use glam::Vec3;
+use glam::Vec2;
 use winit::event_loop::EventLoopProxy;
 
-pub fn create(
-    component_manager: &mut ComponentManager,
-    resource_system: &ResourceSystem,
-    entity_manager: &mut EntityManager,
-) {
-    let mut loader = EntityLoader {
-        component_manager,
-        resource_system,
-    };
+pub struct SettingsMenu {
+    pub objects: Vec<Object>,
+}
 
-    let back = entity_manager.create_entity();
+impl Menu {
+    fn create_back_button(ecs: &mut ECS) -> Button {
+        ecs.new_button(
+            Vec2 { x: 0.0, y: 0.5 },
+            Vec2 { x: 0.5, y: 0.5 },
+            Content::Text(TextContent {
+                text: "Back".to_owned(),
+                font: "test".to_owned(), // TODO adjust font
+                font_size: 50.0,         // TODO adjust font size
+            }),
+            true,
+            back_fn,
+        )
+    }
+}
 
-    loader.create_background(entity_manager);
-    loader.create_title(entity_manager);
+impl SettingsMenu {
+    pub fn create(ecs: &mut ECS) -> Self {
+        let mut objects: Vec<Object> = Vec::with_capacity(3);
 
-    loader.create_menu_entity(
-        back,
-        "settings_back",
-        Vec3 {
-            x: 0.0,
-            y: 0.5,
-            z: 0.0,
-        },
-        Vec3 {
-            x: 0.5,
-            y: 0.5,
-            z: 1.0,
-        },
-        Some(InputComponent {
-            is_active: true,
-            previous: back,
-            next: back,
-            activate: back_fn,
-        }),
-    );
+        let background = Menu::create_background(ecs);
+        objects.push(Object::Label(background));
+
+        let title = Menu::create_title(ecs);
+        objects.push(Object::Label(title));
+
+        let back = Menu::create_back_button(ecs);
+        objects.push(Object::Button(back));
+
+        Self { objects }
+    }
 }
 
 fn back_fn(event_proxy: &EventLoopProxy<GameEvent>) {
     event_proxy
-        .send_event(GameEvent::Back)
-        .expect("Failed to send back event by pressing back button in settings!");
+        .send_event(GameEvent::MainMenu)
+        .expect("Failed to send MainMenu by pressing back button in settings!");
 }

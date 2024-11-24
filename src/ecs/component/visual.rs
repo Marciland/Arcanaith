@@ -1,5 +1,3 @@
-use super::ComponentStorage;
-
 pub struct VisualComponent {
     texture_indices: Vec<usize>,
     current_texture: usize,
@@ -21,11 +19,6 @@ impl VisualComponent {
         }
     }
 
-    pub fn reset_animation(mut self) -> Self {
-        self.current_frame = 0;
-        self
-    }
-
     pub fn update_animation(&mut self) {
         if self.frame_duration == 0 || self.texture_indices.len() == 1 {
             return;
@@ -38,11 +31,6 @@ impl VisualComponent {
         }
     }
 
-    pub fn update_animation_speed(mut self, frame_duration: usize) -> Self {
-        self.frame_duration = frame_duration;
-        self
-    }
-
     pub fn get_current_texture(&self) -> usize {
         self.texture_indices[self.current_texture]
     }
@@ -53,14 +41,6 @@ impl VisualComponent {
 
     pub fn should_render(&self) -> bool {
         self.visible
-    }
-}
-
-impl ComponentStorage<VisualComponent> {
-    pub fn hide_all(&mut self) {
-        for component in self.components.values_mut() {
-            component.visible = false;
-        }
     }
 }
 

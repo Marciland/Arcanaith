@@ -1,7 +1,8 @@
-use ash::Device;
 mod input;
 mod render;
 mod resource;
+
+use ash::Device;
 
 pub use input::{mouse, InputSystem};
 pub use render::RenderSystem;
@@ -22,8 +23,7 @@ impl SystemManager {
         }
     }
 
-    #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn destroy(&self, device: &Device) {
+    pub fn destroy(&self, device: &Device) {
         self.render.destroy(device);
         self.resource.destroy(device);
     }

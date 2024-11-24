@@ -1,5 +1,22 @@
 mod game;
 mod menu;
 
-pub use game::create_new_game;
-pub use menu::{create_main_menu, create_settings_menu};
+use crate::ECS;
+use ash::Device;
+
+pub use game::Game;
+pub use menu::{MainMenu, Menu, SettingsMenu};
+
+pub enum Scene {
+    Menu(Menu),
+    Game(Game),
+}
+
+impl Scene {
+    pub fn destroy(&self, device: &Device, ecs: &mut ECS) {
+        match self {
+            Scene::Menu(menu) => menu.destroy(device, ecs),
+            Scene::Game(game) => game.destroy(device, ecs),
+        }
+    }
+}

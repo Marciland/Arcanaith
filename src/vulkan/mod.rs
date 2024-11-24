@@ -1,5 +1,6 @@
 mod internal;
-pub mod structs;
 mod wrapper;
+
+pub mod structs;
 
 pub use wrapper::VulkanWrapper;

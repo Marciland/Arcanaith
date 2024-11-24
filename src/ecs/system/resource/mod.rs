@@ -1,5 +1,6 @@
 mod assets;
 mod font;
+
 use crate::{constants::TEXTURE_TABLE, structs::ImageData, Window};
 use ab_glyph::FontVec;
 use ash::Device;
@@ -60,10 +61,11 @@ impl ResourceSystem {
             .expect(&("Failed to get font: ".to_string() + font))
     }
 
-    #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn destroy(&self, device: &Device) {
+    pub fn destroy(&self, device: &Device) {
         for texture in &self.textures {
-            texture.destroy(device);
+            unsafe {
+                texture.destroy(device);
+            }
         }
     }
 }

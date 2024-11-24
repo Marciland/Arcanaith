@@ -1,4 +1,4 @@
-use crate::{ecs::system::mouse::MousePosition, objects::Quad};
+use crate::{mouse::MousePosition, objects::Quad};
 use glam::{Mat4, Vec3, Vec3Swizzles};
 
 pub struct PositionComponent {

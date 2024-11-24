@@ -1,10 +1,12 @@
-mod input;
+pub mod input;
+mod position;
 mod render;
 mod resource;
 
 use ash::Device;
+use input::InputSystem;
 
-pub use input::{mouse, InputSystem};
+pub use position::PositionSystem;
 pub use render::RenderSystem;
 pub use resource::ResourceSystem;
 
@@ -12,6 +14,7 @@ pub struct SystemManager {
     pub render: RenderSystem,
     pub resource: ResourceSystem,
     pub input: InputSystem,
+    pub position: PositionSystem,
 }
 
 impl SystemManager {
@@ -20,6 +23,7 @@ impl SystemManager {
             render: RenderSystem::create(),
             resource: ResourceSystem::create(),
             input: InputSystem::new(),
+            position: PositionSystem::new(),
         }
     }
 

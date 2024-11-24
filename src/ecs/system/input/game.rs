@@ -1,7 +1,6 @@
 use crate::{
     ecs::{component::ComponentManager, system::ResourceSystem},
-    mouse::MouseEvent,
-    scenes,
+    scenes, MouseEvent,
 };
 use indexmap::IndexSet;
 use std::collections::HashSet;

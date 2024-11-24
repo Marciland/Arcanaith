@@ -1,13 +1,19 @@
-mod assets;
 mod font;
+mod text;
+mod texture;
 
-use crate::{constants::TEXTURE_TABLE, structs::ImageData, Window};
+use crate::{
+    constants::TEXTURE_TABLE,
+    ecs::component::{composition::RenderTarget, TextComponent},
+    structs::ImageData,
+    Window,
+};
 use ab_glyph::FontVec;
-use ash::Device;
-use assets::TextureTable;
+use ash::{vk::ImageView, Device};
 use font::create_font_map;
 use image::DynamicImage;
 use std::collections::HashMap;
+use texture::TextureTable;
 
 pub struct ResourceSystem {
     images: Vec<DynamicImage>,
@@ -61,11 +67,47 @@ impl ResourceSystem {
             .expect(&("Failed to get font: ".to_string() + font))
     }
 
+    pub fn get_bitmap(&mut self, window: &Window, component: &mut TextComponent) -> ImageView {
+        match &component.bitmap {
+            Some(bitmap) => bitmap.get_view(),
+            None => {
+                self.create_bitmap(window, component);
+                component.bitmap.as_ref().unwrap().get_view()
+            }
+        }
+    }
+
+    fn create_bitmap(&mut self, window: &Window, component: &mut TextComponent) {
+        let image = text::to_image(
+            &component.content.text,
+            self.get_font(&component.content.font),
+            component.content.font_size,
+        );
+
+        component.bitmap = Some(window.create_image_data(image));
+    }
+
     pub fn destroy(&self, device: &Device) {
         for texture in &self.textures {
             unsafe {
                 texture.destroy(device);
             }
         }
+    }
+
+    pub fn get_render_resources(
+        &mut self,
+        window: &mut Window,
+        render_targets: &mut [RenderTarget],
+    ) -> Vec<ImageView> {
+        render_targets
+            .iter_mut()
+            .map(|target| match target {
+                RenderTarget::Visual(v) => {
+                    self.get_texture(v.visual.get_current_texture()).get_view()
+                }
+                RenderTarget::Text(t) => self.get_bitmap(window, t.text),
+            })
+            .collect()
     }
 }

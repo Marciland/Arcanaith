@@ -40,6 +40,8 @@ impl Player {
             ),
         );
 
+        //ecs.component_manager.physics_storage.add(id, component);
+
         Self { id }
     }
 }

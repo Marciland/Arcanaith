@@ -28,6 +28,10 @@ impl Game {
         Game { objects }
     }
 
+    pub fn get_objects(&self) -> &[Object] {
+        &self.objects
+    }
+
     pub fn get_player(&self) -> Option<&Player> {
         for obj in &self.objects {
             if let Object::Player(player) = obj {

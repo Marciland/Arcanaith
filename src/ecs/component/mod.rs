@@ -1,4 +1,5 @@
 mod input;
+mod physics;
 mod position;
 mod text;
 mod visual;
@@ -10,6 +11,7 @@ use std::collections::HashMap;
 pub mod composition;
 
 pub use input::InputComponent;
+pub use physics::PhysicsComponent;
 pub use position::PositionComponent;
 pub use text::TextComponent;
 pub use visual::{Layer, VisualComponent};
@@ -45,6 +47,12 @@ impl<T> ComponentStorage<T> {
         self.components.len()
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = (Entity, &T)> {
+        self.components
+            .iter()
+            .map(|(entity, component)| (*entity, component))
+    }
+
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (Entity, &mut T)> {
         self.components
             .iter_mut()
@@ -57,6 +65,7 @@ pub struct ComponentManager {
     pub position_storage: ComponentStorage<PositionComponent>,
     pub input_storage: ComponentStorage<InputComponent>,
     pub text_storage: ComponentStorage<TextComponent>,
+    pub physics_storage: ComponentStorage<PhysicsComponent>,
 }
 
 impl Default for ComponentManager {
@@ -72,6 +81,7 @@ impl ComponentManager {
             position_storage: ComponentStorage::new(),
             input_storage: ComponentStorage::new(),
             text_storage: ComponentStorage::new(),
+            physics_storage: ComponentStorage::new(),
         }
     }
 
@@ -79,6 +89,8 @@ impl ComponentManager {
         self.visual_storage.remove(entity);
         self.position_storage.remove(entity);
         self.input_storage.remove(entity);
+        self.physics_storage.remove(entity);
+
         self.text_storage.destroy_entity(entity, device);
     }
 }

@@ -2,10 +2,10 @@ use crate::{
     ecs::{
         component::{composition::InputWithPosition, ComponentManager},
         entity::Entity,
+        system::{input::MouseHandler, InputSystem},
     },
-    mouse::{any_object_was_clicked, MouseEvent},
     scenes::Menu,
-    GameEvent,
+    GameEvent, MouseEvent,
 };
 use indexmap::IndexSet;
 use winit::{
@@ -90,7 +90,7 @@ pub fn handle_mouse_events(
             clickables.push(InputWithPosition { input, position });
         }
 
-        match any_object_was_clicked(&clickables, &event.position) {
+        match InputSystem::any_object_was_clicked(&clickables, &event.position) {
             Some(function) => (function)(event_proxy),
             None => continue,
         }

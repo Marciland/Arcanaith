@@ -1,5 +1,6 @@
 mod game;
 mod menu;
+mod mouse;
 
 use crate::{
     ecs::{component::ComponentManager, system::ResourceSystem},
@@ -9,7 +10,7 @@ use crate::{
 use ash::vk::Extent2D;
 use glam::Vec2;
 use indexmap::IndexSet;
-use mouse::{MouseButton, MouseEvent, MousePosition};
+use mouse::{MouseButton, MousePosition};
 use std::collections::{HashMap, HashSet};
 use winit::{
     dpi::PhysicalPosition,
@@ -18,7 +19,7 @@ use winit::{
     keyboard::Key,
 };
 
-pub mod mouse;
+pub use mouse::{MouseEvent, MouseHandler};
 
 pub struct InputSystem {
     cursor_positions: HashMap<DeviceId, Vec2>,
@@ -79,20 +80,9 @@ impl InputSystem {
         state: ElementState,
     ) {
         match state {
-            ElementState::Pressed => mouse::handle_pressed(
-                &mut self.partial_mouse_inputs,
-                &self.cursor_positions,
-                mouse_button,
-                device_id,
-            ),
+            ElementState::Pressed => self.handle_pressed(mouse_button, device_id),
 
-            ElementState::Released => mouse::handle_released(
-                &mut self.partial_mouse_inputs,
-                &mut self.mouse_inputs,
-                &self.cursor_positions,
-                mouse_button,
-                device_id,
-            ),
+            ElementState::Released => self.handle_released(mouse_button, device_id),
         }
     }
 

@@ -2,7 +2,7 @@ mod event;
 
 use crate::{
     constants::{FPS, FULLSCREEN, ICONPATH, TITLE},
-    scenes::{MainMenu, Menu, Scene},
+    scenes::{self, MainMenu, Menu, Scene},
     Window, ECS,
 };
 use event::{UserEventHandler, WindowEventHandler};
@@ -47,7 +47,9 @@ impl Game {
             frame_time: Duration::from_secs_f64(1.0 / f64::from(FPS)),
             ecs: ECS::create(),
             event_proxy: event_loop.create_proxy(),
-            current_scene: Scene::None,
+            current_scene: Scene::Game(scenes::Game {
+                objects: Vec::new(), // dummy scene until ECS is initialized
+            }),
         }
     }
 

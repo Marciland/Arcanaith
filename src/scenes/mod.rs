@@ -8,7 +8,6 @@ pub use game::Game;
 pub use menu::{MainMenu, Menu, SettingsMenu};
 
 pub enum Scene {
-    None,
     Menu(Menu),
     Game(Game),
 }
@@ -18,7 +17,6 @@ impl Scene {
         match self {
             Scene::Menu(menu) => menu.destroy(device, ecs),
             Scene::Game(game) => game.destroy(device, ecs),
-            Scene::None => (),
         }
     }
 }

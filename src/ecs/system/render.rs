@@ -166,7 +166,7 @@ fn prepare_visual_components(
             Mat4::from_translation(-player_position.xyz)
         }
         // never move anything outside of game
-        _ => Mat4::IDENTITY,
+        Scene::Menu(_) => Mat4::IDENTITY,
     };
 
     let mvps: Vec<ModelViewProjection> = visual_components

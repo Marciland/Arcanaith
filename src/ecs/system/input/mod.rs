@@ -126,7 +126,6 @@ impl InputSystem {
                     event_proxy,
                 );
             }
-            Scene::None => (),
         }
 
         // clear each frame

@@ -57,17 +57,25 @@ impl UserEventHandler for Game {
 
 impl WindowEventHandler for Game {
     fn redraw_requested(&mut self) {
-        self.ecs
-            .process_inputs(&self.current_scene, &self.event_proxy);
-
-        let render_time = self.ecs.render(
+        self.ecs.system_manager.input.process_inputs(
             &self.current_scene,
+            &mut self.ecs.component_manager,
+            &self.ecs.system_manager.resource,
+            &self.event_proxy,
+        );
+
+        let render_time = self.ecs.system_manager.render.draw(
             self.window
                 .as_mut()
                 .expect("Window was lost while rendering!"),
+            &self.current_scene,
+            &mut self.ecs.component_manager.visual_storage,
+            &mut self.ecs.component_manager.text_storage,
+            &self.ecs.component_manager.position_storage,
+            &mut self.ecs.system_manager.resource,
         );
 
-        // println!("{:?}", render_time);
+        println!("{render_time:?}");
 
         let remaining_time = self.frame_time.saturating_sub(render_time);
         if !remaining_time.is_zero() {

@@ -2,12 +2,7 @@ mod font;
 mod text;
 mod texture;
 
-use crate::{
-    constants::TEXTURE_TABLE,
-    ecs::component::{composition::RenderTarget, TextComponent},
-    structs::ImageData,
-    Window,
-};
+use crate::{constants::TEXTURE_TABLE, ecs::component::TextComponent, structs::ImageData, Window};
 use ab_glyph::FontVec;
 use ash::{vk::ImageView, Device};
 use font::create_font_map;
@@ -93,21 +88,5 @@ impl ResourceSystem {
                 texture.destroy(device);
             }
         }
-    }
-
-    pub fn get_render_resources(
-        &mut self,
-        window: &mut Window,
-        render_targets: &mut [RenderTarget],
-    ) -> Vec<ImageView> {
-        render_targets
-            .iter_mut()
-            .map(|target| match target {
-                RenderTarget::Visual(v) => {
-                    self.get_texture(v.visual.get_current_texture()).get_view()
-                }
-                RenderTarget::Text(t) => self.get_bitmap(window, t.text),
-            })
-            .collect()
     }
 }

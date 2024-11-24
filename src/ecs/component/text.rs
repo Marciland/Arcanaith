@@ -1,5 +1,6 @@
 use crate::{
     ecs::{component::ComponentStorage, entity::Entity, system::ResourceSystem},
+    objects::TextContent,
     structs::ImageData,
     Window,
 };
@@ -8,9 +9,7 @@ use ash::{vk::ImageView, Device};
 use image::{DynamicImage, ImageBuffer, Rgba};
 
 pub struct TextComponent {
-    content: String,
-    font_size: f32,
-    font: String,
+    content: TextContent,
     bitmap: Option<ImageData>,
 }
 
@@ -29,11 +28,9 @@ impl ComponentStorage<TextComponent> {
 }
 
 impl TextComponent {
-    pub fn create(text: &str, font: &str, font_size: f32) -> Self {
+    pub fn create(content: TextContent) -> Self {
         Self {
-            content: text.to_owned(),
-            font_size,
-            font: font.to_owned(),
+            content,
             bitmap: None,
         }
     }
@@ -49,11 +46,11 @@ impl TextComponent {
     }
 
     fn create_bitmap(&mut self, window: &Window, resource_system: &ResourceSystem) {
-        let font = resource_system.get_font(&self.font);
-        let scale = PxScale::from(self.font_size);
+        let font = resource_system.get_font(&self.content.font);
+        let scale = PxScale::from(self.content.font_size);
         let scaled_font = font.as_scaled(scale);
 
-        let glyphs = gather_glyphs(scaled_font, &self.content);
+        let glyphs = gather_glyphs(scaled_font, &self.content.text);
 
         let (outlined, px_bounds) = get_glyph_outlines(glyphs, font);
 

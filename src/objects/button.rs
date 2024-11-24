@@ -1,10 +1,12 @@
-use super::{ObjectFactory, TextContent};
 use crate::{
     ecs::{
-        component::{InputComponent, PositionComponent, TextComponent},
+        component::{
+            ComponentManager, InputComponent, PositionComponent, TextComponent, VisualComponent,
+        },
         entity::Entity,
     },
-    GameEvent,
+    objects::Content,
+    GameEvent, ECS,
 };
 use glam::Vec2;
 use winit::event_loop::EventLoopProxy;
@@ -13,12 +15,26 @@ pub struct Button {
     pub id: Entity,
 }
 
-impl<'building> ObjectFactory<'building> {
+impl Button {
+    pub fn set_next(&self, next: &Button, component_manager: &mut ComponentManager) {
+        if let Some(current_input) = component_manager.input_storage.get_mut(self.id) {
+            current_input.next = Some(next.id);
+        }
+    }
+
+    pub fn set_previous(&self, previous: &Button, component_manager: &mut ComponentManager) {
+        if let Some(current_input) = component_manager.input_storage.get_mut(self.id) {
+            current_input.previous = Some(previous.id);
+        }
+    }
+}
+
+impl ECS {
     pub fn new_button(
         &mut self,
         position: Vec2,
         size: Vec2,
-        content: &TextContent,
+        content: Content,
         is_focused: bool,
         callback: fn(&EventLoopProxy<GameEvent>) -> (),
     ) -> Button {
@@ -32,10 +48,23 @@ impl<'building> ObjectFactory<'building> {
             },
         );
 
-        self.component_manager.text_storage.add(
-            id,
-            TextComponent::create(content.text, content.font, content.font_size),
-        );
+        match content {
+            Content::Image { name, layer } => {
+                self.component_manager.visual_storage.add(
+                    id,
+                    VisualComponent::new(
+                        vec![self.system_manager.resource.get_texture_index(name)],
+                        layer,
+                        0,
+                    ),
+                );
+            }
+            Content::Text(content) => {
+                self.component_manager
+                    .text_storage
+                    .add(id, TextComponent::create(content));
+            }
+        }
 
         self.component_manager.input_storage.add(
             id,

@@ -1,82 +1,38 @@
 use crate::{
-    ecs::{
-        component::{player::PlayerState, ComponentManager},
-        system::ResourceSystem,
-    },
+    ecs::{component::ComponentManager, system::ResourceSystem},
     mouse::MouseEvent,
+    scenes,
 };
 use indexmap::IndexSet;
 use std::collections::HashSet;
-use winit::keyboard::{Key, NamedKey};
+use winit::keyboard::Key;
 
 pub fn handle_player_events(
+    game: &scenes::Game,
     keyboard_pressed_inputs: &IndexSet<Key>,
-    active_keyboard_inputs: &HashSet<Key>,
+    _active_keyboard_inputs: &HashSet<Key>,
     mouse_inputs: &[MouseEvent],
-    component_manager: &mut ComponentManager,
-    resource_system: &ResourceSystem,
+    _component_manager: &mut ComponentManager,
+    _resource_system: &ResourceSystem,
 ) {
-    // player movement
-    let player = component_manager
-        .player_entity
-        .as_mut()
-        .expect("Missing player entity!");
+    // TODO player movement
+    let _player = game.get_player().expect("Missing player entity!");
 
-    if active_keyboard_inputs.contains(&Key::Named(NamedKey::ArrowDown))
-        || active_keyboard_inputs.contains(&Key::Character("s".into()))
-    {
-        player.change_state(
-            &mut component_manager.visual_storage,
-            resource_system,
-            PlayerState::WalkingDown,
-        );
-    } else if active_keyboard_inputs.contains(&Key::Named(NamedKey::ArrowUp))
-        || active_keyboard_inputs.contains(&Key::Character("w".into()))
-    {
-        player.change_state(
-            &mut component_manager.visual_storage,
-            resource_system,
-            PlayerState::WalkingUp,
-        );
-    } else if active_keyboard_inputs.contains(&Key::Named(NamedKey::ArrowLeft))
-        || active_keyboard_inputs.contains(&Key::Character("a".into()))
-    {
-        player.change_state(
-            &mut component_manager.visual_storage,
-            resource_system,
-            PlayerState::WalkingLeft,
-        );
-    } else if active_keyboard_inputs.contains(&Key::Named(NamedKey::ArrowRight))
-        || active_keyboard_inputs.contains(&Key::Character("d".into()))
-    {
-        player.change_state(
-            &mut component_manager.visual_storage,
-            resource_system,
-            PlayerState::WalkingRight,
-        );
-    } else {
-        player.change_state(
-            &mut component_manager.visual_storage,
-            resource_system,
-            PlayerState::Idle,
-        );
-    }
-
-    // skills
+    // TODO skills
     for _key in keyboard_pressed_inputs {}
 
-    // skills / movement?
+    // TODO skills / movement?
     for _event in mouse_inputs {}
 }
 
 pub fn handle_mouse_events(mouse_inputs: &[MouseEvent]) {
     for _event in mouse_inputs {
-        // todo!("mouse event in game")
+        // TODO mouse event in game
     }
 }
 
 pub fn handle_key_events(keyboard_pressed_inputs: &IndexSet<Key>) {
     for _key in keyboard_pressed_inputs {
-        //todo!("key event in game")
+        // TODO key event in game
     }
 }

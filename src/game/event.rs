@@ -1,15 +1,13 @@
-use super::{Game, GameState};
 use crate::{
-    objects::ObjectFactory,
-    scenes::{create_new_game, MainMenu, Scene, SettingsMenu},
+    scenes::{self, MainMenu, Menu, Scene, SettingsMenu},
+    Game,
 };
 use std::thread;
 
 pub trait UserEventHandler {
     fn load_settings_menu(&mut self);
-    fn back_from_pause(&mut self);
-    fn back_from_settings(&mut self);
-    fn start_new_game(&mut self);
+    fn load_main_menu(&mut self);
+    fn load_new_game(&mut self);
 }
 
 pub trait WindowEventHandler {
@@ -18,95 +16,52 @@ pub trait WindowEventHandler {
 
 impl UserEventHandler for Game {
     fn load_settings_menu(&mut self) {
-        let mut factory = ObjectFactory {
-            entity_manager: &mut self.entity_manager,
-            component_manager: &mut self.component_manager,
-            system_manager: &mut self.system_manager,
-        };
         let device_ref = self
             .window
             .as_ref()
             .expect("Failed to get window while loading settings menu!")
             .get_device();
 
-        // can be send from main menu and pause menu
         match self.current_scene {
-            Scene::MainMenu(_) => {
-                self.current_scene.destroy(device_ref, &mut factory);
-            }
+            Scene::Menu(Menu::MainMenu(_)) => self.current_scene.destroy(device_ref, &mut self.ecs),
             _ => panic!("SettingsMenu event should not have been send!"),
         }
 
-        self.previous_state = Some(self.current_state.clone());
-        self.current_state = GameState::Settings;
-
-        self.current_scene = Scene::SettingsMenu(SettingsMenu::create(&mut factory));
-    }
-    fn back_from_pause(&mut self) {
-        self.current_state = GameState::Game;
-        todo!("unhide game and remove settings entities, continue updating")
-    }
-    fn back_from_settings(&mut self) {
-        match self.previous_state {
-            Some(GameState::_Pause) => {
-                todo!("remove settings menu entitites and show pause menu entities")
-            }
-            Some(GameState::MainMenu) => {
-                let device_ref = self
-                    .window
-                    .as_ref()
-                    .expect("Failed to get window while going back from settings menu!")
-                    .get_device();
-
-                self.entity_manager
-                    .clear(&mut self.component_manager, device_ref);
-
-                self.previous_state = None;
-                self.current_state = GameState::MainMenu;
-
-                self.current_scene = Scene::MainMenu(MainMenu::create(&mut ObjectFactory {
-                    entity_manager: &mut self.entity_manager,
-                    component_manager: &mut self.component_manager,
-                    system_manager: &mut self.system_manager,
-                }));
-            }
-            _ => panic!("No previous state when trying to go back!"),
-        }
+        self.current_scene = Scene::Menu(Menu::SettingsMenu(SettingsMenu::create(&mut self.ecs)));
     }
 
-    fn start_new_game(&mut self) {
+    fn load_main_menu(&mut self) {
+        let device_ref = self
+            .window
+            .as_ref()
+            .expect("Failed to get window while loading main menu!")
+            .get_device();
+
+        self.current_scene.destroy(device_ref, &mut self.ecs);
+
+        self.current_scene = Scene::Menu(Menu::MainMenu(MainMenu::create(&mut self.ecs)));
+    }
+
+    fn load_new_game(&mut self) {
         let device_ref = self
             .window
             .as_ref()
             .expect("Failed to get window while starting new game!")
             .get_device();
 
-        self.entity_manager
-            .clear(&mut self.component_manager, device_ref);
+        self.current_scene.destroy(device_ref, &mut self.ecs);
 
-        self.current_state = GameState::Game;
-
-        create_new_game(
-            &mut self.component_manager,
-            &self.system_manager.resource,
-            &mut self.entity_manager,
-        );
+        self.current_scene = Scene::Game(scenes::Game::create(&mut self.ecs));
     }
 }
 
 impl WindowEventHandler for Game {
     fn redraw_requested(&mut self) {
-        self.system_manager.input.process_inputs(
-            &self.current_state,
-            &mut self.component_manager,
-            &self.system_manager.resource,
-            &self.event_proxy,
-        );
+        self.ecs
+            .process_inputs(&self.current_scene, &self.event_proxy);
 
-        let render_time = self.system_manager.render.draw(
-            &self.current_state,
-            &mut self.component_manager,
-            &self.system_manager.resource,
+        let render_time = self.ecs.render(
+            &self.current_scene,
             self.window
                 .as_mut()
                 .expect("Window was lost while rendering!"),

@@ -1,26 +1,25 @@
 use crate::{
-    objects::{Button, Object, ObjectFactory, TextContent},
+    objects::{Button, Content, Object, TextContent},
     scenes::Menu,
-    GameEvent,
+    GameEvent, ECS,
 };
-use ash::Device;
 use glam::Vec2;
 use winit::event_loop::EventLoopProxy;
 
 pub struct SettingsMenu {
-    objects: Vec<Object>,
+    pub objects: Vec<Object>,
 }
 
 impl Menu {
-    fn create_back_button(factory: &mut ObjectFactory) -> Button {
-        factory.new_button(
+    fn create_back_button(ecs: &mut ECS) -> Button {
+        ecs.new_button(
             Vec2 { x: 0.0, y: 0.5 },
             Vec2 { x: 0.5, y: 0.5 },
-            &TextContent {
-                text: "Back",
-                font: "test",    // TODO adjust font
-                font_size: 50.0, // TODO adjust font size
-            },
+            Content::Text(TextContent {
+                text: "Back".to_owned(),
+                font: "test".to_owned(), // TODO adjust font
+                font_size: 50.0,         // TODO adjust font size
+            }),
             true,
             back_fn,
         )
@@ -28,33 +27,24 @@ impl Menu {
 }
 
 impl SettingsMenu {
-    pub fn create(factory: &mut ObjectFactory) -> Self {
+    pub fn create(ecs: &mut ECS) -> Self {
         let mut objects: Vec<Object> = Vec::with_capacity(3);
 
-        let background = Menu::create_background(factory);
+        let background = Menu::create_background(ecs);
         objects.push(Object::Label(background));
 
-        let title = Menu::create_title(factory);
+        let title = Menu::create_title(ecs);
         objects.push(Object::Label(title));
 
-        let back = Menu::create_back_button(factory);
+        let back = Menu::create_back_button(ecs);
         objects.push(Object::Button(back));
 
         Self { objects }
-    }
-
-    pub fn destroy(&self, device: &Device, factory: &mut ObjectFactory) {
-        for obj in &self.objects {
-            let entity = obj.id();
-
-            factory.component_manager.clear_entity(entity, device);
-            factory.entity_manager.destroy_entity(entity);
-        }
     }
 }
 
 fn back_fn(event_proxy: &EventLoopProxy<GameEvent>) {
     event_proxy
-        .send_event(GameEvent::Back)
-        .expect("Failed to send back event by pressing back button in settings!");
+        .send_event(GameEvent::MainMenu)
+        .expect("Failed to send MainMenu by pressing back button in settings!");
 }

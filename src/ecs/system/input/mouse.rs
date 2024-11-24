@@ -77,13 +77,13 @@ pub fn handle_released<Hasher>(
 }
 
 #[must_use]
-pub fn any_component_was_clicked(
-    components: &[InputWithPosition],
+pub fn any_object_was_clicked(
+    objects: &[InputWithPosition],
     mouse_position: &MousePosition,
 ) -> Option<fn(event_proxy: &EventLoopProxy<GameEvent>) -> ()> {
-    for component in components {
-        if component.position.was_clicked(mouse_position) {
-            return Some(component.input.activate);
+    for obj in objects {
+        if obj.position.was_clicked(mouse_position) {
+            return Some(obj.input.activate);
         }
     }
 

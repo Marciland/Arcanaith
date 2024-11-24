@@ -8,10 +8,8 @@ use ash::Device;
 use std::collections::HashMap;
 
 pub mod composition;
-pub mod player;
 
 pub use input::InputComponent;
-pub use player::Player;
 pub use position::PositionComponent;
 pub use text::TextComponent;
 pub use visual::{Layer, VisualComponent};
@@ -55,17 +53,21 @@ impl<T> ComponentStorage<T> {
 }
 
 pub struct ComponentManager {
-    pub player_entity: Option<Player>,
     pub visual_storage: ComponentStorage<VisualComponent>,
     pub position_storage: ComponentStorage<PositionComponent>,
     pub input_storage: ComponentStorage<InputComponent>,
     pub text_storage: ComponentStorage<TextComponent>,
 }
 
+impl Default for ComponentManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ComponentManager {
     pub fn new() -> Self {
         Self {
-            player_entity: None,
             visual_storage: ComponentStorage::new(),
             position_storage: ComponentStorage::new(),
             input_storage: ComponentStorage::new(),

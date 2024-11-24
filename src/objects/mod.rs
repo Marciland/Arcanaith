@@ -1,20 +1,25 @@
 mod button;
+mod icon_text;
 mod label;
+mod player;
 mod quad;
+mod status_bar;
 
-use crate::ecs::{
-    component::ComponentManager,
-    entity::{Entity, EntityManager},
-    system::SystemManager,
-};
+use crate::ecs::{component::Layer, entity::Entity};
 
 pub use button::Button;
-pub use label::{Label, LabelContent};
+pub use icon_text::IconText;
+pub use label::Label;
+pub use player::Player;
 pub use quad::Quad;
+pub use status_bar::StatusBar;
 
 pub enum Object {
     Button(Button),
     Label(Label),
+    IconText(IconText),
+    StatusBar(StatusBar),
+    Player(Player),
 }
 
 impl Object {
@@ -22,18 +27,20 @@ impl Object {
         match self {
             Object::Button(b) => b.id,
             Object::Label(l) => l.id,
+            Object::IconText(it) => it.id,
+            Object::StatusBar(sb) => sb.id,
+            Object::Player(p) => p.id,
         }
     }
 }
 
-pub struct TextContent<'a> {
-    pub text: &'a str,
-    pub font: &'a str,
-    pub font_size: f32,
+pub enum Content<'a> {
+    Text(TextContent),
+    Image { name: &'a str, layer: Layer },
 }
 
-pub struct ObjectFactory<'building> {
-    pub entity_manager: &'building mut EntityManager,
-    pub component_manager: &'building mut ComponentManager,
-    pub system_manager: &'building SystemManager,
+pub struct TextContent {
+    pub text: String,
+    pub font: String,
+    pub font_size: f32,
 }

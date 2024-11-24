@@ -19,11 +19,6 @@ impl VisualComponent {
         }
     }
 
-    pub fn reset_animation(mut self) -> Self {
-        self.current_frame = 0;
-        self
-    }
-
     pub fn update_animation(&mut self) {
         if self.frame_duration == 0 || self.texture_indices.len() == 1 {
             return;
@@ -34,11 +29,6 @@ impl VisualComponent {
             self.current_frame = 0;
             self.current_texture = (self.current_texture + 1) % self.texture_indices.len();
         }
-    }
-
-    pub fn update_animation_speed(mut self, frame_duration: usize) -> Self {
-        self.frame_duration = frame_duration;
-        self
     }
 
     pub fn get_current_texture(&self) -> usize {

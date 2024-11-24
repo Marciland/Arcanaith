@@ -23,8 +23,7 @@ impl SystemManager {
         }
     }
 
-    #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn destroy(&self, device: &Device) {
+    pub fn destroy(&self, device: &Device) {
         self.render.destroy(device);
         self.resource.destroy(device);
     }

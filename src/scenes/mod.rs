@@ -1,23 +1,23 @@
 mod game;
 mod menu;
 
-use crate::objects::ObjectFactory;
+use crate::ECS;
 use ash::Device;
 
-pub use game::create_new_game;
+pub use game::Game;
 pub use menu::{MainMenu, Menu, SettingsMenu};
 
 pub enum Scene {
     None,
-    MainMenu(MainMenu),
-    SettingsMenu(SettingsMenu),
+    Menu(Menu),
+    Game(Game),
 }
 
 impl Scene {
-    pub fn destroy(&self, device: &Device, factory: &mut ObjectFactory) {
+    pub fn destroy(&self, device: &Device, ecs: &mut ECS) {
         match self {
-            Scene::MainMenu(menu) => menu.destroy(device, factory),
-            Scene::SettingsMenu(menu) => menu.destroy(device, factory),
+            Scene::Menu(menu) => menu.destroy(device, ecs),
+            Scene::Game(game) => game.destroy(device, ecs),
             Scene::None => (),
         }
     }

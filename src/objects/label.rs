@@ -1,13 +1,12 @@
-use super::ObjectFactory;
-use crate::ecs::{
-    component::{Layer, PositionComponent, VisualComponent},
-    entity::Entity,
+use crate::{
+    ecs::{
+        component::{PositionComponent, TextComponent, VisualComponent},
+        entity::Entity,
+    },
+    objects::Content,
+    ECS,
 };
 use glam::{Vec2, Vec3};
-
-pub enum LabelContent<'a> {
-    Image { name: &'a str, layer: Layer },
-}
 
 pub struct Label {
     pub id: Entity,
@@ -29,12 +28,12 @@ impl VecTExtend for Vec3 {
     }
 }
 
-impl<'building> ObjectFactory<'building> {
+impl ECS {
     pub fn new_label<VecT: VecTExtend>(
         &mut self,
         position: VecT,
         size: Vec2,
-        content: LabelContent,
+        content: Content,
     ) -> Label {
         let id = self.entity_manager.create_entity();
 
@@ -47,7 +46,12 @@ impl<'building> ObjectFactory<'building> {
         );
 
         match content {
-            LabelContent::Image { name, layer } => {
+            Content::Text(content) => {
+                self.component_manager
+                    .text_storage
+                    .add(id, TextComponent::create(content));
+            }
+            Content::Image { name, layer } => {
                 self.component_manager.visual_storage.add(
                     id,
                     VisualComponent::new(

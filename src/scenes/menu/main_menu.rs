@@ -1,62 +1,61 @@
 use crate::{
     ecs::component::Layer,
-    objects::{Button, Label, LabelContent, Object, ObjectFactory, TextContent},
+    objects::{Button, Content, Label, Object, TextContent},
     scenes::Menu,
-    GameEvent,
+    GameEvent, ECS,
 };
-use ash::Device;
 use glam::Vec2;
 use winit::event_loop::EventLoopProxy;
 
 impl Menu {
-    fn create_banner(factory: &mut ObjectFactory) -> Label {
-        factory.new_label(
+    fn create_banner(ecs: &mut ECS) -> Label {
+        ecs.new_label(
             Vec2 { x: 0.0, y: 0.5 },
             Vec2 { x: 1.5, y: 0.5 },
-            LabelContent::Image {
+            Content::Image {
                 name: "main_menu_banner",
                 layer: Layer::Background,
             },
         )
     }
 
-    fn create_new_game_button(factory: &mut ObjectFactory) -> Button {
-        factory.new_button(
+    fn create_new_game_button(ecs: &mut ECS) -> Button {
+        ecs.new_button(
             Vec2 { x: -0.5, y: 0.0 },
             Vec2 { x: 0.5, y: 0.5 },
-            &TextContent {
-                text: "New Game",
-                font: "test",    // TODO adjust font
-                font_size: 50.0, // TODO adjust font size
-            },
+            Content::Text(TextContent {
+                text: "New Game".to_owned(),
+                font: "test".to_owned(), // TODO adjust font
+                font_size: 50.0,         // TODO adjust font size
+            }),
             true,
             new_game_fn,
         )
     }
 
-    fn create_settings_button(factory: &mut ObjectFactory) -> Button {
-        factory.new_button(
+    fn create_settings_button(ecs: &mut ECS) -> Button {
+        ecs.new_button(
             Vec2 { x: 0.0, y: 0.0 },
             Vec2 { x: 0.5, y: 0.5 },
-            &TextContent {
-                text: "Settings",
-                font: "test",    // TODO adjust font
-                font_size: 50.0, // TODO adjust font size
-            },
+            Content::Text(TextContent {
+                text: "Settings".to_owned(),
+                font: "test".to_owned(), // TODO adjust font
+                font_size: 50.0,         // TODO adjust font size
+            }),
             false,
             settings_fn,
         )
     }
 
-    fn create_exit_button(factory: &mut ObjectFactory) -> Button {
-        factory.new_button(
+    fn create_exit_button(ecs: &mut ECS) -> Button {
+        ecs.new_button(
             Vec2 { x: 0.5, y: 0.0 },
             Vec2 { x: 0.5, y: 0.5 },
-            &TextContent {
-                text: "Exit",
-                font: "test",    // TODO adjust font
-                font_size: 50.0, // TODO adjust font size
-            },
+            Content::Text(TextContent {
+                text: "Exit".to_owned(),
+                font: "test".to_owned(), // TODO adjust font
+                font_size: 50.0,         // TODO adjust font size
+            }),
             false,
             exit_fn,
         )
@@ -64,41 +63,39 @@ impl Menu {
 }
 
 pub struct MainMenu {
-    objects: Vec<Object>,
+    pub objects: Vec<Object>,
 }
 
 impl MainMenu {
-    pub fn create(factory: &mut ObjectFactory) -> Self {
+    pub fn create(ecs: &mut ECS) -> Self {
         let mut objects: Vec<Object> = Vec::with_capacity(6);
 
-        let background = Menu::create_background(factory);
+        let background = Menu::create_background(ecs);
         objects.push(Object::Label(background));
 
-        let title = Menu::create_title(factory);
+        let title = Menu::create_title(ecs);
         objects.push(Object::Label(title));
 
-        let banner = Menu::create_banner(factory);
+        let banner = Menu::create_banner(ecs);
         objects.push(Object::Label(banner));
 
-        let new_game = Menu::create_new_game_button(factory);
+        let new_game = Menu::create_new_game_button(ecs);
+        let settings = Menu::create_settings_button(ecs);
+        let exit = Menu::create_exit_button(ecs);
+
+        new_game.set_next(&settings, &mut ecs.component_manager);
+        settings.set_next(&exit, &mut ecs.component_manager);
+        exit.set_next(&new_game, &mut ecs.component_manager);
+
+        new_game.set_previous(&exit, &mut ecs.component_manager);
+        settings.set_previous(&new_game, &mut ecs.component_manager);
+        exit.set_previous(&settings, &mut ecs.component_manager);
+
         objects.push(Object::Button(new_game));
-
-        let settings = Menu::create_settings_button(factory);
         objects.push(Object::Button(settings));
-
-        let exit = Menu::create_exit_button(factory);
         objects.push(Object::Button(exit));
 
         Self { objects }
-    }
-
-    pub fn destroy(&self, device: &Device, factory: &mut ObjectFactory) {
-        for obj in &self.objects {
-            let entity = obj.id();
-
-            factory.component_manager.clear_entity(entity, device);
-            factory.entity_manager.destroy_entity(entity);
-        }
     }
 }
 

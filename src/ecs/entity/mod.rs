@@ -1,5 +1,3 @@
-use crate::ecs::{component::ComponentManager, system::ResourceSystem};
-use ash::Device;
 use std::collections::HashSet;
 
 pub type Entity = u32;
@@ -7,6 +5,12 @@ pub type Entity = u32;
 pub struct EntityManager {
     next_id: Entity,
     entities: HashSet<Entity>,
+}
+
+impl Default for EntityManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl EntityManager {
@@ -27,16 +31,4 @@ impl EntityManager {
     pub fn destroy_entity(&mut self, entity: Entity) {
         self.entities.remove(&entity);
     }
-
-    pub fn clear(&mut self, component_manager: &mut ComponentManager, device: &Device) {
-        for entity in &self.entities {
-            component_manager.clear_entity(*entity, device);
-        }
-        self.entities.clear();
-    }
-}
-
-pub struct EntityLoader<'loading> {
-    pub component_manager: &'loading mut ComponentManager,
-    pub resource_system: &'loading ResourceSystem,
 }

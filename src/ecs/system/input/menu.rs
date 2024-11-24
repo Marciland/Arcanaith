@@ -3,7 +3,8 @@ use crate::{
         component::{composition::InputWithPosition, ComponentManager},
         entity::Entity,
     },
-    mouse::{any_component_was_clicked, MouseEvent},
+    mouse::{any_object_was_clicked, MouseEvent},
+    scenes::Menu,
     GameEvent,
 };
 use indexmap::IndexSet;
@@ -15,33 +16,46 @@ use winit::{
 
 pub fn handle_key_events(
     pressed_keys: &IndexSet<Key>,
-    active_entity: Entity,
+    scene: &Menu,
     component_manager: &mut ComponentManager,
     event_proxy: &EventLoopProxy<GameEvent>,
 ) {
+    let active_entity = scene.get_active(component_manager);
+
     for key in pressed_keys {
         match key {
             Key::Named(NamedKey::Tab | NamedKey::ArrowDown | NamedKey::ArrowRight) => {
-                set_next_entity_to_active(active_entity, component_manager);
+                if active_entity.is_none() {
+                    continue;
+                }
+                set_next_entity_to_active(active_entity.unwrap(), component_manager);
             }
 
             Key::Named(NamedKey::ArrowLeft | NamedKey::ArrowUp) => {
-                set_previous_entity_to_active(active_entity, component_manager);
+                if active_entity.is_none() {
+                    continue;
+                }
+                set_previous_entity_to_active(active_entity.unwrap(), component_manager);
             }
 
             Key::Named(NamedKey::Space | NamedKey::Enter) => {
+                if active_entity.is_none() {
+                    continue;
+                }
                 let active_input = component_manager
                     .input_storage
-                    .get(active_entity)
+                    .get(active_entity.unwrap())
                     .expect("Failed to get ref on active entity!");
 
                 (active_input.activate)(event_proxy);
             }
 
             Key::Named(NamedKey::Escape) => {
-                event_proxy
-                    .send_event(GameEvent::Back)
-                    .expect("Failed to send back event by pressing escape!");
+                if let Menu::SettingsMenu(_) = scene {
+                    event_proxy
+                        .send_event(GameEvent::MainMenu)
+                        .expect("Failed to send MainMenu by pressing escape!");
+                }
             }
             _ => (),
         }
@@ -50,15 +64,35 @@ pub fn handle_key_events(
 
 pub fn handle_mouse_events(
     events: &[MouseEvent],
-    components: &[InputWithPosition],
+    scene: &Menu,
+    component_manager: &mut ComponentManager,
     event_proxy: &EventLoopProxy<GameEvent>,
 ) {
     for event in events {
-        if event.button.mouse_button == MouseButton::Left {
-            match any_component_was_clicked(components, &event.position) {
-                Some(function) => (function)(event_proxy),
-                None => continue,
-            }
+        if event.button.mouse_button != MouseButton::Left {
+            continue;
+        }
+
+        let objects = scene.get_objects();
+        let mut clickables = Vec::with_capacity(objects.len());
+
+        for obj in objects {
+            let entity = obj.id();
+
+            let Some(input) = component_manager.input_storage.get(entity) else {
+                continue;
+            };
+
+            let Some(position) = component_manager.position_storage.get(entity) else {
+                continue;
+            };
+
+            clickables.push(InputWithPosition { input, position });
+        }
+
+        match any_object_was_clicked(&clickables, &event.position) {
+            Some(function) => (function)(event_proxy),
+            None => continue,
         }
     }
 }

@@ -2,7 +2,7 @@ use crate::{
     ecs::{
         component::{composition::InputWithPosition, ComponentManager},
         entity::Entity,
-        system::{input::MouseHandler, InputSystem},
+        system::input::{InputHandler, InputSystem, MouseHandler},
     },
     scenes::Menu,
     GameEvent, MouseEvent,
@@ -14,85 +14,87 @@ use winit::{
     keyboard::{Key, NamedKey},
 };
 
-pub fn handle_key_events(
-    pressed_keys: &IndexSet<Key>,
-    scene: &Menu,
-    component_manager: &mut ComponentManager,
-    event_proxy: &EventLoopProxy<GameEvent>,
-) {
-    let active_entity = scene.get_active(component_manager);
+impl InputHandler for Menu {
+    fn handle_mouse_events(
+        &self,
+        events: &[MouseEvent],
+        component_manager: &mut ComponentManager,
+        event_proxy: &EventLoopProxy<GameEvent>,
+    ) {
+        for event in events {
+            if event.button.mouse_button != MouseButton::Left {
+                continue;
+            }
 
-    for key in pressed_keys {
-        match key {
-            Key::Named(NamedKey::Tab | NamedKey::ArrowDown | NamedKey::ArrowRight) => {
-                if active_entity.is_none() {
+            let objects = self.get_objects();
+            let mut clickables = Vec::with_capacity(objects.len());
+
+            for obj in objects {
+                let entity = obj.id();
+
+                let Some(input) = component_manager.input_storage.get(entity) else {
                     continue;
-                }
-                set_next_entity_to_active(active_entity.unwrap(), component_manager);
-            }
+                };
 
-            Key::Named(NamedKey::ArrowLeft | NamedKey::ArrowUp) => {
-                if active_entity.is_none() {
+                let Some(position) = component_manager.position_storage.get(entity) else {
                     continue;
-                }
-                set_previous_entity_to_active(active_entity.unwrap(), component_manager);
+                };
+
+                clickables.push(InputWithPosition { input, position });
             }
 
-            Key::Named(NamedKey::Space | NamedKey::Enter) => {
-                if active_entity.is_none() {
-                    continue;
-                }
-                let active_input = component_manager
-                    .input_storage
-                    .get(active_entity.unwrap())
-                    .expect("Failed to get ref on active entity!");
-
-                (active_input.activate)(event_proxy);
+            match InputSystem::any_object_was_clicked(&clickables, &event.position) {
+                Some(function) => (function)(event_proxy),
+                None => continue,
             }
-
-            Key::Named(NamedKey::Escape) => {
-                if let Menu::SettingsMenu(_) = scene {
-                    event_proxy
-                        .send_event(GameEvent::MainMenu)
-                        .expect("Failed to send MainMenu by pressing escape!");
-                }
-            }
-            _ => (),
         }
     }
-}
 
-pub fn handle_mouse_events(
-    events: &[MouseEvent],
-    scene: &Menu,
-    component_manager: &mut ComponentManager,
-    event_proxy: &EventLoopProxy<GameEvent>,
-) {
-    for event in events {
-        if event.button.mouse_button != MouseButton::Left {
-            continue;
-        }
+    fn handle_key_events(
+        &self,
+        pressed_keys: &IndexSet<Key>,
+        component_manager: &mut ComponentManager,
+        event_proxy: &EventLoopProxy<GameEvent>,
+    ) {
+        let active_entity = self.get_active(component_manager);
 
-        let objects = scene.get_objects();
-        let mut clickables = Vec::with_capacity(objects.len());
+        for key in pressed_keys {
+            match key {
+                Key::Named(NamedKey::Tab | NamedKey::ArrowDown | NamedKey::ArrowRight) => {
+                    if active_entity.is_none() {
+                        continue;
+                    }
+                    set_next_entity_to_active(active_entity.unwrap(), component_manager);
+                }
 
-        for obj in objects {
-            let entity = obj.id();
+                Key::Named(NamedKey::ArrowLeft | NamedKey::ArrowUp) => {
+                    if active_entity.is_none() {
+                        continue;
+                    }
+                    set_previous_entity_to_active(active_entity.unwrap(), component_manager);
+                }
 
-            let Some(input) = component_manager.input_storage.get(entity) else {
-                continue;
-            };
+                Key::Named(NamedKey::Space | NamedKey::Enter) => {
+                    if active_entity.is_none() {
+                        continue;
+                    }
+                    let active_input = component_manager
+                        .input_storage
+                        .get(active_entity.unwrap())
+                        .expect("Failed to get ref on active entity!");
 
-            let Some(position) = component_manager.position_storage.get(entity) else {
-                continue;
-            };
+                    (active_input.activate)(event_proxy);
+                }
 
-            clickables.push(InputWithPosition { input, position });
-        }
-
-        match InputSystem::any_object_was_clicked(&clickables, &event.position) {
-            Some(function) => (function)(event_proxy),
-            None => continue,
+                Key::Named(NamedKey::Escape) => {
+                    if let Menu::SettingsMenu(_) = self {
+                        event_proxy
+                            .send_event(GameEvent::MainMenu)
+                            .expect("Failed to send MainMenu by pressing escape!");
+                    }
+                }
+                _ => (),
+            }
         }
     }
 }

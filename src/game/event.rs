@@ -60,7 +60,6 @@ impl WindowEventHandler for Game {
         self.ecs.system_manager.input.process_inputs(
             &self.current_scene,
             &mut self.ecs.component_manager,
-            &self.ecs.system_manager.resource,
             &self.event_proxy,
         );
 

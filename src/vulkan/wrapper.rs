@@ -2,7 +2,7 @@ use crate::{
     constants::TITLE,
     ecs::system::RenderSystem,
     structs::{ImageData, ModelViewProjection, StorageBufferObject, Vertex},
-    vulkan::internal,
+    vulkan::internal::InternalVulkan,
 };
 use ash::{
     khr::{surface, swapchain},
@@ -26,11 +26,11 @@ use ash::{
         PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineMultisampleStateCreateInfo,
         PipelineRasterizationStateCreateInfo, PipelineStageFlags,
         PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo, PolygonMode,
-        PresentModeKHR, PrimitiveTopology, Queue, Rect2D, RenderPass, RenderPassBeginInfo,
-        RenderPassCreateInfo, SampleCountFlags, Sampler, SamplerAddressMode, SamplerCreateInfo,
-        SamplerMipmapMode, Semaphore, SemaphoreCreateInfo, ShaderStageFlags, SharingMode,
-        SubpassContents, SubpassDependency, SubpassDescription, SurfaceKHR, SwapchainCreateInfoKHR,
-        SwapchainKHR, Viewport, WriteDescriptorSet, API_VERSION_1_3, SUBPASS_EXTERNAL,
+        PrimitiveTopology, Queue, Rect2D, RenderPass, RenderPassBeginInfo, RenderPassCreateInfo,
+        SampleCountFlags, Sampler, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode,
+        Semaphore, SemaphoreCreateInfo, ShaderStageFlags, SharingMode, SubpassContents,
+        SubpassDependency, SubpassDescription, SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR,
+        Viewport, WriteDescriptorSet, API_VERSION_1_3, SUBPASS_EXTERNAL,
     },
     Device, Entry, Instance,
 };
@@ -103,17 +103,12 @@ impl VulkanWrapper {
         devices
             .iter()
             .find_map(|device| {
-                if !internal::InternalVulkan::device_features_available(instance, *device) {
+                if !InternalVulkan::device_features_available(instance, *device) {
                     return None;
                 }
 
-                internal::InternalVulkan::get_queue_family_index(
-                    instance,
-                    surface,
-                    surface_loader,
-                    *device,
-                )
-                .map(|queue_index| (*device, queue_index))
+                InternalVulkan::get_queue_family_index(instance, surface, surface_loader, *device)
+                    .map(|queue_index| (*device, queue_index))
             })
             .expect("Failed to find physical device that is valid!")
     }
@@ -163,15 +158,8 @@ impl VulkanWrapper {
             min_image_count = surface_capabilities.max_image_count;
         }
 
-        let present_mode = unsafe {
-            surface_loader.get_physical_device_surface_present_modes(physical_device, surface)
-        }
-        .expect("Failed to get surface present modes!")
-        .iter()
-        .copied()
-        .find(|&mode| mode == PresentModeKHR::MAILBOX)
-        .unwrap_or(PresentModeKHR::FIFO);
-
+        let present_mode =
+            InternalVulkan::get_swapchain_present_mode(physical_device, surface, surface_loader);
         let extent = surface_capabilities.current_extent;
         let format = surface_format.format;
         let swapchain_create_info = SwapchainCreateInfoKHR::default()
@@ -204,7 +192,7 @@ impl VulkanWrapper {
         let mut image_views: Vec<ImageView> = Vec::with_capacity(images.len());
 
         for image in &images {
-            image_views.push(internal::InternalVulkan::create_image_view(
+            image_views.push(InternalVulkan::create_image_view(
                 device,
                 *image,
                 format,
@@ -230,10 +218,7 @@ impl VulkanWrapper {
             .initial_layout(ImageLayout::UNDEFINED)
             .final_layout(ImageLayout::PRESENT_SRC_KHR);
         let depth_attachment = AttachmentDescription::default()
-            .format(internal::InternalVulkan::find_depth_format(
-                instance,
-                physical_device,
-            ))
+            .format(InternalVulkan::find_depth_format(instance, physical_device))
             .samples(SampleCountFlags::TYPE_1)
             .load_op(AttachmentLoadOp::CLEAR)
             .store_op(AttachmentStoreOp::DONT_CARE)
@@ -289,9 +274,8 @@ impl VulkanWrapper {
         descriptor_set_layouts: &[DescriptorSetLayout],
     ) -> (PipelineLayout, Pipeline) {
         let pipeline_layout =
-            internal::InternalVulkan::create_pipeline_layout(device, descriptor_set_layouts);
-        let (shader_stages, shader_modules) =
-            internal::InternalVulkan::create_shader_stages(device);
+            InternalVulkan::create_pipeline_layout(device, descriptor_set_layouts);
+        let (shader_stages, shader_modules) = InternalVulkan::create_shader_stages(device);
         let binding_descriptions = [Vertex::get_binding_description()];
         let attribute_descriptions = Vertex::get_attribute_descriptions();
         let vertex_input_state = PipelineVertexInputStateCreateInfo::default()
@@ -476,8 +460,8 @@ impl VulkanWrapper {
         device: &Device,
         extent: Extent2D,
     ) -> ImageData {
-        let depth_format = internal::InternalVulkan::find_depth_format(instance, physical_device);
-        let (depth_image, depth_image_memory) = internal::InternalVulkan::create_image(
+        let depth_format = InternalVulkan::find_depth_format(instance, physical_device);
+        let (depth_image, depth_image_memory) = InternalVulkan::create_image(
             instance,
             physical_device,
             device,
@@ -487,7 +471,7 @@ impl VulkanWrapper {
             ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
-        let depth_image_view = internal::InternalVulkan::create_image_view(
+        let depth_image_view = InternalVulkan::create_image_view(
             device,
             depth_image,
             depth_format,
@@ -619,7 +603,7 @@ impl VulkanWrapper {
     ) -> (Buffer, DeviceMemory) {
         let buffer_size = size_of_val(vertices) as u64;
 
-        let (staging_buffer, staging_buffer_memory) = internal::InternalVulkan::create_buffer(
+        let (staging_buffer, staging_buffer_memory) = InternalVulkan::create_buffer(
             instance,
             physical_device,
             device,
@@ -643,7 +627,7 @@ impl VulkanWrapper {
             device.unmap_memory(staging_buffer_memory);
         };
 
-        let (vertex_buffer, vertex_buffer_memory) = internal::InternalVulkan::create_buffer(
+        let (vertex_buffer, vertex_buffer_memory) = InternalVulkan::create_buffer(
             instance,
             physical_device,
             device,
@@ -652,7 +636,7 @@ impl VulkanWrapper {
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
 
-        internal::InternalVulkan::copy_buffer(
+        InternalVulkan::copy_buffer(
             device,
             command_pool,
             graphics_queue,
@@ -679,7 +663,7 @@ impl VulkanWrapper {
     ) -> (Buffer, DeviceMemory) {
         let buffer_size = size_of_val(indices) as u64;
 
-        let (staging_buffer, staging_buffer_memory) = internal::InternalVulkan::create_buffer(
+        let (staging_buffer, staging_buffer_memory) = InternalVulkan::create_buffer(
             instance,
             physical_device,
             device,
@@ -703,7 +687,7 @@ impl VulkanWrapper {
             device.unmap_memory(staging_buffer_memory);
         };
 
-        let (index_buffer, index_buffer_memory) = internal::InternalVulkan::create_buffer(
+        let (index_buffer, index_buffer_memory) = InternalVulkan::create_buffer(
             instance,
             physical_device,
             device,
@@ -712,7 +696,7 @@ impl VulkanWrapper {
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
 
-        internal::InternalVulkan::copy_buffer(
+        InternalVulkan::copy_buffer(
             device,
             command_pool,
             graphics_queue,
@@ -845,7 +829,7 @@ impl VulkanWrapper {
     ) -> ImageData {
         let image_size = u64::from(image_extent.width * image_extent.height * 4);
 
-        let (staging_buffer, staging_buffer_memory) = internal::InternalVulkan::create_buffer(
+        let (staging_buffer, staging_buffer_memory) = InternalVulkan::create_buffer(
             instance,
             physical_device,
             device,
@@ -871,7 +855,7 @@ impl VulkanWrapper {
         };
 
         let format = Format::R8G8B8A8_SRGB;
-        let (image, image_memory) = internal::InternalVulkan::create_image(
+        let (image, image_memory) = InternalVulkan::create_image(
             instance,
             physical_device,
             device,
@@ -882,7 +866,7 @@ impl VulkanWrapper {
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
 
-        internal::InternalVulkan::transition_image_layout(
+        InternalVulkan::transition_image_layout(
             device,
             graphics_queue,
             command_pool,
@@ -890,7 +874,7 @@ impl VulkanWrapper {
             ImageLayout::UNDEFINED,
             ImageLayout::TRANSFER_DST_OPTIMAL,
         );
-        internal::InternalVulkan::copy_buffer_to_image(
+        InternalVulkan::copy_buffer_to_image(
             device,
             command_pool,
             graphics_queue,
@@ -898,7 +882,7 @@ impl VulkanWrapper {
             image,
             image_extent,
         );
-        internal::InternalVulkan::transition_image_layout(
+        InternalVulkan::transition_image_layout(
             device,
             graphics_queue,
             command_pool,
@@ -912,12 +896,8 @@ impl VulkanWrapper {
             device.free_memory(staging_buffer_memory, None);
         };
 
-        let image_view = internal::InternalVulkan::create_image_view(
-            device,
-            image,
-            format,
-            ImageAspectFlags::COLOR,
-        );
+        let image_view =
+            InternalVulkan::create_image_view(device, image, format, ImageAspectFlags::COLOR);
 
         ImageData::create(image, image_memory, image_view)
     }
@@ -958,7 +938,7 @@ impl VulkanWrapper {
     ) -> (Buffer, DeviceMemory, *mut ModelViewProjection) {
         let buffer_size = (capacity * size_of::<ModelViewProjection>()) as u64;
 
-        let (buffer, memory) = internal::InternalVulkan::create_buffer(
+        let (buffer, memory) = InternalVulkan::create_buffer(
             instance,
             physical_device,
             device,

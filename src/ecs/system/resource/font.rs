@@ -24,7 +24,7 @@ pub fn create_font_map() -> HashMap<String, FontVec> {
 }
 
 fn read_font_file(file_path: &Path) -> Option<FontVec> {
-    let path = file_path.to_str().unwrap();
+    let path = file_path.to_str()?;
     let font_data = read_bytes_from_file(path).expect(&("Failed to read: ".to_string() + path));
     match FontVec::try_from_vec(font_data) {
         Ok(font) => Some(font),

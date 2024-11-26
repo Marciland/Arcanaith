@@ -87,19 +87,7 @@ impl RenderSystem {
             get_render_targets(&entities, visual_storage, text_storage, position_storage);
 
         let textures = get_render_resources(window, &mut render_targets, resource_system);
-
-        let player_position: Option<&PositionComponent> = match current_scene {
-            Scene::Menu(_) => None,
-            Scene::Game(game) => {
-                let Some(player) = game.get_player() else {
-                    println!("Game without player entity!");
-                    return Instant::elapsed(&start_time);
-                };
-                position_storage.get(player.id)
-            }
-        };
-
-        let positions = get_render_positions(&mut render_targets, player_position);
+        let positions = get_render_positions(current_scene, &mut render_targets, position_storage);
 
         window.draw(self, &textures, &positions);
 
@@ -184,9 +172,15 @@ pub fn get_render_resources(
 }
 
 fn get_render_positions(
+    current_scene: &Scene,
     render_targets: &mut [RenderTarget],
-    player_position: Option<&PositionComponent>,
+    position_storage: &ComponentStorage<PositionComponent>,
 ) -> Vec<ModelViewProjection> {
+    let player_position: Option<&PositionComponent> = match current_scene {
+        Scene::Menu(_) => None,
+        Scene::Game(game) => position_storage.get(game.get_player().id),
+    };
+
     let view_matrix = match player_position {
         Some(pos) => Mat4::from_translation(-pos.xyz),
         // no player => no camera movement

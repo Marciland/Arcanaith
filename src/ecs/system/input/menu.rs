@@ -1,7 +1,6 @@
 use crate::{
     ecs::{
-        component::{composition::InputWithPosition, ComponentManager},
-        entity::Entity,
+        component::{composition::InputWithPosition, ComponentManager, InputComponent},
         system::input::{InputHandler, InputSystem, MouseHandler},
     },
     scenes::Menu,
@@ -56,34 +55,20 @@ impl InputHandler for Menu {
         component_manager: &mut ComponentManager,
         event_proxy: &EventLoopProxy<GameEvent>,
     ) {
-        let active_entity = self.get_active(component_manager);
-
         for key in pressed_keys {
             match key {
                 Key::Named(NamedKey::Tab | NamedKey::ArrowDown | NamedKey::ArrowRight) => {
-                    if active_entity.is_none() {
-                        continue;
-                    }
-                    set_next_entity_to_active(active_entity.unwrap(), component_manager);
+                    self.set_next_entity_to_active(component_manager);
                 }
 
                 Key::Named(NamedKey::ArrowLeft | NamedKey::ArrowUp) => {
-                    if active_entity.is_none() {
-                        continue;
-                    }
-                    set_previous_entity_to_active(active_entity.unwrap(), component_manager);
+                    self.set_previous_entity_to_active(component_manager);
                 }
 
                 Key::Named(NamedKey::Space | NamedKey::Enter) => {
-                    if active_entity.is_none() {
-                        continue;
+                    if let Some(active_input) = self.get_active_input(component_manager) {
+                        (active_input.activate)(event_proxy);
                     }
-                    let active_input = component_manager
-                        .input_storage
-                        .get(active_entity.unwrap())
-                        .expect("Failed to get ref on active entity!");
-
-                    (active_input.activate)(event_proxy);
                 }
 
                 Key::Named(NamedKey::Escape) => {
@@ -99,38 +84,60 @@ impl InputHandler for Menu {
     }
 }
 
-fn set_next_entity_to_active(active: Entity, component_manager: &mut ComponentManager) {
-    let active_input = component_manager
-        .input_storage
-        .get_mut(active)
-        .expect("Failed to get ref on active entity!");
+impl Menu {
+    fn get_active_input<'input>(
+        &'input self,
+        component_manager: &'input ComponentManager,
+    ) -> Option<&InputComponent> {
+        let active_entity = self.get_active(component_manager)?;
+        let active_input = component_manager.input_storage.get(active_entity)?;
 
-    if let Some(next_entity) = active_input.next {
-        active_input.is_active = false;
-
-        let next = component_manager
-            .input_storage
-            .get_mut(next_entity)
-            .expect("Input component has no valid next entity!");
-
-        next.is_active = true;
+        Some(active_input)
     }
-}
 
-fn set_previous_entity_to_active(active: Entity, component_manager: &mut ComponentManager) {
-    let active_input = component_manager
-        .input_storage
-        .get_mut(active)
-        .expect("Failed to get ref on active entity!");
+    fn get_active_input_mut<'input>(
+        &'input self,
+        component_manager: &'input mut ComponentManager,
+    ) -> Option<&mut InputComponent> {
+        let active_entity = self.get_active(component_manager)?;
+        let active_input = component_manager.input_storage.get_mut(active_entity)?;
 
-    if let Some(previous_entity) = active_input.previous {
+        Some(active_input)
+    }
+
+    fn set_next_entity_to_active(&self, component_manager: &mut ComponentManager) {
+        let Some(active_input) = self.get_active_input_mut(component_manager) else {
+            return;
+        };
+
+        let Some(next_entity) = active_input.next else {
+            return;
+        };
+
         active_input.is_active = false;
 
-        let previous = component_manager
-            .input_storage
-            .get_mut(previous_entity)
-            .expect("Input component has no valid previous entity!");
+        let Some(next_input) = component_manager.input_storage.get_mut(next_entity) else {
+            return;
+        };
 
-        previous.is_active = true;
+        next_input.is_active = true;
+    }
+
+    fn set_previous_entity_to_active(&self, component_manager: &mut ComponentManager) {
+        let Some(active_input) = self.get_active_input_mut(component_manager) else {
+            return;
+        };
+
+        let Some(previous_entity) = active_input.previous else {
+            return;
+        };
+
+        active_input.is_active = false;
+
+        let Some(previous_input) = component_manager.input_storage.get_mut(previous_entity) else {
+            return;
+        };
+
+        previous_input.is_active = true;
     }
 }

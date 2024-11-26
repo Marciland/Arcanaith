@@ -32,14 +32,14 @@ impl Game {
         &self.objects
     }
 
-    pub fn get_player(&self) -> Option<&Player> {
+    pub fn get_player(&self) -> &Player {
         for obj in &self.objects {
             if let Object::Player(player) = obj {
-                return Some(player);
+                return player;
             }
         }
 
-        None
+        panic!("Game has no Player Object!")
     }
 
     pub fn destroy(&self, device: &Device, ecs: &mut ECS) {

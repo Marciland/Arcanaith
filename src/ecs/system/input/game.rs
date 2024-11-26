@@ -35,7 +35,7 @@ impl scenes::Game {
         _component_manager: &mut ComponentManager,
     ) {
         // TODO player movement
-        let _player = self.get_player().expect("Missing player entity!");
+        let _player = self.get_player();
 
         // TODO skills
         for _key in keyboard_pressed_inputs {}

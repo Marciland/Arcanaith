@@ -63,23 +63,26 @@ impl ResourceSystem {
     }
 
     pub fn get_bitmap(&mut self, window: &Window, component: &mut TextComponent) -> ImageView {
-        match &component.bitmap {
-            Some(bitmap) => bitmap.get_view(),
-            None => {
-                self.create_bitmap(window, component);
-                component.bitmap.as_ref().unwrap().get_view()
-            }
-        }
+        let Some(bitmap) = &component.bitmap else {
+            return self.create_bitmap(window, component);
+        };
+
+        bitmap.get_view()
     }
 
-    fn create_bitmap(&mut self, window: &Window, component: &mut TextComponent) {
+    fn create_bitmap(&mut self, window: &Window, component: &mut TextComponent) -> ImageView {
         let image = text::to_image(
             &component.content.text,
             self.get_font(&component.content.font),
             component.content.font_size,
         );
 
-        component.bitmap = Some(window.create_image_data(image));
+        let bitmap = window.create_image_data(image);
+        let view = bitmap.get_view();
+
+        component.bitmap = Some(bitmap);
+
+        view
     }
 
     pub fn destroy(&self, device: &Device) {

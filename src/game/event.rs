@@ -74,7 +74,7 @@ impl WindowEventHandler for Game {
         let render_time = self.ecs.system_manager.render.draw(
             self.window
                 .as_mut()
-                .expect("Window was lost while rendering!"),
+                .expect("Window was lost before rendering!"),
             &self.current_scene,
             &mut self.ecs.component_manager.visual_storage,
             &mut self.ecs.component_manager.text_storage,
@@ -91,7 +91,7 @@ impl WindowEventHandler for Game {
 
         self.window
             .as_ref()
-            .expect("Window was lost while rendering!")
+            .expect("Window was lost after rendering!")
             .request_render();
     }
 }

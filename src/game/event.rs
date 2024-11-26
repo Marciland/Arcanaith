@@ -4,6 +4,14 @@ use crate::{
 };
 use std::thread;
 
+#[derive(Debug)]
+pub enum GameEvent {
+    NewGame,
+    ExitGame,
+    SettingsMenu,
+    MainMenu,
+}
+
 pub trait UserEventHandler {
     fn load_settings_menu(&mut self);
     fn load_main_menu(&mut self);

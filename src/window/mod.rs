@@ -128,11 +128,12 @@ impl Window {
         &self.device
     }
 
-    #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn destroy(&self) {
-        self.renderer.destroy(&self.device);
-        self.surface_loader.destroy_surface(self.surface, None);
-        self.device.destroy_device(None);
-        self.vk_instance.destroy_instance(None);
+    pub fn destroy(&self) {
+        unsafe {
+            self.renderer.destroy(&self.device);
+            self.surface_loader.destroy_surface(self.surface, None);
+            self.device.destroy_device(None);
+            self.vk_instance.destroy_instance(None);
+        }
     }
 }

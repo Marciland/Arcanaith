@@ -1,3 +1,4 @@
+mod app;
 mod event;
 
 use crate::{
@@ -5,7 +6,7 @@ use crate::{
     scenes::{self, MainMenu, Menu, Scene},
     Window, ECS,
 };
-use event::{UserEventHandler, WindowEventHandler};
+pub use event::GameEvent;
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -14,20 +15,10 @@ use std::{
     time::Duration,
 };
 use winit::{
-    application::ApplicationHandler,
     dpi::{PhysicalSize, Size},
-    event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
-    window::{Fullscreen::Borderless, Icon, WindowId},
+    window::{Fullscreen::Borderless, Icon},
 };
-
-#[derive(Debug)]
-pub enum GameEvent {
-    NewGame,
-    ExitGame,
-    SettingsMenu,
-    MainMenu,
-}
 
 pub struct Game {
     window: Option<Window>,
@@ -53,27 +44,7 @@ impl Game {
         }
     }
 
-    fn exit(&mut self, event_loop: &ActiveEventLoop) {
-        event_loop.exit();
-        self.is_running.store(false, Ordering::Release);
-
-        let window_ref = self
-            .window
-            .as_ref()
-            .expect("Failed to get window ref while exiting!");
-
-        window_ref.wait_idle();
-
-        self.ecs.destroy(window_ref.get_device());
-
-        unsafe {
-            window_ref.destroy();
-        }
-    }
-}
-
-impl ApplicationHandler<GameEvent> for Game {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+    fn initialize(&mut self, event_loop: &ActiveEventLoop) {
         let (icon_rgba, icon_width, icon_height) = {
             let image = image::open(ICONPATH)
                 .expect("Failed to open icon image!")
@@ -91,7 +62,7 @@ impl ApplicationHandler<GameEvent> for Game {
             .with_inner_size(Size::Physical(PhysicalSize {
                 width: 1600 - 26,
                 height: 1200 - 71,
-            })); // TODO?!
+            }));
         if FULLSCREEN {
             attributes = attributes.with_fullscreen(Some(Borderless(None)));
         }
@@ -109,73 +80,19 @@ impl ApplicationHandler<GameEvent> for Game {
         self.window = Some(window);
     }
 
-    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: GameEvent) {
-        match event {
-            GameEvent::NewGame => self.load_new_game(),
+    fn exit(&mut self, event_loop: &ActiveEventLoop) {
+        event_loop.exit();
+        self.is_running.store(false, Ordering::Release);
 
-            GameEvent::ExitGame => self.exit(event_loop),
+        let window_ref = self
+            .window
+            .as_ref()
+            .expect("Failed to get window ref while exiting!");
 
-            GameEvent::SettingsMenu => self.load_settings_menu(),
+        window_ref.wait_idle();
 
-            GameEvent::MainMenu => self.load_main_menu(),
-        }
-    }
+        self.ecs.destroy(window_ref.get_device());
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _window_id: WindowId,
-        event: WindowEvent,
-    ) {
-        match event {
-            WindowEvent::CloseRequested => self.exit(event_loop),
-
-            WindowEvent::RedrawRequested => self.redraw_requested(),
-
-            WindowEvent::KeyboardInput {
-                event,
-                is_synthetic: false,
-                ..
-            } => {
-                self.ecs
-                    .system_manager
-                    .input
-                    .update_keyboard_input(event.state, event.logical_key);
-            }
-
-            WindowEvent::CursorMoved {
-                device_id,
-                position,
-            } => {
-                let window_ref = self
-                    .window
-                    .as_ref()
-                    .expect("Window was lost while updating cursor position!");
-
-                self.ecs.system_manager.input.update_cursor_position(
-                    device_id,
-                    position,
-                    window_ref.get_current_size(),
-                );
-            }
-
-            WindowEvent::MouseInput {
-                device_id,
-                state,
-                button,
-            } => {
-                self.ecs
-                    .system_manager
-                    .input
-                    .add_mouse_input(device_id, button, state);
-            }
-
-            WindowEvent::Moved(_)
-            | WindowEvent::Resized(_)
-            | WindowEvent::CursorEntered { device_id: _ }
-            | WindowEvent::CursorLeft { device_id: _ } => (),
-
-            _ => println!("unprocessed event: {event:?}"),
-        }
+        window_ref.destroy();
     }
 }

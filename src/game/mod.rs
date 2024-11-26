@@ -70,7 +70,7 @@ impl Game {
             .create_window(attributes)
             .expect("Failed to create inner window!");
 
-        let texture_count = self.ecs.system_manager.resource.get_texture_count();
+        let texture_count = self.ecs.system_manager.resource_system.get_texture_count();
         let window = Window::create(inner_window, texture_count);
 
         self.ecs.initialize(&window);

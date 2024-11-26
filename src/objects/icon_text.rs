@@ -33,7 +33,7 @@ impl ECS {
         self.component_manager.visual_storage.add(
             id,
             VisualComponent::new(
-                vec![self.system_manager.resource.get_texture_index(icon)],
+                vec![self.system_manager.resource_system.get_texture_index(icon)],
                 Layer::Interface,
                 0,
             ),

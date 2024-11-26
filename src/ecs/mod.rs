@@ -25,8 +25,8 @@ impl ECS {
     }
 
     pub fn initialize(&mut self, window: &Window) {
-        self.system_manager.render.initialize(window);
-        self.system_manager.resource.initialize(window);
+        self.system_manager.render_system.initialize(window);
+        self.system_manager.resource_system.initialize(window);
     }
 
     pub fn destroy_entity(&mut self, entity: Entity, device: &Device) {

@@ -42,7 +42,7 @@ impl ApplicationHandler<GameEvent> for Game {
             } => {
                 self.ecs
                     .system_manager
-                    .input
+                    .input_system
                     .update_keyboard_input(event.state, event.logical_key);
             }
 
@@ -55,7 +55,7 @@ impl ApplicationHandler<GameEvent> for Game {
                     .as_ref()
                     .expect("Window was lost while updating cursor position!");
 
-                self.ecs.system_manager.input.update_cursor_position(
+                self.ecs.system_manager.input_system.update_cursor_position(
                     device_id,
                     position,
                     window_ref.get_current_size(),
@@ -69,7 +69,7 @@ impl ApplicationHandler<GameEvent> for Game {
             } => {
                 self.ecs
                     .system_manager
-                    .input
+                    .input_system
                     .add_mouse_input(device_id, button, state);
             }
 

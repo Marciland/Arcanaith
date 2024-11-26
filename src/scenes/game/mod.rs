@@ -63,7 +63,6 @@ impl InputHandler for Game {
         let _player = self.get_player();
         // TODO skills / movement?
         for _event in events {}
-        todo!()
     }
 
     fn handle_key_events(
@@ -76,6 +75,5 @@ impl InputHandler for Game {
         let _player = self.get_player();
         // TODO skills
         for _key in pressed_keys {}
-        todo!()
     }
 }

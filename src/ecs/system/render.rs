@@ -17,10 +17,7 @@ use ash::{
     Device,
 };
 use glam::Mat4;
-use std::{
-    cmp::Ordering,
-    time::{Duration, Instant},
-};
+use std::cmp::Ordering;
 
 pub struct RenderSystem {
     geometry: Quad,
@@ -78,9 +75,7 @@ impl RenderSystem {
         text_storage: &'components mut ComponentStorage<TextComponent>,
         position_storage: &'components ComponentStorage<PositionComponent>,
         resource_system: &mut ResourceSystem,
-    ) -> Duration {
-        let start_time = Instant::now();
-
+    ) {
         let entities: Vec<Entity> = current_scene.get_objects().iter().map(Object::id).collect();
 
         let mut render_targets: Vec<RenderTarget> =
@@ -90,8 +85,6 @@ impl RenderSystem {
         let positions = get_render_positions(current_scene, &mut render_targets, position_storage);
 
         window.draw(self, &textures, &positions);
-
-        Instant::elapsed(&start_time)
     }
 }
 

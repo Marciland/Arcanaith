@@ -3,7 +3,7 @@ use crate::{
     scenes::{self, MainMenu, Menu, Scene, SettingsMenu},
     Game,
 };
-use std::thread;
+use std::{thread, time::Instant};
 
 #[derive(Debug)]
 pub enum GameEvent {
@@ -66,6 +66,8 @@ impl UserEventHandler for Game {
 
 impl WindowEventHandler for Game {
     fn redraw_requested(&mut self) {
+        let start_time = Instant::now();
+
         self.ecs.system_manager.input_system.process_inputs(
             &self.current_scene,
             &mut self.ecs.component_manager,
@@ -74,7 +76,7 @@ impl WindowEventHandler for Game {
 
         PhysicsSystem::update_positions(&self.current_scene, &mut self.ecs.component_manager);
 
-        let render_time = self.ecs.system_manager.render_system.draw(
+        self.ecs.system_manager.render_system.draw(
             self.window
                 .as_mut()
                 .expect("Window was lost before rendering!"),
@@ -84,6 +86,8 @@ impl WindowEventHandler for Game {
             &self.ecs.component_manager.position_storage,
             &mut self.ecs.system_manager.resource_system,
         );
+
+        let render_time = Instant::elapsed(&start_time);
 
         println!("{render_time:?}");
 

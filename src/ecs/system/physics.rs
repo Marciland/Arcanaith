@@ -2,17 +2,7 @@ use crate::{ecs::component::ComponentManager, scenes::Scene};
 
 pub struct PhysicsSystem;
 
-impl Default for PhysicsSystem {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl PhysicsSystem {
-    pub fn new() -> Self {
-        Self {}
-    }
-
     pub fn update_positions(current_scene: &Scene, component_manager: &mut ComponentManager) {
         for obj in current_scene.get_objects() {
             let entity = obj.id();

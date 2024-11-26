@@ -14,7 +14,6 @@ pub struct SystemManager {
     pub render_system: RenderSystem,
     pub resource_system: ResourceSystem,
     pub input_system: InputSystem,
-    pub physics_system: PhysicsSystem,
 }
 
 impl SystemManager {
@@ -23,7 +22,6 @@ impl SystemManager {
             render_system: RenderSystem::create(),
             resource_system: ResourceSystem::create(),
             input_system: InputSystem::new(),
-            physics_system: PhysicsSystem::new(),
         }
     }
 

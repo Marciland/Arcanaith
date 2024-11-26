@@ -1,11 +1,9 @@
-use crate::{
-    ecs::{
-        component::{composition::InputWithPosition, PositionComponent},
-        system::InputSystem,
-    },
-    objects::Quad,
-    vulkan::structs::ModelViewProjection,
-    GameEvent,
+// TODO get rid of dependencies
+use crate::{objects::Quad, vulkan::structs::ModelViewProjection, GameEvent};
+
+use super::{
+    super::super::component::{composition::InputWithPosition, PositionComponent},
+    InputSystem,
 };
 use glam::{Vec2, Vec3, Vec3Swizzles};
 use winit::{event::DeviceId, event_loop::EventLoopProxy};

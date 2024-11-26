@@ -1,6 +1,8 @@
 mod mouse;
 
-use crate::{ecs::component::ComponentManager, game::GameEvent, scenes::Scene};
+use crate::GameEvent; // TODO get rid of dependency
+
+use super::super::ComponentManager;
 use ash::vk::Extent2D;
 use glam::Vec2;
 use indexmap::IndexSet;
@@ -80,24 +82,14 @@ impl InputSystem {
         }
     }
 
-    pub fn process_inputs(
+    pub fn process_inputs<T: InputHandler>(
         &mut self,
-        current_scene: &Scene,
+        handler: &T,
         component_manager: &mut ComponentManager,
         event_proxy: &EventLoopProxy<GameEvent>,
     ) {
-        // handling events
-        if let Scene::Game(game) = current_scene {
-            game.handle_player_events(
-                &self.keyboard_pressed_inputs,
-                &self.active_keyboard_inputs,
-                &self.mouse_inputs,
-                component_manager,
-            );
-        };
-
-        current_scene.handle_mouse_events(&self.mouse_inputs, component_manager, event_proxy);
-        current_scene.handle_key_events(
+        handler.handle_mouse_events(&self.mouse_inputs, component_manager, event_proxy);
+        handler.handle_key_events(
             &self.keyboard_pressed_inputs,
             component_manager,
             event_proxy,

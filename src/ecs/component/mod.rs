@@ -4,7 +4,7 @@ mod position;
 mod text;
 mod visual;
 
-use crate::ecs::entity::Entity;
+use super::Entity;
 use ash::Device;
 use std::collections::HashMap;
 

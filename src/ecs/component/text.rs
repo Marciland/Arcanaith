@@ -1,11 +1,7 @@
-use crate::{
-    ecs::{
-        component::{ComponentStorage, Layer},
-        entity::Entity,
-    },
-    objects::TextContent,
-    structs::ImageData,
-};
+// TODO remove crate dependencies
+use crate::{objects::TextContent, structs::ImageData};
+
+use super::{ComponentStorage, Entity, Layer};
 use ash::Device;
 
 pub struct TextComponent {

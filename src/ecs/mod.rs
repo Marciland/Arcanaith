@@ -1,12 +1,17 @@
-use crate::window::Window;
+// TODO remove dependencies
+use crate::{window::Window, GameEvent};
+
 use ash::Device;
 use component::ComponentManager;
 use entity::{Entity, EntityManager};
-use system::SystemManager;
+use system::{input::InputHandler, SystemManager};
+use winit::event_loop::EventLoopProxy;
 
 pub mod component;
 pub mod entity;
 pub mod system;
+
+pub const FONTS: &str = "res/fonts";
 
 pub struct ECS {
     pub entity_manager: EntityManager,
@@ -19,7 +24,7 @@ impl ECS {
     pub fn create() -> Self {
         Self {
             entity_manager: EntityManager::new(),
-            component_manager: ComponentManager::new(),
+            component_manager: ComponentManager::default(),
             system_manager: SystemManager::create(),
         }
     }
@@ -27,6 +32,18 @@ impl ECS {
     pub fn initialize(&mut self, window: &Window) {
         self.system_manager.render_system.initialize(window);
         self.system_manager.resource_system.initialize(window);
+    }
+
+    pub fn process_inputs<T: InputHandler>(
+        &mut self,
+        handler: &T,
+        event_proxy: &EventLoopProxy<GameEvent>, // TODO get rid of GameEvent
+    ) {
+        self.system_manager.input_system.process_inputs(
+            handler,
+            &mut self.component_manager,
+            event_proxy,
+        );
     }
 
     pub fn destroy_entity(&mut self, entity: Entity, device: &Device) {

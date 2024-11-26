@@ -1,4 +1,7 @@
-use crate::{constants::FONTS, read_bytes_from_file};
+// TODO get rid of dependency
+use crate::read_bytes_from_file;
+
+use super::super::super::FONTS;
 use ab_glyph::FontVec;
 use std::collections::HashMap;
 use std::fs::read_dir;

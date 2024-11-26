@@ -15,7 +15,6 @@ use std::{
     time::Duration,
 };
 use winit::{
-    dpi::{PhysicalSize, Size},
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Fullscreen::Borderless, Icon},
 };
@@ -58,11 +57,7 @@ impl Game {
         let mut attributes = winit::window::Window::default_attributes()
             .with_title(TITLE)
             .with_window_icon(Some(icon))
-            .with_visible(false)
-            .with_inner_size(Size::Physical(PhysicalSize {
-                width: 1600 - 26,
-                height: 1200 - 71,
-            }));
+            .with_visible(false);
         if FULLSCREEN {
             attributes = attributes.with_fullscreen(Some(Borderless(None)));
         }

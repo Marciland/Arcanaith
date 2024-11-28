@@ -7,7 +7,7 @@ use ash::Device;
 pub struct TextComponent {
     pub content: TextContent,
     pub bitmap: Option<ImageData>,
-    layer: Layer,
+    pub layer: Layer,
 }
 
 impl ComponentStorage<TextComponent> {
@@ -31,10 +31,6 @@ impl TextComponent {
             bitmap: None,
             layer: Layer::Interface,
         }
-    }
-
-    pub fn get_layer(&self) -> &Layer {
-        &self.layer
     }
 
     pub fn destroy(&mut self, device: &Device) {

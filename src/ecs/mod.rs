@@ -11,8 +11,6 @@ pub mod component;
 pub mod entity;
 pub mod system;
 
-pub const FONTS: &str = "res/fonts";
-
 pub struct ECS {
     pub entity_manager: EntityManager,
     pub component_manager: ComponentManager,
@@ -21,11 +19,11 @@ pub struct ECS {
 
 impl ECS {
     #[must_use]
-    pub fn create() -> Self {
+    pub fn create(font_path: &str) -> Self {
         Self {
             entity_manager: EntityManager::new(),
             component_manager: ComponentManager::default(),
-            system_manager: SystemManager::create(),
+            system_manager: SystemManager::create(font_path),
         }
     }
 

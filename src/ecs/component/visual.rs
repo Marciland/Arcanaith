@@ -1,7 +1,7 @@
 pub struct VisualComponent {
     texture_indices: Vec<usize>,
     current_texture: usize,
-    layer: Layer,
+    pub layer: Layer,
     frame_duration: usize,
     current_frame: usize,
     visible: bool,
@@ -33,10 +33,6 @@ impl VisualComponent {
 
     pub fn get_current_texture(&self) -> usize {
         self.texture_indices[self.current_texture]
-    }
-
-    pub fn get_layer(&self) -> &Layer {
-        &self.layer
     }
 
     pub fn should_render(&self) -> bool {

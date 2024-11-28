@@ -35,7 +35,7 @@ impl Game {
             window: None,
             is_running: Arc::new(AtomicBool::new(true)),
             frame_time: Duration::from_secs_f64(1.0 / f64::from(FPS)),
-            ecs: ECS::create(),
+            ecs: ECS::create("res/fonts"),
             event_proxy: event_loop.create_proxy(),
             current_scene: Scene::Game(scenes::Game {
                 objects: Vec::new(), // dummy scene until ECS is initialized

@@ -12,12 +12,6 @@ pub struct VisualWithPosition<'component> {
     pub position: &'component PositionComponent,
 }
 
-impl<'component> VisualWithPosition<'component> {
-    pub fn get_layer(&self) -> &Layer {
-        self.visual.get_layer()
-    }
-}
-
 pub struct InputWithPosition<'component> {
     pub input: &'component InputComponent,
     pub position: &'component PositionComponent,
@@ -31,8 +25,8 @@ pub enum RenderTarget<'component> {
 impl<'component> RenderTarget<'component> {
     pub fn get_layer(&self) -> &Layer {
         match self {
-            RenderTarget::Visual(v) => v.visual.get_layer(),
-            RenderTarget::Text(t) => t.text.get_layer(),
+            RenderTarget::Visual(v) => &v.visual.layer,
+            RenderTarget::Text(t) => &t.text.layer,
         }
     }
 

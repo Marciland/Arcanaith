@@ -183,14 +183,14 @@ fn get_render_positions(
     render_targets
         .iter()
         .map(|target| match target {
-            RenderTarget::Visual(visual) => {
+            RenderTarget::Visual(visual_with_position) => {
                 // even if there is a player, interface should not move!
-                let view = match visual.get_layer() {
+                let view = match visual_with_position.visual.layer {
                     Layer::Interface => Mat4::IDENTITY,
                     Layer::Game | Layer::Background => view_matrix,
                 };
                 ModelViewProjection {
-                    model: ModelViewProjection::get_model_matrix(visual.position),
+                    model: ModelViewProjection::get_model_matrix(visual_with_position.position),
                     view,
                     projection: ModelViewProjection::get_projection(),
                 }

@@ -17,10 +17,10 @@ pub struct SystemManager {
 }
 
 impl SystemManager {
-    pub fn create() -> Self {
+    pub fn create(font_path: &str) -> Self {
         Self {
             render_system: RenderSystem::create(),
-            resource_system: ResourceSystem::create(),
+            resource_system: ResourceSystem::create(font_path),
             input_system: InputSystem::new(),
         }
     }

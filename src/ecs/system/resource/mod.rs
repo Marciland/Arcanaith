@@ -75,11 +75,7 @@ impl ResourceSystem {
     }
 
     fn create_bitmap(&mut self, window: &Window, component: &mut TextComponent) -> ImageView {
-        let image = text::to_image(
-            &component.content.text,
-            self.get_font(&component.content.font),
-            component.content.font_size,
-        );
+        let image = self.text_to_image(&component.content);
 
         let bitmap = window.create_image_data(image);
         let view = bitmap.get_view();

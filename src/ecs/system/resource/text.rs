@@ -1,15 +1,22 @@
+// TODO move here?
+use crate::objects::TextContent;
+
+use super::ResourceSystem;
 use ab_glyph::{Font, FontVec, Glyph, OutlinedGlyph, Point, PxScale, Rect, ScaleFont};
 use image::{DynamicImage, ImageBuffer, Rgba};
 
-pub fn to_image(text: &str, font: &FontVec, font_size: f32) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
-    let scale = PxScale::from(font_size);
-    let scaled_font = font.as_scaled(scale);
+impl ResourceSystem {
+    pub fn text_to_image(&self, content: &TextContent) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+        let scale = PxScale::from(content.font_size);
+        let font = self.get_font(&content.font);
+        let scaled_font = font.as_scaled(scale);
 
-    let glyphs = gather_glyphs(scaled_font, text);
+        let glyphs = gather_glyphs(scaled_font, &content.text);
 
-    let (outlined, px_bounds) = get_glyph_outlines(glyphs, font);
+        let (outlined, px_bounds) = get_glyph_outlines(glyphs, font);
 
-    create_image_from_gylphs(outlined, px_bounds)
+        create_image_from_gylphs(outlined, px_bounds)
+    }
 }
 
 fn gather_glyphs<F, SF>(font: SF, text: &str) -> Vec<Glyph>

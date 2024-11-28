@@ -6,7 +6,8 @@ mod scenes;
 mod vulkan;
 mod window;
 
-pub use ecs::{system::mouse, ECS};
+pub use ecs::system::input::MouseEvent; // TODO deconstruct
+pub use ecs::ECS;
 pub use game::{Game, GameEvent};
 
 use std::{

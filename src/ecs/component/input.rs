@@ -1,4 +1,7 @@
-use crate::{ecs::entity::Entity, GameEvent};
+// TODO introduce generic for game event to remove dependency
+use crate::GameEvent;
+
+use super::Entity;
 use winit::event_loop::EventLoopProxy;
 
 pub struct InputComponent {

@@ -1,6 +1,6 @@
 use crate::{
     ecs::{
-        component::{Layer, PositionComponent, VisualComponent},
+        component::{Layer, PhysicsComponent, PositionComponent, VisualComponent},
         entity::Entity,
     },
     ECS,
@@ -34,11 +34,18 @@ impl Player {
         ecs.component_manager.visual_storage.add(
             id,
             VisualComponent::new(
-                vec![ecs.system_manager.resource.get_texture_index("player_0")],
+                vec![ecs
+                    .system_manager
+                    .resource_system
+                    .get_texture_index("player_0")],
                 Layer::Game,
                 0,
             ),
         );
+
+        ecs.component_manager
+            .physics_storage
+            .add(id, PhysicsComponent::default());
 
         Self { id }
     }

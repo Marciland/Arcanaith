@@ -1,15 +1,12 @@
-mod game;
-mod menu;
+mod mouse;
 
-use crate::{
-    ecs::{component::ComponentManager, system::ResourceSystem},
-    game::GameEvent,
-    scenes::Scene,
-};
+use crate::GameEvent; // TODO get rid of dependency
+
+use super::super::ComponentManager;
 use ash::vk::Extent2D;
 use glam::Vec2;
 use indexmap::IndexSet;
-use mouse::{MouseButton, MouseEvent, MousePosition};
+use mouse::{MouseButton, MousePosition};
 use std::collections::{HashMap, HashSet};
 use winit::{
     dpi::PhysicalPosition,
@@ -18,7 +15,7 @@ use winit::{
     keyboard::Key,
 };
 
-pub mod mouse;
+pub use mouse::{MouseEvent, MouseHandler};
 
 pub struct InputSystem {
     cursor_positions: HashMap<DeviceId, Vec2>,
@@ -79,57 +76,42 @@ impl InputSystem {
         state: ElementState,
     ) {
         match state {
-            ElementState::Pressed => mouse::handle_pressed(
-                &mut self.partial_mouse_inputs,
-                &self.cursor_positions,
-                mouse_button,
-                device_id,
-            ),
+            ElementState::Pressed => self.handle_pressed(mouse_button, device_id),
 
-            ElementState::Released => mouse::handle_released(
-                &mut self.partial_mouse_inputs,
-                &mut self.mouse_inputs,
-                &self.cursor_positions,
-                mouse_button,
-                device_id,
-            ),
+            ElementState::Released => self.handle_released(mouse_button, device_id),
         }
     }
 
-    pub fn process_inputs(
+    pub fn process_inputs<T: InputHandler>(
         &mut self,
-        current_scene: &Scene,
+        handler: &T,
         component_manager: &mut ComponentManager,
-        resource_system: &ResourceSystem,
         event_proxy: &EventLoopProxy<GameEvent>,
     ) {
-        // handling events
-        match current_scene {
-            Scene::Game(game) => {
-                game::handle_player_events(
-                    game,
-                    &self.keyboard_pressed_inputs,
-                    &self.active_keyboard_inputs,
-                    &self.mouse_inputs,
-                    component_manager,
-                    resource_system,
-                );
-                game::handle_mouse_events(&self.mouse_inputs);
-                game::handle_key_events(&self.keyboard_pressed_inputs);
-            }
-            Scene::Menu(menu) => {
-                menu::handle_mouse_events(&self.mouse_inputs, menu, component_manager, event_proxy);
-                menu::handle_key_events(
-                    &self.keyboard_pressed_inputs,
-                    menu,
-                    component_manager,
-                    event_proxy,
-                );
-            }
-        }
+        handler.handle_mouse_events(&self.mouse_inputs, component_manager, event_proxy);
+        handler.handle_key_events(
+            &self.keyboard_pressed_inputs,
+            component_manager,
+            event_proxy,
+        );
 
         // clear each frame
         self.mouse_inputs.clear();
         self.keyboard_pressed_inputs.clear();
     }
+}
+
+pub trait InputHandler {
+    fn handle_mouse_events(
+        &self,
+        events: &[MouseEvent],
+        component_manager: &mut ComponentManager,
+        event_proxy: &EventLoopProxy<GameEvent>,
+    );
+    fn handle_key_events(
+        &self,
+        pressed_keys: &IndexSet<Key>,
+        component_manager: &mut ComponentManager,
+        event_proxy: &EventLoopProxy<GameEvent>,
+    );
 }

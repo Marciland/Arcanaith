@@ -16,9 +16,9 @@ use ash::{
         ImageViewCreateInfo, ImageViewType, MemoryAllocateInfo, MemoryPropertyFlags,
         MemoryRequirements, Offset3D, PhysicalDevice, PhysicalDeviceFeatures2,
         PhysicalDeviceVulkan12Features, PipelineLayout, PipelineLayoutCreateInfo,
-        PipelineShaderStageCreateInfo, PipelineStageFlags, Queue, QueueFlags, SampleCountFlags,
-        ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubmitInfo, SurfaceKHR,
-        QUEUE_FAMILY_IGNORED, TRUE,
+        PipelineShaderStageCreateInfo, PipelineStageFlags, PresentModeKHR, Queue, QueueFlags,
+        SampleCountFlags, ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubmitInfo,
+        SurfaceKHR, QUEUE_FAMILY_IGNORED, TRUE,
     },
     Device, Instance,
 };
@@ -472,5 +472,23 @@ impl InternalVulkan {
         ];
 
         (shader_stages, shader_modules)
+    }
+
+    pub fn get_swapchain_present_mode(
+        physical_device: PhysicalDevice,
+        surface: SurfaceKHR,
+        surface_loader: &surface::Instance,
+    ) -> PresentModeKHR {
+        let Some(mailbox) = unsafe {
+            surface_loader.get_physical_device_surface_present_modes(physical_device, surface)
+        }
+        .expect("Failed to get surface present modes!")
+        .iter()
+        .copied()
+        .find(|&mode| mode == PresentModeKHR::MAILBOX) else {
+            return PresentModeKHR::FIFO;
+        };
+
+        mailbox
     }
 }

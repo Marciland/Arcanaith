@@ -1,8 +1,17 @@
 use crate::{
+    ecs::system::PhysicsSystem,
     scenes::{self, MainMenu, Menu, Scene, SettingsMenu},
     Game,
 };
-use std::thread;
+use std::{thread, time::Instant};
+
+#[derive(Debug)]
+pub enum GameEvent {
+    NewGame,
+    ExitGame,
+    SettingsMenu,
+    MainMenu,
+}
 
 pub trait UserEventHandler {
     fn load_settings_menu(&mut self);
@@ -57,17 +66,30 @@ impl UserEventHandler for Game {
 
 impl WindowEventHandler for Game {
     fn redraw_requested(&mut self) {
-        self.ecs
-            .process_inputs(&self.current_scene, &self.event_proxy);
+        let start_time = Instant::now();
 
-        let render_time = self.ecs.render(
+        self.ecs.system_manager.input_system.process_inputs(
             &self.current_scene,
-            self.window
-                .as_mut()
-                .expect("Window was lost while rendering!"),
+            &mut self.ecs.component_manager,
+            &self.event_proxy,
         );
 
-        // println!("{:?}", render_time);
+        PhysicsSystem::update_positions(&self.current_scene, &mut self.ecs.component_manager);
+
+        self.ecs.system_manager.render_system.draw(
+            self.window
+                .as_mut()
+                .expect("Window was lost before rendering!"),
+            &self.current_scene,
+            &mut self.ecs.component_manager.visual_storage,
+            &mut self.ecs.component_manager.text_storage,
+            &self.ecs.component_manager.position_storage,
+            &mut self.ecs.system_manager.resource_system,
+        );
+
+        let render_time = Instant::elapsed(&start_time);
+
+        println!("{render_time:?}");
 
         let remaining_time = self.frame_time.saturating_sub(render_time);
         if !remaining_time.is_zero() {
@@ -76,7 +98,7 @@ impl WindowEventHandler for Game {
 
         self.window
             .as_ref()
-            .expect("Window was lost while rendering!")
+            .expect("Window was lost after rendering!")
             .request_render();
     }
 }

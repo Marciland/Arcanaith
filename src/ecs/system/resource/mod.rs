@@ -1,15 +1,16 @@
-mod assets;
 mod font;
+mod text;
+mod texture;
 
-use crate::{constants::TEXTURE_TABLE, structs::ImageData, Window};
+use crate::{constants::TEXTURE_TABLE, ecs::component::TextComponent, structs::ImageData, Window};
 use ab_glyph::FontVec;
-use ash::Device;
-use assets::TextureTable;
-use font::create_font_map;
+use ash::{vk::ImageView, Device};
 use image::DynamicImage;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
+use texture::TextureTable;
 
 pub struct ResourceSystem {
+    font_base_path: PathBuf,
     images: Vec<DynamicImage>,
     fonts: HashMap<String, FontVec>,
     textures: Vec<ImageData>,
@@ -17,15 +18,17 @@ pub struct ResourceSystem {
 }
 
 impl ResourceSystem {
-    pub fn create() -> Self {
+    pub fn create(font_path: &str) -> Self {
+        let font_base_path = PathBuf::from(font_path);
+
         let texture_table = TextureTable::from_json(TEXTURE_TABLE);
         let (images, texture_indices) = texture_table.load_images();
         let textures = Vec::with_capacity(images.len());
-        let fonts = create_font_map();
 
         Self {
+            font_base_path,
             images,
-            fonts,
+            fonts: HashMap::with_capacity(5),
             textures,
             texture_indices,
         }
@@ -36,6 +39,8 @@ impl ResourceSystem {
             self.textures
                 .push(window.create_image_data(image.clone().into_rgba8()));
         }
+
+        self.fonts = self.create_font_map();
     }
 
     pub fn get_texture_count(&self) -> u32 {
@@ -59,6 +64,25 @@ impl ResourceSystem {
         self.fonts
             .get(font)
             .expect(&("Failed to get font: ".to_string() + font))
+    }
+
+    pub fn get_bitmap(&mut self, window: &Window, component: &mut TextComponent) -> ImageView {
+        let Some(bitmap) = &component.bitmap else {
+            return self.create_bitmap(window, component);
+        };
+
+        bitmap.get_view()
+    }
+
+    fn create_bitmap(&mut self, window: &Window, component: &mut TextComponent) -> ImageView {
+        let image = self.text_to_image(&component.content);
+
+        let bitmap = window.create_image_data(image);
+        let view = bitmap.get_view();
+
+        component.bitmap = Some(bitmap);
+
+        view
     }
 
     pub fn destroy(&self, device: &Device) {

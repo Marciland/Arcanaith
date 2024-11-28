@@ -1,8 +1,11 @@
-use crate::{constants::TEXTURE_NOT_FOUND, read_bytes_from_file};
 use image::DynamicImage;
 use serde::Deserialize;
 use serde_json::from_slice;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{Read, Result},
+};
 
 #[derive(Deserialize)]
 struct Texture {
@@ -18,19 +21,19 @@ struct Sprite {
 }
 
 #[derive(Deserialize)]
-pub struct TextureTable {
+ struct TextureTable {
     textures: Vec<Texture>,
     sprites: Vec<Sprite>,
 }
 
 impl TextureTable {
-    pub fn from_json(file_path: &str) -> Self {
+     fn from_json(file_path: &str) -> Self {
         let table_bytes = read_bytes_from_file(file_path)
             .expect(&("Failed to read bytes from ".to_string() + file_path));
         from_slice(&table_bytes).expect(&("Failed to parse ".to_string() + file_path))
     }
 
-    pub fn load_images(&self) -> (Vec<DynamicImage>, HashMap<String, usize>) {
+     fn load_images(&self) -> (Vec<DynamicImage>, HashMap<String, usize>) {
         // estimating that sprites consist of ~4 images, therefore reducing allocations
         let estimated_amount = self.textures.len() + self.sprites.len() * 4;
         let mut images: Vec<DynamicImage> = Vec::with_capacity(estimated_amount);
@@ -69,7 +72,7 @@ fn open_image(path: &str) -> DynamicImage {
         Ok(image) => image,
         Err(e) => {
             println!("{e}",);
-            image::open(TEXTURE_NOT_FOUND).expect("Failed to open texture not found image!")
+            image::open("res/404.png").expect("Failed to open texture not found image!")
         }
     }
 }
@@ -96,4 +99,11 @@ fn crop_sprite(
     }
 
     sprite_textures
+}
+
+fn read_bytes_from_file(path: &str) -> Result<Vec<u8>> {
+    let mut file = File::open(path)?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)?;
+    Ok(buffer)
 }

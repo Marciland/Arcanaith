@@ -1,7 +1,5 @@
 mod mouse;
 
-use crate::GameEvent; // TODO get rid of dependency
-
 use super::super::ComponentManager;
 use ash::vk::Extent2D;
 use glam::Vec2;
@@ -15,9 +13,9 @@ use winit::{
     keyboard::Key,
 };
 
-pub use mouse::{MouseEvent, MouseHandler};
+use mouse::{MouseEvent, MouseHandler};
 
-pub struct InputSystem {
+pub(crate) struct InputSystem {
     cursor_positions: HashMap<DeviceId, Vec2>,
     // set -> only once per key per frame
     keyboard_pressed_inputs: IndexSet<Key>,
@@ -34,7 +32,7 @@ impl Default for InputSystem {
 }
 
 impl InputSystem {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             cursor_positions: HashMap::with_capacity(2),
             keyboard_pressed_inputs: IndexSet::with_capacity(10),
@@ -44,7 +42,7 @@ impl InputSystem {
         }
     }
 
-    pub fn update_cursor_position(
+    fn update_cursor_position(
         &mut self,
         id: DeviceId,
         position: PhysicalPosition<f64>,
@@ -57,7 +55,7 @@ impl InputSystem {
         self.cursor_positions.insert(id, normalized_position);
     }
 
-    pub fn update_keyboard_input(&mut self, state: ElementState, key: Key) {
+    fn update_keyboard_input(&mut self, state: ElementState, key: Key) {
         match state {
             ElementState::Pressed => {
                 self.keyboard_pressed_inputs.insert(key.clone());
@@ -69,7 +67,7 @@ impl InputSystem {
         }
     }
 
-    pub fn add_mouse_input(
+    fn add_mouse_input(
         &mut self,
         device_id: DeviceId,
         mouse_button: winit::event::MouseButton,
@@ -82,7 +80,7 @@ impl InputSystem {
         }
     }
 
-    pub fn process_inputs<T: InputHandler>(
+    fn process_inputs<T: InputHandler>(
         &mut self,
         handler: &T,
         component_manager: &mut ComponentManager,
@@ -101,7 +99,7 @@ impl InputSystem {
     }
 }
 
-pub trait InputHandler {
+trait InputHandler {
     fn handle_mouse_events(
         &self,
         events: &[MouseEvent],

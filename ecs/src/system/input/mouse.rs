@@ -1,6 +1,3 @@
-// TODO get rid of dependencies
-use crate::{objects::Quad, vulkan::structs::ModelViewProjection, GameEvent};
-
 use super::{
     super::super::component::{composition::InputWithPosition, PositionComponent},
     InputSystem,
@@ -9,22 +6,22 @@ use glam::{Vec2, Vec3, Vec3Swizzles};
 use winit::{event::DeviceId, event_loop::EventLoopProxy};
 
 #[derive(Eq, Hash, PartialEq)]
-pub struct MouseButton {
-    pub mouse_button: winit::event::MouseButton,
-    pub device_id: DeviceId,
+struct MouseButton {
+    mouse_button: winit::event::MouseButton,
+    device_id: DeviceId,
 }
 
-pub struct MousePosition {
-    pub pressed: Vec2,
-    pub released: Option<Vec2>,
+struct MousePosition {
+    pressed: Vec2,
+    released: Option<Vec2>,
 }
 
-pub struct MouseEvent {
-    pub button: MouseButton,
-    pub position: MousePosition,
+struct MouseEvent {
+    button: MouseButton,
+    position: MousePosition,
 }
 
-pub trait MouseHandler {
+trait MouseHandler {
     fn handle_pressed(&mut self, mouse_button: winit::event::MouseButton, device_id: DeviceId);
 
     fn handle_released(&mut self, mouse_button: winit::event::MouseButton, device_id: DeviceId);

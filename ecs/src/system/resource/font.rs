@@ -1,6 +1,3 @@
-// TODO get rid of dependency
-use crate::read_bytes_from_file;
-
 use super::ResourceSystem;
 use ab_glyph::FontVec;
 use std::collections::HashMap;
@@ -20,7 +17,7 @@ fn read_font_file(file_path: &Path) -> Option<FontVec> {
 }
 
 impl ResourceSystem {
-    pub fn create_font_map(&self) -> HashMap<String, FontVec> {
+    fn create_font_map(&self) -> HashMap<String, FontVec> {
         let font_files = self.gather_font_files();
         let mut font_map = HashMap::with_capacity(font_files.len());
 

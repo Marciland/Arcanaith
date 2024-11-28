@@ -3,7 +3,6 @@ use crate::{
         component::{Layer, PositionComponent, TextComponent, VisualComponent},
         entity::Entity,
     },
-    objects::TextContent,
     ECS,
 };
 use glam::Vec2;

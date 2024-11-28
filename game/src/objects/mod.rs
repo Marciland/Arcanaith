@@ -38,9 +38,3 @@ pub enum Content<'a> {
     Text(TextContent),
     Image { name: &'a str, layer: Layer },
 }
-
-pub struct TextContent {
-    pub text: String,
-    pub font: String,
-    pub font_size: f32,
-}

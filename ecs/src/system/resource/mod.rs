@@ -2,14 +2,13 @@ mod font;
 mod text;
 mod texture;
 
-use crate::{constants::TEXTURE_TABLE, ecs::component::TextComponent, structs::ImageData, Window};
 use ab_glyph::FontVec;
 use ash::{vk::ImageView, Device};
 use image::DynamicImage;
 use std::{collections::HashMap, path::PathBuf};
 use texture::TextureTable;
 
-pub struct ResourceSystem {
+pub(crate) struct ResourceSystem {
     font_base_path: PathBuf,
     images: Vec<DynamicImage>,
     fonts: HashMap<String, FontVec>,
@@ -43,30 +42,30 @@ impl ResourceSystem {
         self.fonts = self.create_font_map();
     }
 
-    pub fn get_texture_count(&self) -> u32 {
+    fn get_texture_count(&self) -> u32 {
         self.images.len() as u32
     }
 
-    pub fn get_texture_index(&self, key: &str) -> usize {
+    fn get_texture_index(&self, key: &str) -> usize {
         *self
             .texture_indices
             .get(key)
             .expect(&("Failed to get texture index: ".to_string() + key))
     }
 
-    pub fn get_texture(&self, texture_index: usize) -> &ImageData {
+    fn get_texture(&self, texture_index: usize) -> &ImageData {
         self.textures
             .get(texture_index)
             .expect(&("Failed to get texture: ".to_string() + &texture_index.to_string()))
     }
 
-    pub fn get_font(&self, font: &str) -> &FontVec {
+    fn get_font(&self, font: &str) -> &FontVec {
         self.fonts
             .get(font)
             .expect(&("Failed to get font: ".to_string() + font))
     }
 
-    pub fn get_bitmap(&mut self, window: &Window, component: &mut TextComponent) -> ImageView {
+    fn get_bitmap(&mut self, window: &Window, component: &mut TextComponent) -> ImageView {
         let Some(bitmap) = &component.bitmap else {
             return self.create_bitmap(window, component);
         };
@@ -85,7 +84,7 @@ impl ResourceSystem {
         view
     }
 
-    pub fn destroy(&self, device: &Device) {
+    fn destroy(&self, device: &Device) {
         for texture in &self.textures {
             unsafe {
                 texture.destroy(device);

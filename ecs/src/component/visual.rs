@@ -1,14 +1,14 @@
-pub struct VisualComponent {
+pub(crate) struct VisualComponent {
     texture_indices: Vec<usize>,
     current_texture: usize,
-    pub layer: Layer,
+    layer: Layer,
     frame_duration: usize,
     current_frame: usize,
     visible: bool,
 }
 
 impl VisualComponent {
-    pub fn new(texture_indices: Vec<usize>, layer: Layer, frame_duration: usize) -> Self {
+    fn new(texture_indices: Vec<usize>, layer: Layer, frame_duration: usize) -> Self {
         Self {
             texture_indices,
             current_texture: 0,
@@ -19,7 +19,7 @@ impl VisualComponent {
         }
     }
 
-    pub fn update_animation(&mut self) {
+    fn update_animation(&mut self) {
         if self.frame_duration == 0 || self.texture_indices.len() == 1 {
             return;
         }
@@ -31,23 +31,23 @@ impl VisualComponent {
         }
     }
 
-    pub fn get_current_texture(&self) -> usize {
+    fn get_current_texture(&self) -> usize {
         self.texture_indices[self.current_texture]
     }
 
-    pub fn should_render(&self) -> bool {
+    fn should_render(&self) -> bool {
         self.visible
     }
 }
 
-pub enum Layer {
+pub(crate) enum Layer {
     Interface,
     Game,
     Background,
 }
 
 impl Layer {
-    pub fn value(&self) -> u8 {
+    fn value(&self) -> u8 {
         match self {
             Layer::Interface => 0,
             Layer::Game => 1,

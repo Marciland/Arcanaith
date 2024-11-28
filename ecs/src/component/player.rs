@@ -1,5 +1,5 @@
 #[derive(PartialEq)]
-pub enum PlayerState {
+ enum PlayerState {
     Idle,
     WalkingRight,
     WalkingLeft,
@@ -8,7 +8,7 @@ pub enum PlayerState {
 }
 
 impl PlayerState {
-    pub fn get_visual(&self, resource_system: &ResourceSystem) -> VisualComponent {
+     fn get_visual(&self, resource_system: &ResourceSystem) -> VisualComponent {
         match self {
             PlayerState::Idle => VisualComponent::new(
                 vec![resource_system.get_texture_index("player_0")],

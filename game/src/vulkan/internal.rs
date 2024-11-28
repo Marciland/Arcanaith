@@ -1,6 +1,5 @@
 use crate::{
     constants::{FRAGSHADER, VERTSHADER},
-    read_bytes_from_file,
     structs::ShaderModules,
 };
 use ash::{
@@ -22,7 +21,11 @@ use ash::{
     },
     Device, Instance,
 };
-use std::{ffi::CStr, io::Cursor};
+use std::{
+    ffi::CStr,
+    fs::File,
+    io::{Cursor, Read, Result},
+};
 
 pub struct InternalVulkan;
 
@@ -491,4 +494,11 @@ impl InternalVulkan {
 
         mailbox
     }
+}
+
+fn read_bytes_from_file(path: &str) -> Result<Vec<u8>> {
+    let mut file = File::open(path)?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)?;
+    Ok(buffer)
 }

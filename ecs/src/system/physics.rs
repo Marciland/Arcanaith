@@ -1,9 +1,9 @@
-use crate::{ecs::component::ComponentManager, scenes::Scene};
+use super::super::component::ComponentManager;
 
-pub struct PhysicsSystem;
+ struct PhysicsSystem;
 
 impl PhysicsSystem {
-    pub fn update_positions(current_scene: &Scene, component_manager: &mut ComponentManager) {
+     fn update_positions(current_scene: &Scene, component_manager: &mut ComponentManager) {
         for obj in current_scene.get_objects() {
             let entity = obj.id();
 

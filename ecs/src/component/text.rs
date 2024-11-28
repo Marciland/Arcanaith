@@ -1,13 +1,16 @@
-// TODO remove crate dependencies
-use crate::{objects::TextContent, structs::ImageData};
-
 use super::{ComponentStorage, Entity, Layer};
 use ash::Device;
 
-pub struct TextComponent {
-    pub content: TextContent,
-    pub bitmap: Option<ImageData>,
-    pub layer: Layer,
+struct TextContent {
+    text: String,
+    font: String,
+    font_size: f32,
+}
+
+pub(crate) struct TextComponent {
+    content: TextContent,
+    bitmap: Option<ImageData>,
+    layer: Layer,
 }
 
 impl ComponentStorage<TextComponent> {
@@ -25,7 +28,7 @@ impl ComponentStorage<TextComponent> {
 }
 
 impl TextComponent {
-    pub fn create(content: TextContent) -> Self {
+    fn create(content: TextContent) -> Self {
         Self {
             content,
             bitmap: None,
@@ -33,7 +36,7 @@ impl TextComponent {
         }
     }
 
-    pub fn destroy(&mut self, device: &Device) {
+    fn destroy(&mut self, device: &Device) {
         if let Some(image_data) = self.bitmap.take() {
             unsafe { image_data.destroy(device) }
         }

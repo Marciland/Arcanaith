@@ -1,16 +1,12 @@
-use crate::{
-    ecs::{
+use super::{
+    super::{
         component::{
             composition::{RenderTarget, TextWithPosition, VisualWithPosition},
             ComponentStorage, Layer, PositionComponent, TextComponent, VisualComponent,
         },
         entity::Entity,
-        system::ResourceSystem,
     },
-    objects::{Object, Quad},
-    scenes::Scene,
-    vulkan::structs::ModelViewProjection,
-    Window,
+    ResourceSystem,
 };
 use ash::{
     vk::{Buffer, DeviceMemory, ImageView},
@@ -19,7 +15,7 @@ use ash::{
 use glam::Mat4;
 use std::cmp::Ordering;
 
-pub struct RenderSystem {
+pub(crate) struct RenderSystem {
     geometry: Quad,
     vertex_buffer: Buffer,
     vertex_buffer_memory: DeviceMemory,
@@ -45,19 +41,19 @@ impl RenderSystem {
             window.create_vertex_buffer(self.geometry.get_vertices());
     }
 
-    pub fn get_index_buffer(&self) -> Buffer {
+    fn get_index_buffer(&self) -> Buffer {
         self.index_buffer
     }
 
-    pub fn get_vertex_buffer(&self) -> Buffer {
+    fn get_vertex_buffer(&self) -> Buffer {
         self.vertex_buffer
     }
 
-    pub fn get_index_count(&self) -> u32 {
+    fn get_index_count(&self) -> u32 {
         self.geometry.get_indices().len() as u32
     }
 
-    pub fn destroy(&self, device: &Device) {
+    fn destroy(&self, device: &Device) {
         unsafe {
             device.destroy_buffer(self.index_buffer, None);
             device.free_memory(self.index_buffer_memory, None);
@@ -67,7 +63,7 @@ impl RenderSystem {
         }
     }
 
-    pub fn draw<'components>(
+    fn draw<'components>(
         &self,
         window: &mut Window,
         current_scene: &Scene,
@@ -148,7 +144,7 @@ fn get_render_targets<'components>(
     render_targets
 }
 
-pub fn get_render_resources(
+fn get_render_resources(
     window: &mut Window,
     render_targets: &mut [RenderTarget],
     resource_system: &mut ResourceSystem,

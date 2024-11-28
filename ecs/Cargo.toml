@@ -7,3 +7,16 @@ repository = "https://github.com/Marciland/Witch-s-Ascendancy/ecs"
 description = "Entity Component System for my game."
 license-file = "LICENSE"
 keywords = ["ecs", "entity-component-system"]
+readme = "readme.md"
+categories = ["games"]
+
+[dependencies]
+ash = { workspace = true, features = ["linked"] }
+glam = { workspace = true, features = ["std"] }
+image = { workspace = true, features = ["png"] }
+winit = { workspace = true, features = ["rwh_06"] }
+ab_glyph = { version = "0.2.29", default-features = false, features = ["std"] }
+serde = { version = "1.0.215", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0.133", default-features = false, features = [
+    "std",
+] }

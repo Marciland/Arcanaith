@@ -1,12 +1,9 @@
-// TODO move here?
-use crate::objects::TextContent;
-
 use super::ResourceSystem;
 use ab_glyph::{Font, FontVec, Glyph, OutlinedGlyph, Point, PxScale, Rect, ScaleFont};
 use image::{DynamicImage, ImageBuffer, Rgba};
 
 impl ResourceSystem {
-    pub fn text_to_image(&self, content: &TextContent) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+     fn text_to_image(&self, content: &TextContent) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
         let scale = PxScale::from(content.font_size);
         let font = self.get_font(&content.font);
         let scaled_font = font.as_scaled(scale);

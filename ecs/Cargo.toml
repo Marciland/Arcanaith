@@ -1,0 +1,9 @@
+[package]
+name = "ecs"
+version = "0.1.0"
+authors = ["Marcel Witoschek <marcel.marciland@gmail.com>"]
+edition = "2021"
+repository = "https://github.com/Marciland/Witch-s-Ascendancy/ecs"
+description = "Entity Component System for my game."
+license-file = "LICENSE"
+keywords = ["ecs", "entity-component-system"]

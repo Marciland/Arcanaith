@@ -1,6 +1,6 @@
+use game::{Game, GameEvent};
 use std::panic;
 use winit::event_loop::{ControlFlow, EventLoop};
-use witch_s_ascendancy::{Game, GameEvent};
 
 fn main() {
     panic::set_hook(Box::new(|panic_info| {

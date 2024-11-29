@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-pub(crate) type Entity = u32;
+pub type Entity = u32;
 
 pub(crate) struct EntityManager {
     next_id: Entity,
@@ -29,7 +29,7 @@ impl EntityManager {
     }
 }
 
-pub(crate) trait EntityProvider {
+pub trait EntityProvider {
     fn get_entities(&self) -> Vec<Entity>;
     fn get_player(&self) -> Option<Entity>;
 }

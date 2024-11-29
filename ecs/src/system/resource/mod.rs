@@ -49,7 +49,7 @@ impl ResourceSystem {
         self.fonts = self.create_font_map();
     }
 
-    fn get_texture_count(&self) -> u32 {
+    pub fn get_texture_count(&self) -> u32 {
         self.images.len() as u32
     }
 

@@ -1,7 +1,4 @@
-use ash::{
-    vk::{DeviceMemory, Image, ImageView},
-    Device,
-};
+use ash::vk::{DeviceMemory, Image, ImageView};
 
 pub struct ImageData {
     image: Image,

@@ -1,4 +1,3 @@
-use crate::ecs::component::PositionComponent;
 use glam::{Mat4, Vec2, Vec3};
 
 #[repr(C)]

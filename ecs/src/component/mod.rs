@@ -64,10 +64,10 @@ pub(crate) struct ComponentManager<E>
 where
     E: 'static,
 {
-    visual_storage: ComponentStorage<VisualComponent>,
+    pub visual_storage: ComponentStorage<VisualComponent>,
     pub position_storage: ComponentStorage<PositionComponent>,
     input_storage: ComponentStorage<InputComponent<E>>,
-    text_storage: ComponentStorage<TextComponent>,
+    pub text_storage: ComponentStorage<TextComponent>,
     pub physics_storage: ComponentStorage<PhysicsComponent>,
 }
 

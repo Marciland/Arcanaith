@@ -11,8 +11,8 @@ use render::RenderSystem;
 use resource::ResourceSystem;
 
 pub(crate) struct SystemManager {
-    render_system: RenderSystem,
-    resource_system: ResourceSystem,
+    pub render_system: RenderSystem,
+    pub resource_system: ResourceSystem,
     pub input_system: InputSystem,
 }
 

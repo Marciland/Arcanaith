@@ -1,6 +1,5 @@
 use crate::{
     constants::TITLE,
-    ecs::system::RenderSystem,
     structs::{ImageData, ModelViewProjection, StorageBufferObject, Vertex},
     vulkan::internal::InternalVulkan,
 };

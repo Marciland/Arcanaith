@@ -79,7 +79,7 @@ impl RenderSystem {
         }
     }
 
-    fn draw<'components, P, R>(
+    pub fn draw<'components, P, R>(
         &self,
         renderer: &mut R,
         provider: &P,

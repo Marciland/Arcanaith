@@ -4,8 +4,9 @@ mod event;
 use crate::{
     constants::{FPS, FULLSCREEN, ICONPATH, TITLE},
     scenes::{self, MainMenu, Menu, Scene},
-    Window, ECS,
+    Window,
 };
+use ecs::ECS;
 pub use event::GameEvent;
 use std::{
     sync::{
@@ -23,7 +24,7 @@ pub struct Game {
     window: Option<Window>,
     is_running: Arc<AtomicBool>,
     frame_time: Duration,
-    ecs: ECS,
+    ecs: ECS<GameEvent>,
     event_proxy: EventLoopProxy<GameEvent>,
     current_scene: Scene,
 }
@@ -35,7 +36,7 @@ impl Game {
             window: None,
             is_running: Arc::new(AtomicBool::new(true)),
             frame_time: Duration::from_secs_f64(1.0 / f64::from(FPS)),
-            ecs: ECS::create("res/fonts"),
+            ecs: ECS::create("res/texture_table.json", "res/fonts"),
             event_proxy: event_loop.create_proxy(),
             current_scene: Scene::Game(scenes::Game {
                 objects: Vec::new(), // dummy scene until ECS is initialized
@@ -65,7 +66,7 @@ impl Game {
             .create_window(attributes)
             .expect("Failed to create inner window!");
 
-        let texture_count = self.ecs.system_manager.resource_system.get_texture_count();
+        let texture_count = self.ecs.get_max_texture_count();
         let window = Window::create(inner_window, texture_count);
 
         self.ecs.initialize(&window);

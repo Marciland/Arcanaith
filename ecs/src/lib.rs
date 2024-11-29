@@ -9,7 +9,7 @@ use system::{InputHandler, RenderContext, SystemManager};
 use ash::Device;
 use winit::event_loop::EventLoopProxy;
 
-struct ECS<E>
+pub struct ECS<E>
 where
     E: 'static,
 {
@@ -22,7 +22,7 @@ impl<E> ECS<E>
 where
     E: 'static,
 {
-    fn create(texture_path: &str, font_path: &str) -> Self {
+    pub fn create(texture_path: &str, font_path: &str) -> Self {
         Self {
             entity_manager: EntityManager::default(),
             component_manager: ComponentManager::create(),
@@ -30,14 +30,22 @@ where
         }
     }
 
-    fn initialize<R>(&mut self, renderer: &R)
+    pub fn initialize<R>(&mut self, renderer: &R)
     where
         R: RenderContext,
     {
         self.system_manager.initialize(renderer);
     }
 
-    fn process_inputs<T: InputHandler>(&mut self, handler: &T, event_proxy: &EventLoopProxy<E>) {
+    pub fn get_max_texture_count(&self) -> u32 {
+        self.system_manager.resource_system.get_texture_count()
+    }
+
+    pub fn process_inputs<T: InputHandler>(
+        &mut self,
+        handler: &T,
+        event_proxy: &EventLoopProxy<E>,
+    ) {
         handler.handle_mouse_events(
             &self.system_manager.input_system.mouse_inputs,
             &mut self.component_manager,
@@ -57,7 +65,7 @@ where
             .clear();
     }
 
-    fn update_positions<P>(&mut self, provider: &P)
+    pub fn update_positions<P>(&mut self, provider: &P)
     where
         P: EntityProvider,
     {
@@ -75,12 +83,27 @@ where
         }
     }
 
+    pub fn render<R, P>(&mut self, renderer: &mut R, provider: &P)
+    where
+        P: EntityProvider,
+        R: RenderContext,
+    {
+        self.system_manager.render_system.draw(
+            renderer,
+            provider,
+            &mut self.component_manager.visual_storage,
+            &mut self.component_manager.text_storage,
+            &self.component_manager.position_storage,
+            &mut self.system_manager.resource_system,
+        );
+    }
+
     fn destroy_entity(&mut self, entity: Entity, device: &Device) {
         self.component_manager.clear_entity(entity, device);
         self.entity_manager.destroy_entity(entity);
     }
 
-    fn destroy(&mut self, device: &Device) {
+    pub fn destroy(&mut self, device: &Device) {
         self.component_manager.destroy(device);
         self.system_manager.destroy(device);
     }

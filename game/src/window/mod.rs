@@ -1,7 +1,6 @@
 mod renderer;
 
 use crate::{
-    ecs::system::RenderSystem,
     structs::{ImageData, ModelViewProjection, Vertex},
     vulkan::VulkanWrapper,
 };
@@ -61,11 +60,11 @@ impl Window {
         textures: &[ImageView],
         mvps: &[ModelViewProjection],
     ) {
-        if self
-            .inner
-            .is_minimized()
-            .expect("Failed to determine whether window is minimized!")
-        {
+        let minimized = match self.inner.is_minimized() {
+            None => false,
+            Some(minimized) => minimized,
+        };
+        if minimized {
             return;
         }
 

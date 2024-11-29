@@ -1,6 +1,5 @@
 use crate::{
     constants::FRAMES_IN_FLIGHT,
-    ecs::system::RenderSystem,
     structs::{ImageData, ModelViewProjection, StorageBufferObject, Vertex},
     vulkan::VulkanWrapper,
 };

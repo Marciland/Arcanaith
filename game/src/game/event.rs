@@ -1,5 +1,4 @@
 use crate::{
-    ecs::system::PhysicsSystem,
     scenes::{self, MainMenu, Menu, Scene, SettingsMenu},
     Game,
 };
@@ -68,23 +67,16 @@ impl WindowEventHandler for Game {
     fn redraw_requested(&mut self) {
         let start_time = Instant::now();
 
-        self.ecs.system_manager.input_system.process_inputs(
-            &self.current_scene,
-            &mut self.ecs.component_manager,
-            &self.event_proxy,
-        );
+        self.ecs
+            .process_inputs(&self.current_scene, &self.event_proxy);
 
-        PhysicsSystem::update_positions(&self.current_scene, &mut self.ecs.component_manager);
+        self.ecs.update_positions(&self.current_scene);
 
-        self.ecs.system_manager.render_system.draw(
+        self.ecs.render(
             self.window
                 .as_mut()
                 .expect("Window was lost before rendering!"),
             &self.current_scene,
-            &mut self.ecs.component_manager.visual_storage,
-            &mut self.ecs.component_manager.text_storage,
-            &self.ecs.component_manager.position_storage,
-            &mut self.ecs.system_manager.resource_system,
         );
 
         let render_time = Instant::elapsed(&start_time);

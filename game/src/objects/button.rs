@@ -1,13 +1,4 @@
-use crate::{
-    ecs::{
-        component::{
-            ComponentManager, InputComponent, PositionComponent, TextComponent, VisualComponent,
-        },
-        entity::Entity,
-    },
-    objects::Content,
-    GameEvent, ECS,
-};
+use crate::{objects::Content, GameEvent};
 use glam::Vec2;
 use winit::event_loop::EventLoopProxy;
 

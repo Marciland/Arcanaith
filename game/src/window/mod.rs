@@ -1,12 +1,12 @@
 mod renderer;
 
 use crate::{
-    structs::{ImageData, ModelViewProjection, Vertex},
+    structs::{ImageData, ModelViewProjection},
     vulkan::VulkanWrapper,
 };
 use ash::{
     khr::surface,
-    vk::{Buffer, DeviceMemory, Extent2D, ImageView, PhysicalDevice, SurfaceKHR},
+    vk::{Extent2D, ImageView, PhysicalDevice, SurfaceKHR},
     Device, Entry, Instance,
 };
 use image::{ImageBuffer, Rgba};
@@ -54,12 +54,7 @@ impl Window {
         }
     }
 
-    pub fn draw(
-        &mut self,
-        render_system: &RenderSystem,
-        textures: &[ImageView],
-        mvps: &[ModelViewProjection],
-    ) {
+    pub fn draw(&mut self, textures: &[ImageView], mvps: &[ModelViewProjection]) {
         let minimized = match self.inner.is_minimized() {
             None => false,
             Some(minimized) => minimized,
@@ -74,7 +69,6 @@ impl Window {
             &self.device,
             self.surface,
             &self.surface_loader,
-            render_system,
             textures,
             mvps,
         );
@@ -86,24 +80,6 @@ impl Window {
 
     pub fn wait_idle(&self) {
         unsafe { self.device.device_wait_idle() }.expect("Failed to wait for device idle!");
-    }
-
-    pub fn create_vertex_buffer(&self, vertices: &[Vertex]) -> (Buffer, DeviceMemory) {
-        self.renderer.create_vertex_buffer(
-            &self.vk_instance,
-            self.physical_device,
-            &self.device,
-            vertices,
-        )
-    }
-
-    pub fn create_index_buffer(&self, indices: &[u16]) -> (Buffer, DeviceMemory) {
-        self.renderer.create_index_buffer(
-            &self.vk_instance,
-            self.physical_device,
-            &self.device,
-            indices,
-        )
     }
 
     pub fn create_image_data(&self, image: ImageBuffer<Rgba<u8>, Vec<u8>>) -> ImageData {

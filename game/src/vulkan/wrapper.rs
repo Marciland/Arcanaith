@@ -540,30 +540,29 @@ impl VulkanWrapper {
         };
     }
 
+    pub fn bind_buffers(
+        device: &Device,
+        command_buffer: CommandBuffer,
+        vertex_buffer: Buffer,
+        index_buffer: Buffer,
+    ) {
+        unsafe {
+            device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
+            device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, IndexType::UINT16);
+        }
+    }
+
     pub fn draw_indexed_instanced(
         device: &Device,
         command_buffer: CommandBuffer,
         pipeline_layout: PipelineLayout,
         descriptor_set: DescriptorSet,
-        render_system: &RenderSystem,
+        index_count: u32,
         mvps: &[ModelViewProjection],
         mvp_buffer: &StorageBufferObject,
     ) {
         mvp_buffer.update_data(mvps);
         unsafe {
-            device.cmd_bind_vertex_buffers(
-                command_buffer,
-                0,
-                &[render_system.get_vertex_buffer()],
-                &[0],
-            );
-            device.cmd_bind_index_buffer(
-                command_buffer,
-                render_system.get_index_buffer(),
-                0,
-                IndexType::UINT16,
-            );
-
             device.cmd_bind_descriptor_sets(
                 command_buffer,
                 PipelineBindPoint::GRAPHICS,
@@ -573,14 +572,7 @@ impl VulkanWrapper {
                 &[],
             );
 
-            device.cmd_draw_indexed(
-                command_buffer,
-                render_system.get_index_count(),
-                mvps.len() as u32,
-                0,
-                0,
-                0,
-            );
+            device.cmd_draw_indexed(command_buffer, index_count, mvps.len() as u32, 0, 0, 0);
         }
     }
 
@@ -656,7 +648,7 @@ impl VulkanWrapper {
         instance: &Instance,
         physical_device: PhysicalDevice,
         device: &Device,
-        indices: &[u16],
+        indices: &[u32],
         graphics_queue: Queue,
         command_pool: CommandPool,
     ) -> (Buffer, DeviceMemory) {
@@ -680,7 +672,7 @@ impl VulkanWrapper {
             )
         }
         .expect("Failed to map memory for staging index buffer")
-        .cast::<u16>();
+        .cast::<u32>();
         unsafe {
             copy_nonoverlapping(indices.as_ptr(), data, indices.len());
             device.unmap_memory(staging_buffer_memory);

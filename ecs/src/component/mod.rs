@@ -10,11 +10,22 @@ use std::collections::HashMap;
 
 pub mod composition;
 
-use input::InputComponent;
-use physics::PhysicsComponent;
+pub use input::InputComponent;
+pub use physics::PhysicsComponent;
 pub use position::{PositionComponent, Quad, MVP};
 pub use text::{TextComponent, TextContent};
 pub use visual::{ImageData, Layer, Vertex, VisualComponent};
+
+pub enum Component<E>
+where
+    E: 'static,
+{
+    Position(PositionComponent),
+    Visual(VisualComponent),
+    Text(TextComponent),
+    Input(InputComponent<E>),
+    Physics(PhysicsComponent),
+}
 
 pub struct ComponentStorage<T> {
     components: HashMap<Entity, T>,
@@ -27,7 +38,7 @@ impl<T> ComponentStorage<T> {
         }
     }
 
-    fn add(&mut self, entity: Entity, component: T) {
+    pub fn add(&mut self, entity: Entity, component: T) {
         self.components.insert(entity, component);
     }
 
@@ -66,7 +77,7 @@ where
 {
     pub visual_storage: ComponentStorage<VisualComponent>,
     pub position_storage: ComponentStorage<PositionComponent>,
-    input_storage: ComponentStorage<InputComponent<E>>,
+    pub input_storage: ComponentStorage<InputComponent<E>>,
     pub text_storage: ComponentStorage<TextComponent>,
     pub physics_storage: ComponentStorage<PhysicsComponent>,
 }

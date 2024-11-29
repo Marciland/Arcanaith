@@ -28,7 +28,7 @@ impl ComponentStorage<TextComponent> {
 }
 
 impl TextComponent {
-    fn create(content: TextContent) -> Self {
+    pub fn create(content: TextContent) -> Self {
         Self {
             content,
             bitmap: None,

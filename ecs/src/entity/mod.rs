@@ -17,7 +17,7 @@ impl Default for EntityManager {
 }
 
 impl EntityManager {
-    fn create_entity(&mut self) -> Entity {
+    pub fn create_entity(&mut self) -> Entity {
         let entity = self.next_id;
         self.entities.insert(entity);
         self.next_id += 1;

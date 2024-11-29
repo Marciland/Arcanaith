@@ -11,6 +11,7 @@ readme = "readme.md"
 
 [dependencies]
 ecs = { version = "0.1.0", path = "../ecs" }
+objects = { version = "0.1.0", path = "../objects" }
 ash = { workspace = true, features = ["linked"] }
 glam = { workspace = true, features = ["std"] }
 winit = { workspace = true, features = ["rwh_06"] }

@@ -1,15 +1,14 @@
-use crate::{
-    ecs::component::Layer,
-    objects::{Button, Content, Label, Object, TextContent},
-    scenes::Menu,
-    GameEvent, ECS,
-};
+use crate::{scenes::Menu, GameEvent};
+
+use ecs::{Entity, Layer, TextContent, ECS};
 use glam::Vec2;
+use objects::{Content, Factory};
 use winit::event_loop::EventLoopProxy;
 
 impl Menu {
-    fn create_banner(ecs: &mut ECS) -> Label {
-        ecs.new_label(
+    fn create_banner(ecs: &mut ECS<GameEvent>) -> Entity {
+        Factory::label(
+            ecs,
             Vec2 { x: 0.0, y: 0.5 },
             Vec2 { x: 1.5, y: 0.5 },
             Content::Image {
@@ -19,8 +18,9 @@ impl Menu {
         )
     }
 
-    fn create_new_game_button(ecs: &mut ECS) -> Button {
-        ecs.new_button(
+    fn create_new_game_button(ecs: &mut ECS<GameEvent>) -> Entity {
+        Factory::button(
+            ecs,
             Vec2 { x: -0.5, y: 0.0 },
             Vec2 { x: 0.5, y: 0.5 },
             Content::Text(TextContent {
@@ -33,8 +33,9 @@ impl Menu {
         )
     }
 
-    fn create_settings_button(ecs: &mut ECS) -> Button {
-        ecs.new_button(
+    fn create_settings_button(ecs: &mut ECS<GameEvent>) -> Entity {
+        Factory::button(
+            ecs,
             Vec2 { x: 0.0, y: 0.0 },
             Vec2 { x: 0.5, y: 0.5 },
             Content::Text(TextContent {
@@ -47,8 +48,9 @@ impl Menu {
         )
     }
 
-    fn create_exit_button(ecs: &mut ECS) -> Button {
-        ecs.new_button(
+    fn create_exit_button(ecs: &mut ECS<GameEvent>) -> Entity {
+        Factory::button(
+            ecs,
             Vec2 { x: 0.5, y: 0.0 },
             Vec2 { x: 0.5, y: 0.5 },
             Content::Text(TextContent {
@@ -63,37 +65,32 @@ impl Menu {
 }
 
 pub struct MainMenu {
-    pub objects: Vec<Object>,
+    pub objects: Vec<Entity>,
 }
 
 impl MainMenu {
-    pub fn create(ecs: &mut ECS) -> Self {
-        let mut objects: Vec<Object> = Vec::with_capacity(6);
+    pub fn create(ecs: &mut ECS<GameEvent>) -> Self {
+        let mut objects: Vec<Entity> = Vec::with_capacity(6);
 
-        let background = Menu::create_background(ecs);
-        objects.push(Object::Label(background));
-
-        let title = Menu::create_title(ecs);
-        objects.push(Object::Label(title));
-
-        let banner = Menu::create_banner(ecs);
-        objects.push(Object::Label(banner));
+        objects.push(Menu::create_background(ecs));
+        objects.push(Menu::create_title(ecs));
+        objects.push(Menu::create_banner(ecs));
 
         let new_game = Menu::create_new_game_button(ecs);
         let settings = Menu::create_settings_button(ecs);
         let exit = Menu::create_exit_button(ecs);
 
-        new_game.set_next(&settings, &mut ecs.component_manager);
-        settings.set_next(&exit, &mut ecs.component_manager);
-        exit.set_next(&new_game, &mut ecs.component_manager);
+        ecs.set_next_of(&new_game, &settings);
+        ecs.set_next_of(&settings, &exit);
+        ecs.set_next_of(&exit, &new_game);
 
-        new_game.set_previous(&exit, &mut ecs.component_manager);
-        settings.set_previous(&new_game, &mut ecs.component_manager);
-        exit.set_previous(&settings, &mut ecs.component_manager);
+        ecs.set_previous_of(&new_game, &exit);
+        ecs.set_previous_of(&settings, &new_game);
+        ecs.set_previous_of(&exit, &settings);
 
-        objects.push(Object::Button(new_game));
-        objects.push(Object::Button(settings));
-        objects.push(Object::Button(exit));
+        objects.push(new_game);
+        objects.push(settings);
+        objects.push(exit);
 
         Self { objects }
     }

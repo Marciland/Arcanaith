@@ -1,15 +1,15 @@
-use crate::component::{Quad, MVP};
-
-use super::{
-    super::super::component::{composition::InputWithPosition, PositionComponent},
-    InputSystem,
+use crate::{
+    component::{ComponentManager, PositionComponent, Quad, MVP},
+    system::InputSystem,
+    Entity,
 };
+
 use glam::{Vec2, Vec3, Vec3Swizzles};
-use winit::{event::DeviceId, event_loop::EventLoopProxy};
+use winit::event::DeviceId;
 
 #[derive(Eq, Hash, PartialEq)]
 pub struct MouseButton {
-    mouse_button: winit::event::MouseButton,
+    pub mouse_button: winit::event::MouseButton,
     device_id: DeviceId,
 }
 
@@ -19,8 +19,8 @@ pub struct MousePosition {
 }
 
 pub struct MouseEvent {
-    button: MouseButton,
-    position: MousePosition,
+    pub button: MouseButton,
+    pub position: MousePosition,
 }
 
 pub trait MouseHandler {
@@ -28,10 +28,12 @@ pub trait MouseHandler {
 
     fn handle_released(&mut self, mouse_button: winit::event::MouseButton, device_id: DeviceId);
 
-    fn any_object_was_clicked<E>(
-        objects: &[InputWithPosition<E>],
-        mouse_position: &MousePosition,
-    ) -> Option<fn(event_proxy: &EventLoopProxy<E>) -> ()>;
+    fn entity_was_clicked<E>(
+        &self,
+        component_manager: &ComponentManager<E>,
+        position: &MousePosition,
+        entity: &Entity,
+    ) -> bool;
 }
 
 impl MouseHandler for InputSystem {
@@ -76,18 +78,17 @@ impl MouseHandler for InputSystem {
         });
     }
 
-    #[must_use]
-    fn any_object_was_clicked<E>(
-        objects: &[InputWithPosition<E>],
-        mouse_position: &MousePosition,
-    ) -> Option<fn(event_proxy: &EventLoopProxy<E>) -> ()> {
-        for obj in objects {
-            if component_was_clicked(obj.position, mouse_position) {
-                return Some(obj.input.activate);
-            }
-        }
+    fn entity_was_clicked<E>(
+        &self,
+        component_manager: &ComponentManager<E>,
+        position: &MousePosition,
+        entity: &Entity,
+    ) -> bool {
+        let Some(component_position) = component_manager.position_storage.get(*entity) else {
+            return false;
+        };
 
-        None
+        component_was_clicked(component_position, position)
     }
 }
 

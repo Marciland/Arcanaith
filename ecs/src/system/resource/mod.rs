@@ -53,7 +53,7 @@ impl ResourceSystem {
         self.images.len() as u32
     }
 
-    fn get_texture_index(&self, key: &str) -> usize {
+    pub fn get_texture_index(&self, key: &str) -> usize {
         *self
             .texture_indices
             .get(key)

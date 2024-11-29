@@ -13,6 +13,7 @@ use ash::{
     },
     Device, Instance,
 };
+use glam::Vec2;
 
 pub struct Renderer {
     swapchain: SwapchainKHR,
@@ -23,6 +24,11 @@ pub struct Renderer {
     command_pools: Vec<CommandPool>,
     command_buffers: Vec<CommandBuffer>,
     graphics_queue: Queue,
+    vertex_buffer: Buffer,
+    vertex_buffer_memory: DeviceMemory,
+    index_count: u32,
+    index_buffer: Buffer,
+    index_buffer_memory: DeviceMemory,
     render_pass: RenderPass,
     texture_sampler: Sampler,
     descriptor_set_layout: DescriptorSetLayout,
@@ -63,6 +69,40 @@ impl Renderer {
         let (images, image_views) =
             VulkanWrapper::create_image_views(&swapchain_loader, swapchain, format, device);
         let graphics_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
+        let bottom_left = Vertex {
+            position: Vec2 { x: -0.5, y: -0.5 },
+            texture_coordinates: Vec2 { x: 0.0, y: 0.0 },
+        };
+        let bottom_right = Vertex {
+            position: Vec2 { x: 0.5, y: -0.5 },
+            texture_coordinates: Vec2 { x: 1.0, y: 0.0 },
+        };
+        let top_right = Vertex {
+            position: Vec2 { x: 0.5, y: 0.5 },
+            texture_coordinates: Vec2 { x: 1.0, y: 1.0 },
+        };
+        let top_left = Vertex {
+            position: Vec2 { x: -0.5, y: 0.5 },
+            texture_coordinates: Vec2 { x: 0.0, y: 1.0 },
+        };
+        let vertices: Vec<Vertex> = vec![bottom_left, bottom_right, top_right, top_left];
+        let (vertex_buffer, vertex_buffer_memory) = VulkanWrapper::create_vertex_buffer(
+            vk_instance,
+            physical_device,
+            device,
+            &vertices,
+            command_pools[0],
+            graphics_queue,
+        );
+        let indices: Vec<u32> = vec![0, 1, 2, 2, 3, 0];
+        let (index_buffer, index_buffer_memory) = VulkanWrapper::create_index_buffer(
+            vk_instance,
+            physical_device,
+            device,
+            &indices,
+            graphics_queue,
+            command_pools[0],
+        );
         let render_pass =
             VulkanWrapper::create_render_pass(vk_instance, physical_device, device, format);
         let texture_sampler =
@@ -107,6 +147,11 @@ impl Renderer {
             command_pools,
             command_buffers,
             graphics_queue,
+            vertex_buffer,
+            vertex_buffer_memory,
+            index_count: indices.len() as u32,
+            index_buffer,
+            index_buffer_memory,
             render_pass,
             texture_sampler,
             descriptor_set_layout,
@@ -134,7 +179,6 @@ impl Renderer {
         device: &Device,
         surface: SurfaceKHR,
         surface_loader: &surface::Instance,
-        render_system: &RenderSystem,
         textures: &[ImageView],
         mvps: &[ModelViewProjection],
     ) {
@@ -175,12 +219,18 @@ impl Renderer {
             mvps.len(),
             self.descriptor_sets[self.current_frame],
         );
+        VulkanWrapper::bind_buffers(
+            device,
+            self.command_buffers[self.current_frame],
+            self.vertex_buffer,
+            self.index_buffer,
+        );
         VulkanWrapper::draw_indexed_instanced(
             device,
             self.command_buffers[self.current_frame],
             self.pipeline_layout,
             self.descriptor_sets[self.current_frame],
-            render_system,
+            self.index_count,
             mvps,
             &self.mvp_buffers[self.current_frame],
         );
@@ -359,40 +409,6 @@ impl Renderer {
         self.swapchain_framebuffers = framebuffers;
     }
 
-    pub fn create_vertex_buffer(
-        &self,
-        instance: &Instance,
-        physical_device: PhysicalDevice,
-        device: &Device,
-        vertices: &[Vertex],
-    ) -> (Buffer, DeviceMemory) {
-        VulkanWrapper::create_vertex_buffer(
-            instance,
-            physical_device,
-            device,
-            vertices,
-            self.command_pools[self.current_frame],
-            self.graphics_queue,
-        )
-    }
-
-    pub fn create_index_buffer(
-        &self,
-        instance: &Instance,
-        physical_device: PhysicalDevice,
-        device: &Device,
-        indices: &[u16],
-    ) -> (Buffer, DeviceMemory) {
-        VulkanWrapper::create_index_buffer(
-            instance,
-            physical_device,
-            device,
-            indices,
-            self.graphics_queue,
-            self.command_pools[self.current_frame],
-        )
-    }
-
     pub fn create_image_data(
         &self,
         instance: &Instance,
@@ -417,6 +433,12 @@ impl Renderer {
     }
 
     pub unsafe fn destroy(&self, device: &Device) {
+        device.destroy_buffer(self.index_buffer, None);
+        device.free_memory(self.index_buffer_memory, None);
+
+        device.destroy_buffer(self.vertex_buffer, None);
+        device.free_memory(self.vertex_buffer_memory, None);
+
         self.destroy_sync_elements(device);
         self.destroy_swapchain_elements(device);
 

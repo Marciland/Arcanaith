@@ -1,63 +1,49 @@
 mod overlay;
 
-use crate::{
-    ecs::{component::ComponentManager, system::input::InputHandler},
-    objects::{Object, Player},
-    MouseEvent, ECS,
-};
+use crate::game::GameEvent;
+
 use ash::Device;
+use ecs::{Entity, InputHandler, MouseEvent, ECS};
 use indexmap::IndexSet;
 use overlay::Overlay;
-use winit::keyboard::Key;
+use winit::{event_loop::EventLoopProxy, keyboard::Key};
 
 pub struct Game {
-    pub objects: Vec<Object>,
+    pub objects: Vec<Entity>,
 }
 
 impl Game {
-    pub fn create(ecs: &mut ECS) -> Game {
+    pub fn create(ecs: &mut ECS<GameEvent>) -> Game {
         let mut objects = Vec::with_capacity(100);
 
-        let overlay = Overlay::create(ecs);
-        objects.extend(overlay.objects);
+        objects.extend(Overlay::create(ecs).objects);
 
         // TODO background
 
-        let player = Player::create(ecs);
-        objects.push(Object::Player(player));
+        // objects.push(Player::create(ecs));
 
         // TODO spawner
 
         Game { objects }
     }
 
-    pub fn get_objects(&self) -> &[Object] {
+    pub fn get_objects(&self) -> &[Entity] {
         &self.objects
     }
 
-    pub fn get_player(&self) -> &Player {
+    pub fn destroy(&self, device: &Device, ecs: &mut ECS<GameEvent>) {
         for obj in &self.objects {
-            if let Object::Player(player) = obj {
-                return player;
-            }
-        }
-
-        panic!("Game has no Player Object!")
-    }
-
-    pub fn destroy(&self, device: &Device, ecs: &mut ECS) {
-        for obj in &self.objects {
-            ecs.destroy_entity(obj.id(), device);
+            ecs.destroy_entity(obj, device);
         }
     }
 }
 
 impl InputHandler for Game {
-    fn handle_mouse_events(
+    fn handle_mouse_events<GameEvent>(
         &self,
+        ecs: &ECS<GameEvent>,
         events: &[MouseEvent],
-        _component_manager: &mut ComponentManager,
-        _event_proxy: &winit::event_loop::EventLoopProxy<crate::GameEvent>,
+        _event_proxy: &EventLoopProxy<GameEvent>,
     ) {
         // TODO player movement
         let _player = self.get_player();
@@ -65,11 +51,11 @@ impl InputHandler for Game {
         for _event in events {}
     }
 
-    fn handle_key_events(
+    fn handle_key_events<GameEvent>(
         &self,
+        ecs: &ECS<GameEvent>,
         pressed_keys: &IndexSet<Key>,
-        _component_manager: &mut ComponentManager,
-        _event_proxy: &winit::event_loop::EventLoopProxy<crate::GameEvent>,
+        _event_proxy: &EventLoopProxy<GameEvent>,
     ) {
         // TODO player movement
         let _player = self.get_player();

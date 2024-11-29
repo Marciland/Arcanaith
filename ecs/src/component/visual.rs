@@ -14,7 +14,7 @@ pub struct VisualComponent {
 }
 
 impl VisualComponent {
-    fn new(texture_indices: Vec<usize>, layer: Layer, frame_duration: usize) -> Self {
+    pub fn new(texture_indices: Vec<usize>, layer: Layer, frame_duration: usize) -> Self {
         Self {
             texture_indices,
             current_texture: 0,

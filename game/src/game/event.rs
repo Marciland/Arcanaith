@@ -2,6 +2,7 @@ use crate::{
     scenes::{self, MainMenu, Menu, Scene, SettingsMenu},
     Game,
 };
+
 use std::{thread, time::Instant};
 
 #[derive(Debug)]

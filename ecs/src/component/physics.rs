@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-pub(crate) struct PhysicsComponent {
+pub struct PhysicsComponent {
     pub velocity: Vec3,
 }
 

@@ -33,8 +33,3 @@ impl Object {
         }
     }
 }
-
-pub enum Content<'a> {
-    Text(TextContent),
-    Image { name: &'a str, layer: Layer },
-}

@@ -1,10 +1,9 @@
-use glam::{Mat4, Vec2, Vec3};
-
 use super::Vertex;
+use glam::{Mat4, Vec2, Vec3};
 
 pub struct PositionComponent {
     pub xyz: Vec3,
-    scale: Vec3,
+    pub scale: Vec3,
 }
 
 pub struct MVP {

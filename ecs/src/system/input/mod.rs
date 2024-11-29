@@ -1,10 +1,11 @@
 mod mouse;
 
-use super::super::ComponentManager;
+use crate::{component::ComponentManager, Entity, ECS};
+
 use ash::vk::Extent2D;
 use glam::Vec2;
 use indexmap::IndexSet;
-use mouse::{MouseButton, MouseEvent, MouseHandler, MousePosition};
+use mouse::MouseButton;
 use std::collections::{HashMap, HashSet};
 use winit::{
     dpi::PhysicalPosition,
@@ -12,6 +13,8 @@ use winit::{
     event_loop::EventLoopProxy,
     keyboard::Key,
 };
+
+pub use mouse::{MouseEvent, MouseHandler, MousePosition};
 
 pub(crate) struct InputSystem {
     cursor_positions: HashMap<DeviceId, Vec2>,
@@ -73,19 +76,63 @@ impl InputSystem {
             ElementState::Released => self.handle_released(mouse_button, device_id),
         }
     }
+
+    pub fn set_next_entity_to_active<E>(
+        &self,
+        component_manager: &mut ComponentManager<E>,
+        currently_active: Entity,
+    ) {
+        let Some(active_input) = component_manager.input_storage.get_mut(currently_active) else {
+            return;
+        };
+
+        let Some(next_entity) = active_input.next else {
+            return;
+        };
+
+        active_input.is_active = false;
+
+        let Some(next_input) = component_manager.input_storage.get_mut(next_entity) else {
+            return;
+        };
+
+        next_input.is_active = true;
+    }
+
+    pub fn set_previous_entity_to_active<E>(
+        &self,
+        component_manager: &mut ComponentManager<E>,
+        currently_active: Entity,
+    ) {
+        let Some(active_input) = component_manager.input_storage.get_mut(currently_active) else {
+            return;
+        };
+
+        let Some(previous_entity) = active_input.previous else {
+            return;
+        };
+
+        active_input.is_active = false;
+
+        let Some(previous_input) = component_manager.input_storage.get_mut(previous_entity) else {
+            return;
+        };
+
+        previous_input.is_active = true;
+    }
 }
 
-pub trait InputHandler {
-    fn handle_mouse_events<E>(
+pub trait InputHandler<E> {
+    fn handle_mouse_events(
         &self,
+        ecs: &ECS<E>,
         events: &[MouseEvent],
-        component_manager: &mut ComponentManager<E>,
         event_proxy: &EventLoopProxy<E>,
     );
-    fn handle_key_events<E>(
+    fn handle_key_events(
         &self,
+        ecs: &ECS<E>,
         pressed_keys: &IndexSet<Key>,
-        component_manager: &mut ComponentManager<E>,
         event_proxy: &EventLoopProxy<E>,
     );
 }

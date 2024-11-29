@@ -1,34 +1,37 @@
 use super::{InputComponent, Layer, PositionComponent, TextComponent, VisualComponent};
 
- struct TextWithPosition<'component> {
-     text: &'component mut TextComponent,
-     position: &'component PositionComponent,
+pub struct TextWithPosition<'component> {
+    pub text: &'component mut TextComponent,
+    pub position: &'component PositionComponent,
 }
 
- struct VisualWithPosition<'component> {
-     visual: &'component VisualComponent,
-     position: &'component PositionComponent,
+pub struct VisualWithPosition<'component> {
+    pub visual: &'component VisualComponent,
+    pub position: &'component PositionComponent,
 }
 
- struct InputWithPosition<'component> {
-     input: &'component InputComponent,
-     position: &'component PositionComponent,
+pub struct InputWithPosition<'component, E>
+where
+    E: 'static,
+{
+    pub input: &'component InputComponent<E>,
+    pub position: &'component PositionComponent,
 }
 
- enum RenderTarget<'component> {
+pub enum RenderTarget<'component> {
     Visual(VisualWithPosition<'component>),
     Text(TextWithPosition<'component>),
 }
 
 impl<'component> RenderTarget<'component> {
-     fn get_layer(&self) -> &Layer {
+    pub fn get_layer(&self) -> &Layer {
         match self {
             RenderTarget::Visual(v) => &v.visual.layer,
             RenderTarget::Text(t) => &t.text.layer,
         }
     }
 
-     fn get_position(&self) -> &PositionComponent {
+    pub fn get_position(&self) -> &PositionComponent {
         match self {
             RenderTarget::Visual(v) => v.position,
             RenderTarget::Text(t) => t.position,

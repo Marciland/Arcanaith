@@ -28,3 +28,8 @@ impl EntityManager {
         self.entities.remove(&entity);
     }
 }
+
+pub(crate) trait EntityProvider {
+    fn get_entities(&self) -> Vec<Entity>;
+    fn get_player(&self) -> Option<Entity>;
+}

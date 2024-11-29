@@ -8,15 +8,15 @@ use super::entity::Entity;
 use ash::Device;
 use std::collections::HashMap;
 
-mod composition;
+pub mod composition;
 
 use input::InputComponent;
 use physics::PhysicsComponent;
-use position::PositionComponent;
-use text::TextComponent;
-use visual::{Layer, VisualComponent};
+pub use position::{PositionComponent, Quad, MVP};
+pub use text::{TextComponent, TextContent};
+pub use visual::{ImageData, Layer, Vertex, VisualComponent};
 
-struct ComponentStorage<T> {
+pub struct ComponentStorage<T> {
     components: HashMap<Entity, T>,
 }
 
@@ -35,11 +35,11 @@ impl<T> ComponentStorage<T> {
         self.components.remove(&entity);
     }
 
-    fn get(&self, entity: Entity) -> Option<&T> {
+    pub fn get(&self, entity: Entity) -> Option<&T> {
         self.components.get(&entity)
     }
 
-    fn get_mut(&mut self, entity: Entity) -> Option<&mut T> {
+    pub fn get_mut(&mut self, entity: Entity) -> Option<&mut T> {
         self.components.get_mut(&entity)
     }
 
@@ -53,22 +53,28 @@ impl<T> ComponentStorage<T> {
             .map(|(entity, component)| (*entity, component))
     }
 
-    fn iter_mut(&mut self) -> impl Iterator<Item = (Entity, &mut T)> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (Entity, &mut T)> {
         self.components
             .iter_mut()
             .map(|(entity, component)| (*entity, component))
     }
 }
 
-pub(crate) struct ComponentManager {
+pub(crate) struct ComponentManager<E>
+where
+    E: 'static,
+{
     visual_storage: ComponentStorage<VisualComponent>,
-    position_storage: ComponentStorage<PositionComponent>,
-    input_storage: ComponentStorage<InputComponent>,
+    pub position_storage: ComponentStorage<PositionComponent>,
+    input_storage: ComponentStorage<InputComponent<E>>,
     text_storage: ComponentStorage<TextComponent>,
-    physics_storage: ComponentStorage<PhysicsComponent>,
+    pub physics_storage: ComponentStorage<PhysicsComponent>,
 }
 
-impl ComponentManager {
+impl<E> ComponentManager<E>
+where
+    E: 'static,
+{
     pub fn create() -> Self {
         Self {
             visual_storage: ComponentStorage::new(),
@@ -88,7 +94,7 @@ impl ComponentManager {
         self.text_storage.destroy_entity(entity, device);
     }
 
-    pub fn destroy(&self, device: &Device) {
+    pub fn destroy(&mut self, device: &Device) {
         self.text_storage.destroy(device);
     }
 }

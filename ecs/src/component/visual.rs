@@ -1,7 +1,13 @@
-pub(crate) struct VisualComponent {
+use ash::{
+    vk::{DeviceMemory, Image, ImageView},
+    Device,
+};
+use glam::Vec2;
+
+pub struct VisualComponent {
     texture_indices: Vec<usize>,
     current_texture: usize,
-    layer: Layer,
+    pub layer: Layer,
     frame_duration: usize,
     current_frame: usize,
     visible: bool,
@@ -19,7 +25,7 @@ impl VisualComponent {
         }
     }
 
-    fn update_animation(&mut self) {
+    pub fn update_animation(&mut self) {
         if self.frame_duration == 0 || self.texture_indices.len() == 1 {
             return;
         }
@@ -31,27 +37,51 @@ impl VisualComponent {
         }
     }
 
-    fn get_current_texture(&self) -> usize {
+    pub fn get_current_texture(&self) -> usize {
         self.texture_indices[self.current_texture]
     }
 
-    fn should_render(&self) -> bool {
+    pub fn should_render(&self) -> bool {
         self.visible
     }
 }
 
-pub(crate) enum Layer {
+pub enum Layer {
     Interface,
     Game,
     Background,
 }
 
 impl Layer {
-    fn value(&self) -> u8 {
+    pub fn value(&self) -> u8 {
         match self {
             Layer::Interface => 0,
             Layer::Game => 1,
             Layer::Background => 2,
         }
+    }
+}
+
+pub struct Vertex {
+    pub position: Vec2,
+    pub texture_coordinates: Vec2,
+}
+
+pub struct ImageData {
+    image: Image,
+    memory: DeviceMemory,
+    view: ImageView,
+}
+
+impl ImageData {
+    pub fn get_view(&self) -> ImageView {
+        self.view
+    }
+
+    #[allow(clippy::missing_safety_doc)]
+    pub unsafe fn destroy(&self, device: &Device) {
+        device.destroy_image_view(self.view, None);
+        device.destroy_image(self.image, None);
+        device.free_memory(self.memory, None);
     }
 }

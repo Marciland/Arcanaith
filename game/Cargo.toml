@@ -14,9 +14,9 @@ ecs = { version = "0.1.0", path = "../ecs" }
 ash = { workspace = true, features = ["linked"] }
 glam = { workspace = true, features = ["std"] }
 winit = { workspace = true, features = ["rwh_06"] }
-ash-window = "0.13.0"
 image = { workspace = true, features = ["png"] }
-indexmap = { version = "2.6.0", default-features = false, features = ["std"] }
+indexmap = { workspace = true, features = ["std"] }
+ash-window = "0.13.0"
 
 [lints.clippy]
 correctness = "warn"

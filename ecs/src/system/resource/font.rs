@@ -1,8 +1,11 @@
 use super::ResourceSystem;
 use ab_glyph::FontVec;
-use std::collections::HashMap;
-use std::fs::read_dir;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    fs::{read_dir, File},
+    io::{Read, Result},
+    path::{Path, PathBuf},
+};
 
 fn read_font_file(file_path: &Path) -> Option<FontVec> {
     let path = file_path.to_str()?;
@@ -17,7 +20,7 @@ fn read_font_file(file_path: &Path) -> Option<FontVec> {
 }
 
 impl ResourceSystem {
-    fn create_font_map(&self) -> HashMap<String, FontVec> {
+    pub fn create_font_map(&self) -> HashMap<String, FontVec> {
         let font_files = self.gather_font_files();
         let mut font_map = HashMap::with_capacity(font_files.len());
 
@@ -53,4 +56,11 @@ impl ResourceSystem {
 
         font_files
     }
+}
+
+fn read_bytes_from_file(path: &str) -> Result<Vec<u8>> {
+    let mut file = File::open(path)?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)?;
+    Ok(buffer)
 }

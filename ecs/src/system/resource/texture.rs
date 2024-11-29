@@ -21,19 +21,19 @@ struct Sprite {
 }
 
 #[derive(Deserialize)]
- struct TextureTable {
+pub(crate) struct TextureTable {
     textures: Vec<Texture>,
     sprites: Vec<Sprite>,
 }
 
 impl TextureTable {
-     fn from_json(file_path: &str) -> Self {
+    pub fn from_json(file_path: &str) -> Self {
         let table_bytes = read_bytes_from_file(file_path)
             .expect(&("Failed to read bytes from ".to_string() + file_path));
         from_slice(&table_bytes).expect(&("Failed to parse ".to_string() + file_path))
     }
 
-     fn load_images(&self) -> (Vec<DynamicImage>, HashMap<String, usize>) {
+    pub fn load_images(&self) -> (Vec<DynamicImage>, HashMap<String, usize>) {
         // estimating that sprites consist of ~4 images, therefore reducing allocations
         let estimated_amount = self.textures.len() + self.sprites.len() * 4;
         let mut images: Vec<DynamicImage> = Vec::with_capacity(estimated_amount);

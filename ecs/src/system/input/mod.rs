@@ -4,7 +4,7 @@ use super::super::ComponentManager;
 use ash::vk::Extent2D;
 use glam::Vec2;
 use indexmap::IndexSet;
-use mouse::{MouseButton, MousePosition};
+use mouse::{MouseButton, MouseEvent, MouseHandler, MousePosition};
 use std::collections::{HashMap, HashSet};
 use winit::{
     dpi::PhysicalPosition,
@@ -13,26 +13,18 @@ use winit::{
     keyboard::Key,
 };
 
-use mouse::{MouseEvent, MouseHandler};
-
 pub(crate) struct InputSystem {
     cursor_positions: HashMap<DeviceId, Vec2>,
     // set -> only once per key per frame
-    keyboard_pressed_inputs: IndexSet<Key>,
+    pub keyboard_pressed_inputs: IndexSet<Key>,
     active_keyboard_inputs: HashSet<Key>,
     // don't clear, keeps track over frames
     partial_mouse_inputs: HashMap<MouseButton, MousePosition>,
-    mouse_inputs: Vec<MouseEvent>,
+    pub mouse_inputs: Vec<MouseEvent>,
 }
 
 impl Default for InputSystem {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl InputSystem {
-    fn new() -> Self {
         Self {
             cursor_positions: HashMap::with_capacity(2),
             keyboard_pressed_inputs: IndexSet::with_capacity(10),
@@ -41,7 +33,9 @@ impl InputSystem {
             mouse_inputs: Vec::with_capacity(10),
         }
     }
+}
 
+impl InputSystem {
     fn update_cursor_position(
         &mut self,
         id: DeviceId,
@@ -79,37 +73,19 @@ impl InputSystem {
             ElementState::Released => self.handle_released(mouse_button, device_id),
         }
     }
-
-    fn process_inputs<T: InputHandler>(
-        &mut self,
-        handler: &T,
-        component_manager: &mut ComponentManager,
-        event_proxy: &EventLoopProxy<GameEvent>,
-    ) {
-        handler.handle_mouse_events(&self.mouse_inputs, component_manager, event_proxy);
-        handler.handle_key_events(
-            &self.keyboard_pressed_inputs,
-            component_manager,
-            event_proxy,
-        );
-
-        // clear each frame
-        self.mouse_inputs.clear();
-        self.keyboard_pressed_inputs.clear();
-    }
 }
 
-trait InputHandler {
-    fn handle_mouse_events(
+pub trait InputHandler {
+    fn handle_mouse_events<E>(
         &self,
         events: &[MouseEvent],
-        component_manager: &mut ComponentManager,
-        event_proxy: &EventLoopProxy<GameEvent>,
+        component_manager: &mut ComponentManager<E>,
+        event_proxy: &EventLoopProxy<E>,
     );
-    fn handle_key_events(
+    fn handle_key_events<E>(
         &self,
         pressed_keys: &IndexSet<Key>,
-        component_manager: &mut ComponentManager,
-        event_proxy: &EventLoopProxy<GameEvent>,
+        component_manager: &mut ComponentManager<E>,
+        event_proxy: &EventLoopProxy<E>,
     );
 }

@@ -1,3 +1,8 @@
+use crate::{
+    component::{ImageData, Quad, Vertex, MVP},
+    entity::EntityProvider,
+};
+
 use super::{
     super::{
         component::{
@@ -13,7 +18,15 @@ use ash::{
     Device,
 };
 use glam::Mat4;
+use image::{ImageBuffer, Rgba};
 use std::cmp::Ordering;
+
+pub trait RenderContext {
+    fn draw(&mut self, textures: &[ImageView], positions: &[MVP]);
+    fn create_index_buffer(&self, indices: &[u16]) -> (Buffer, DeviceMemory);
+    fn create_vertex_buffer(&self, vertices: &[Vertex]) -> (Buffer, DeviceMemory);
+    fn create_image_data(&self, image: ImageBuffer<Rgba<u8>, Vec<u8>>) -> ImageData;
+}
 
 pub(crate) struct RenderSystem {
     geometry: Quad,
@@ -34,11 +47,14 @@ impl RenderSystem {
         }
     }
 
-    pub fn initialize(&mut self, window: &Window) {
+    pub fn initialize<R>(&mut self, renderer: &R)
+    where
+        R: RenderContext,
+    {
         (self.index_buffer, self.index_buffer_memory) =
-            window.create_index_buffer(self.geometry.get_indices());
+            renderer.create_index_buffer(self.geometry.get_indices());
         (self.vertex_buffer, self.vertex_buffer_memory) =
-            window.create_vertex_buffer(self.geometry.get_vertices());
+            renderer.create_vertex_buffer(self.geometry.get_vertices());
     }
 
     fn get_index_buffer(&self) -> Buffer {
@@ -53,7 +69,7 @@ impl RenderSystem {
         self.geometry.get_indices().len() as u32
     }
 
-    fn destroy(&self, device: &Device) {
+    pub fn destroy(&self, device: &Device) {
         unsafe {
             device.destroy_buffer(self.index_buffer, None);
             device.free_memory(self.index_buffer_memory, None);
@@ -63,24 +79,28 @@ impl RenderSystem {
         }
     }
 
-    fn draw<'components>(
+    fn draw<'components, P, R>(
         &self,
-        window: &mut Window,
-        current_scene: &Scene,
+        renderer: &mut R,
+        provider: &P,
         visual_storage: &'components mut ComponentStorage<VisualComponent>,
         text_storage: &'components mut ComponentStorage<TextComponent>,
         position_storage: &'components ComponentStorage<PositionComponent>,
         resource_system: &mut ResourceSystem,
-    ) {
-        let entities: Vec<Entity> = current_scene.get_objects().iter().map(Object::id).collect();
+    ) where
+        P: EntityProvider,
+        R: RenderContext,
+    {
+        let entities: Vec<Entity> = provider.get_entities();
 
         let mut render_targets: Vec<RenderTarget> =
             get_render_targets(&entities, visual_storage, text_storage, position_storage);
 
-        let textures = get_render_resources(window, &mut render_targets, resource_system);
-        let positions = get_render_positions(current_scene, &mut render_targets, position_storage);
+        let textures = get_render_resources(renderer, &mut render_targets, resource_system);
+        let positions =
+            get_render_positions(&mut render_targets, provider.get_player(), position_storage);
 
-        window.draw(self, &textures, &positions);
+        renderer.draw(&textures, &positions);
     }
 }
 
@@ -94,7 +114,7 @@ fn get_render_targets<'components>(
 
     // collect visual entities
     for (entity, visual) in visual_storage.iter_mut() {
-        // only render current scene
+        // only render currently active entities
         if !entities.contains(&entity) {
             continue;
         }
@@ -119,7 +139,7 @@ fn get_render_targets<'components>(
 
     // collect text entities
     for (entity, text) in text_storage.iter_mut() {
-        // only render current scene
+        // only render currently active entities
         if !entities.contains(&entity) {
             continue;
         }
@@ -144,30 +164,33 @@ fn get_render_targets<'components>(
     render_targets
 }
 
-fn get_render_resources(
-    window: &mut Window,
+fn get_render_resources<R>(
+    renderer: &mut R,
     render_targets: &mut [RenderTarget],
     resource_system: &mut ResourceSystem,
-) -> Vec<ImageView> {
+) -> Vec<ImageView>
+where
+    R: RenderContext,
+{
     render_targets
         .iter_mut()
         .map(|target| match target {
             RenderTarget::Visual(v) => resource_system
                 .get_texture(v.visual.get_current_texture())
                 .get_view(),
-            RenderTarget::Text(t) => resource_system.get_bitmap(window, t.text),
+            RenderTarget::Text(t) => resource_system.get_bitmap(renderer, t.text),
         })
         .collect()
 }
 
 fn get_render_positions(
-    current_scene: &Scene,
     render_targets: &mut [RenderTarget],
+    player: Option<Entity>,
     position_storage: &ComponentStorage<PositionComponent>,
-) -> Vec<ModelViewProjection> {
-    let player_position: Option<&PositionComponent> = match current_scene {
-        Scene::Menu(_) => None,
-        Scene::Game(game) => position_storage.get(game.get_player().id),
+) -> Vec<MVP> {
+    let player_position: Option<&PositionComponent> = match player {
+        Some(player_entity) => position_storage.get(player_entity),
+        None => None,
     };
 
     let view_matrix = match player_position {
@@ -185,16 +208,16 @@ fn get_render_positions(
                     Layer::Interface => Mat4::IDENTITY,
                     Layer::Game | Layer::Background => view_matrix,
                 };
-                ModelViewProjection {
-                    model: ModelViewProjection::get_model_matrix(visual_with_position.position),
+                MVP {
+                    model: MVP::get_model_matrix(visual_with_position.position),
                     view,
-                    projection: ModelViewProjection::get_projection(),
+                    projection: MVP::get_projection(),
                 }
             }
-            RenderTarget::Text(text) => ModelViewProjection {
-                model: ModelViewProjection::get_model_matrix(text.position),
+            RenderTarget::Text(text) => MVP {
+                model: MVP::get_model_matrix(text.position),
                 view: Mat4::IDENTITY,
-                projection: ModelViewProjection::get_projection(),
+                projection: MVP::get_projection(),
             },
         })
         .collect()

@@ -17,15 +17,4 @@ impl ImageData {
             view,
         }
     }
-
-    pub fn get_view(&self) -> ImageView {
-        self.view
-    }
-
-    #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn destroy(&self, device: &Device) {
-        device.destroy_image_view(self.view, None);
-        device.destroy_image(self.image, None);
-        device.free_memory(self.memory, None);
-    }
 }

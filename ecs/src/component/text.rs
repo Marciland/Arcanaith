@@ -1,16 +1,16 @@
-use super::{ComponentStorage, Entity, Layer};
+use super::{visual::ImageData, ComponentStorage, Entity, Layer};
 use ash::Device;
 
-struct TextContent {
-    text: String,
-    font: String,
-    font_size: f32,
+pub struct TextContent {
+    pub text: String,
+    pub font: String,
+    pub font_size: f32,
 }
 
-pub(crate) struct TextComponent {
-    content: TextContent,
-    bitmap: Option<ImageData>,
-    layer: Layer,
+pub struct TextComponent {
+    pub content: TextContent,
+    pub bitmap: Option<ImageData>,
+    pub layer: Layer,
 }
 
 impl ComponentStorage<TextComponent> {

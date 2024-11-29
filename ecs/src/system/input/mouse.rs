@@ -1,3 +1,5 @@
+use crate::component::{Quad, MVP};
+
 use super::{
     super::super::component::{composition::InputWithPosition, PositionComponent},
     InputSystem,
@@ -6,30 +8,30 @@ use glam::{Vec2, Vec3, Vec3Swizzles};
 use winit::{event::DeviceId, event_loop::EventLoopProxy};
 
 #[derive(Eq, Hash, PartialEq)]
-struct MouseButton {
+pub struct MouseButton {
     mouse_button: winit::event::MouseButton,
     device_id: DeviceId,
 }
 
-struct MousePosition {
+pub struct MousePosition {
     pressed: Vec2,
     released: Option<Vec2>,
 }
 
-struct MouseEvent {
+pub struct MouseEvent {
     button: MouseButton,
     position: MousePosition,
 }
 
-trait MouseHandler {
+pub trait MouseHandler {
     fn handle_pressed(&mut self, mouse_button: winit::event::MouseButton, device_id: DeviceId);
 
     fn handle_released(&mut self, mouse_button: winit::event::MouseButton, device_id: DeviceId);
 
-    fn any_object_was_clicked(
-        objects: &[InputWithPosition],
+    fn any_object_was_clicked<E>(
+        objects: &[InputWithPosition<E>],
         mouse_position: &MousePosition,
-    ) -> Option<fn(event_proxy: &EventLoopProxy<GameEvent>) -> ()>;
+    ) -> Option<fn(event_proxy: &EventLoopProxy<E>) -> ()>;
 }
 
 impl MouseHandler for InputSystem {
@@ -75,10 +77,10 @@ impl MouseHandler for InputSystem {
     }
 
     #[must_use]
-    fn any_object_was_clicked(
-        objects: &[InputWithPosition],
+    fn any_object_was_clicked<E>(
+        objects: &[InputWithPosition<E>],
         mouse_position: &MousePosition,
-    ) -> Option<fn(event_proxy: &EventLoopProxy<GameEvent>) -> ()> {
+    ) -> Option<fn(event_proxy: &EventLoopProxy<E>) -> ()> {
         for obj in objects {
             if component_was_clicked(obj.position, mouse_position) {
                 return Some(obj.input.activate);
@@ -104,7 +106,7 @@ fn component_was_clicked(
 }
 
 fn quad_from_model(position: &PositionComponent) -> Quad {
-    let model_matrix = ModelViewProjection::get_model_matrix(position);
+    let model_matrix = MVP::get_model_matrix(position);
     let mut geometry = Quad::new();
 
     let bottom_left = model_matrix.transform_point3(Vec3 {

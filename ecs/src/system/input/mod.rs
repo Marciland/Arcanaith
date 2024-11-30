@@ -16,7 +16,7 @@ use winit::{
 
 pub use mouse::{MouseEvent, MouseHandler, MousePosition};
 
-pub(crate) struct InputSystem {
+pub struct InputSystem {
     cursor_positions: HashMap<DeviceId, Vec2>,
     // set -> only once per key per frame
     pub keyboard_pressed_inputs: IndexSet<Key>,
@@ -78,7 +78,6 @@ impl InputSystem {
     }
 
     pub fn set_next_entity_to_active<E>(
-        &self,
         component_manager: &mut ComponentManager<E>,
         currently_active: Entity,
     ) {
@@ -100,7 +99,6 @@ impl InputSystem {
     }
 
     pub fn set_previous_entity_to_active<E>(
-        &self,
         component_manager: &mut ComponentManager<E>,
         currently_active: Entity,
     ) {

@@ -83,7 +83,7 @@ impl InputHandler<GameEvent> for Menu {
             }
 
             for entity in self.get_objects() {
-                if ecs.position_matches_entity(&event.position, entity) {
+                if ecs.position_matches_entity(&event.position, *entity) {
                     return ecs.activate_entity(entity, event_proxy);
                 }
             }

@@ -14,3 +14,6 @@ categories = ["games"]
 ecs = { version = "0.1.0", path = "../ecs" }
 glam = { workspace = true, features = ["std"] }
 winit = { workspace = true, features = ["rwh_06"] }
+
+[lints]
+workspace = true

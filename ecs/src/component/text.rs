@@ -28,6 +28,7 @@ impl ComponentStorage<TextComponent> {
 }
 
 impl TextComponent {
+    #[must_use]
     pub fn create(content: TextContent) -> Self {
         Self {
             content,

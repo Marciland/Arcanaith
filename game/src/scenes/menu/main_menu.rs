@@ -80,13 +80,13 @@ impl MainMenu {
         let settings = Menu::create_settings_button(ecs);
         let exit = Menu::create_exit_button(ecs);
 
-        ecs.set_next_of(&new_game, &settings);
-        ecs.set_next_of(&settings, &exit);
-        ecs.set_next_of(&exit, &new_game);
+        ecs.set_next_of(new_game, settings);
+        ecs.set_next_of(settings, exit);
+        ecs.set_next_of(exit, new_game);
 
-        ecs.set_previous_of(&new_game, &exit);
-        ecs.set_previous_of(&settings, &new_game);
-        ecs.set_previous_of(&exit, &settings);
+        ecs.set_previous_of(new_game, exit);
+        ecs.set_previous_of(settings, new_game);
+        ecs.set_previous_of(exit, settings);
 
         objects.push(new_game);
         objects.push(settings);

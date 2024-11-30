@@ -4,7 +4,7 @@ mod system;
 
 use component::ComponentManager;
 use entity::EntityManager;
-use system::{MouseHandler, MousePosition, RenderSystem, SystemManager};
+use system::{InputSystem, MouseHandler, MousePosition, RenderSystem, SystemManager};
 
 use ash::{vk::Extent2D, Device};
 use winit::{
@@ -34,6 +34,7 @@ impl<E> ECS<E>
 where
     E: 'static,
 {
+    #[must_use]
     pub fn create(texture_path: &str, font_path: &str) -> Self {
         Self {
             entity_manager: EntityManager::default(),
@@ -78,45 +79,45 @@ where
         }
     }
 
+    #[must_use]
     pub fn get_max_texture_count(&self) -> u32 {
         self.system_manager.resource_system.get_texture_count()
     }
 
+    #[must_use]
     pub fn get_texture_index(&self, texture_name: &str) -> usize {
         self.system_manager
             .resource_system
             .get_texture_index(texture_name)
     }
 
+    #[must_use]
     pub fn get_active_entity(&self) -> Option<&Entity> {
         self.component_manager.input_storage.get_active_entity()
     }
 
-    pub fn set_next_of(&mut self, current: &Entity, next: &Entity) {
+    pub fn set_next_of(&mut self, current: Entity, next: Entity) {
         self.component_manager
             .input_storage
             .set_next_of(current, next);
     }
 
-    pub fn set_previous_of(&mut self, current: &Entity, previous: &Entity) {
+    pub fn set_previous_of(&mut self, current: Entity, previous: Entity) {
         self.component_manager
             .input_storage
             .set_previous_of(current, previous);
     }
 
     pub fn set_next_active(&mut self, currently_active: Entity) {
-        self.system_manager
-            .input_system
-            .set_next_entity_to_active(&mut self.component_manager, currently_active);
+        InputSystem::set_next_entity_to_active(&mut self.component_manager, currently_active);
     }
 
     pub fn set_previous_active(&mut self, currently_active: Entity) {
-        self.system_manager
-            .input_system
-            .set_previous_entity_to_active(&mut self.component_manager, currently_active);
+        InputSystem::set_previous_entity_to_active(&mut self.component_manager, currently_active);
     }
 
-    pub fn position_matches_entity(&self, position: &MousePosition, entity: &Entity) -> bool {
+    #[must_use]
+    pub fn position_matches_entity(&self, position: &MousePosition, entity: Entity) -> bool {
         self.system_manager.input_system.entity_was_clicked(
             &self.component_manager,
             position,
@@ -126,7 +127,7 @@ where
 
     pub fn activate_entity(&self, entity: &Entity, event_proxy: &EventLoopProxy<E>) {
         if let Some(active_input) = self.component_manager.input_storage.get(*entity) {
-            (active_input.activate)(event_proxy)
+            (active_input.activate)(event_proxy);
         }
     }
 

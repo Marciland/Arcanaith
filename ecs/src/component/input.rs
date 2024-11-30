@@ -26,19 +26,19 @@ where
         None
     }
 
-    pub fn set_next_of(&mut self, current: &Entity, next: &Entity) {
-        let Some(current_input) = self.components.get_mut(current) else {
+    pub fn set_next_of(&mut self, current: Entity, next: Entity) {
+        let Some(current_input) = self.components.get_mut(&current) else {
             return;
         };
 
-        current_input.next = Some(*next);
+        current_input.next = Some(next);
     }
 
-    pub fn set_previous_of(&mut self, current: &Entity, previous: &Entity) {
-        let Some(current_input) = self.components.get_mut(current) else {
+    pub fn set_previous_of(&mut self, current: Entity, previous: Entity) {
+        let Some(current_input) = self.components.get_mut(&current) else {
             return;
         };
 
-        current_input.previous = Some(*previous);
+        current_input.previous = Some(previous);
     }
 }

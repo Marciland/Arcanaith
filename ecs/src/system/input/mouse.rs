@@ -32,7 +32,7 @@ pub trait MouseHandler {
         &self,
         component_manager: &ComponentManager<E>,
         position: &MousePosition,
-        entity: &Entity,
+        entity: Entity,
     ) -> bool;
 }
 
@@ -82,9 +82,9 @@ impl MouseHandler for InputSystem {
         &self,
         component_manager: &ComponentManager<E>,
         position: &MousePosition,
-        entity: &Entity,
+        entity: Entity,
     ) -> bool {
-        let Some(component_position) = component_manager.position_storage.get(*entity) else {
+        let Some(component_position) = component_manager.position_storage.get(entity) else {
             return false;
         };
 

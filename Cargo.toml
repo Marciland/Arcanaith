@@ -11,3 +11,18 @@ glam = { version = "0.29.2", default-features = false, features = ["std"] }
 image = { version = "0.25.5", default-features = false, features = ["png"] }
 indexmap = { version = "2.6.0", default-features = false, features = ["std"] }
 winit = { version = "0.30.5", default-features = false, features = ["rwh_06"] }
+
+[workspace.lints.clippy]
+correctness = "warn"
+suspicious = "warn"
+complexity = "warn"
+perf = "warn"
+style = "warn"
+pedantic = "warn"
+cargo = "warn"
+multiple_crate_versions = { level = "allow", priority = 1 }
+cast_possible_truncation = { level = "allow", priority = 1 }
+cast_precision_loss = { level = "allow", priority = 1 }
+module_name_repetitions = { level = "allow", priority = 1 }
+struct_field_names = { level = "allow", priority = 1 }
+cast_sign_loss = { level = "allow", priority = 1 }

@@ -3,11 +3,10 @@ mod render;
 mod resource;
 
 use ash::Device;
-
-use input::InputSystem;
-pub use input::{InputHandler, MouseEvent, MouseHandler, MousePosition};
-pub use render::{RenderContext, RenderSystem};
 use resource::ResourceSystem;
+
+pub use input::{InputHandler, InputSystem, MouseEvent, MouseHandler, MousePosition};
+pub use render::{RenderContext, RenderSystem};
 
 pub(crate) struct SystemManager {
     pub resource_system: ResourceSystem,

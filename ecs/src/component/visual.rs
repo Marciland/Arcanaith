@@ -14,6 +14,7 @@ pub struct VisualComponent {
 }
 
 impl VisualComponent {
+    #[must_use]
     pub fn new(texture_indices: Vec<usize>, layer: Layer, frame_duration: usize) -> Self {
         Self {
             texture_indices,
@@ -37,10 +38,12 @@ impl VisualComponent {
         }
     }
 
+    #[must_use]
     pub fn get_current_texture(&self) -> usize {
         self.texture_indices[self.current_texture]
     }
 
+    #[must_use]
     pub fn should_render(&self) -> bool {
         self.visible
     }
@@ -53,6 +56,7 @@ pub enum Layer {
 }
 
 impl Layer {
+    #[must_use]
     pub fn value(&self) -> u8 {
         match self {
             Layer::Interface => 0,
@@ -75,6 +79,7 @@ pub struct ImageData {
 }
 
 impl ImageData {
+    #[must_use]
     pub fn create(image: Image, memory: DeviceMemory, view: ImageView) -> Self {
         Self {
             image,
@@ -83,6 +88,7 @@ impl ImageData {
         }
     }
 
+    #[must_use]
     pub fn get_view(&self) -> ImageView {
         self.view
     }

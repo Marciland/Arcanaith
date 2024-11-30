@@ -54,16 +54,6 @@ impl<T> ComponentStorage<T> {
         self.components.get_mut(&entity)
     }
 
-    fn size(&self) -> usize {
-        self.components.len()
-    }
-
-    fn iter(&self) -> impl Iterator<Item = (Entity, &T)> {
-        self.components
-            .iter()
-            .map(|(entity, component)| (*entity, component))
-    }
-
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (Entity, &mut T)> {
         self.components
             .iter_mut()

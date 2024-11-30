@@ -6,6 +6,8 @@ pub struct PositionComponent {
     pub scale: Vec3,
 }
 
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub struct MVP {
     pub model: Mat4,
     pub view: Mat4,
@@ -27,8 +29,6 @@ pub struct Quad {
     pub top_left: Vec2,
     pub bottom_left: Vec2,
     pub bottom_right: Vec2,
-    vertices: Vec<Vertex>,
-    indices: Vec<u16>,
 }
 
 impl Quad {
@@ -55,17 +55,7 @@ impl Quad {
             top_left: top_left.position,
             bottom_left: bottom_left.position,
             bottom_right: bottom_right.position,
-            vertices: vec![bottom_left, bottom_right, top_right, top_left],
-            indices: vec![0, 1, 2, 2, 3, 0],
         }
-    }
-
-    pub fn get_vertices(&self) -> &[Vertex] {
-        &self.vertices
-    }
-
-    pub fn get_indices(&self) -> &[u16] {
-        &self.indices
     }
 
     pub fn position_is_inside(&self, position: Vec2) -> bool {

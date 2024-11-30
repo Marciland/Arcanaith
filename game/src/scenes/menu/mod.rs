@@ -112,7 +112,7 @@ impl InputHandler<GameEvent> for Menu {
 
                 Key::Named(NamedKey::Space | NamedKey::Enter) => {
                     if let Some(active_entity) = ecs.get_active_entity() {
-                        ecs.activate_entity(active_entity, event_proxy)
+                        ecs.activate_entity(active_entity, event_proxy);
                     }
                 }
 

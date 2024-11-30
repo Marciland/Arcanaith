@@ -4,7 +4,7 @@ mod menu;
 use crate::GameEvent;
 
 use ash::Device;
-use ecs::{Entity, InputHandler, MouseEvent, ECS};
+use ecs::{Entity, EntityProvider, InputHandler, MouseEvent, ECS};
 use indexmap::IndexSet;
 use winit::{event_loop::EventLoopProxy, keyboard::Key};
 
@@ -12,6 +12,7 @@ pub use game::Game;
 pub use menu::{MainMenu, Menu, SettingsMenu};
 
 pub enum Scene {
+    None,
     Menu(Menu),
     Game(Game),
 }
@@ -19,6 +20,7 @@ pub enum Scene {
 impl Scene {
     pub fn get_objects(&self) -> &[Entity] {
         match self {
+            Scene::None => &[],
             Scene::Menu(menu) => menu.get_objects(),
             Scene::Game(game) => game.get_objects(),
         }
@@ -26,8 +28,22 @@ impl Scene {
 
     pub fn destroy(&self, device: &Device, ecs: &mut ECS<GameEvent>) {
         match self {
+            Scene::None => (),
             Scene::Menu(menu) => menu.destroy(device, ecs),
             Scene::Game(game) => game.destroy(device, ecs),
+        }
+    }
+}
+
+impl EntityProvider for Scene {
+    fn get_entities(&self) -> &[Entity] {
+        self.get_objects()
+    }
+
+    fn get_player(&self) -> Option<Entity> {
+        match self {
+            Scene::None | Scene::Menu(_) => None,
+            Scene::Game(game) => Some(game.player_id),
         }
     }
 }
@@ -40,6 +56,7 @@ impl InputHandler<GameEvent> for Scene {
         event_proxy: &EventLoopProxy<GameEvent>,
     ) {
         match self {
+            Scene::None => panic!("Should not handle mouse events in None scene"),
             Scene::Menu(menu) => menu.handle_mouse_events(ecs, events, event_proxy),
             Scene::Game(game) => game.handle_mouse_events(ecs, events, event_proxy),
         }
@@ -47,11 +64,12 @@ impl InputHandler<GameEvent> for Scene {
 
     fn handle_key_events(
         &self,
-        ecs: &ECS<GameEvent>,
+        ecs: &mut ECS<GameEvent>,
         pressed_keys: &IndexSet<Key>,
         event_proxy: &EventLoopProxy<GameEvent>,
     ) {
         match self {
+            Scene::None => panic!("Should not handle key events in None scene"),
             Scene::Menu(menu) => {
                 menu.handle_key_events(ecs, pressed_keys, event_proxy);
             }

@@ -27,8 +27,9 @@ impl UserEventHandler for Game {
     fn load_settings_menu(&mut self) {
         let device_ref = self
             .window
-            .as_ref()
+            .as_mut()
             .expect("Failed to get window while loading settings menu!")
+            .get_render_context()
             .get_device();
 
         match self.current_scene {
@@ -42,8 +43,9 @@ impl UserEventHandler for Game {
     fn load_main_menu(&mut self) {
         let device_ref = self
             .window
-            .as_ref()
+            .as_mut()
             .expect("Failed to get window while loading main menu!")
+            .get_render_context()
             .get_device();
 
         self.current_scene.destroy(device_ref, &mut self.ecs);
@@ -54,8 +56,9 @@ impl UserEventHandler for Game {
     fn load_new_game(&mut self) {
         let device_ref = self
             .window
-            .as_ref()
+            .as_mut()
             .expect("Failed to get window while starting new game!")
+            .get_render_context()
             .get_device();
 
         self.current_scene.destroy(device_ref, &mut self.ecs);
@@ -73,12 +76,16 @@ impl WindowEventHandler for Game {
 
         self.ecs.update_positions(&self.current_scene);
 
-        self.ecs.render(
-            self.window
-                .as_mut()
-                .expect("Window was lost before rendering!"),
-            &self.current_scene,
-        );
+        let window = self
+            .window
+            .as_mut()
+            .expect("Window was lost before rendering!");
+
+        let minimized = window.is_minimized().unwrap_or(false);
+        if !minimized {
+            self.ecs
+                .render(window.get_render_context(), &self.current_scene);
+        }
 
         let render_time = Instant::elapsed(&start_time);
 

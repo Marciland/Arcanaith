@@ -2,18 +2,10 @@ use std::collections::HashSet;
 
 pub type Entity = u32;
 
+#[derive(Default)]
 pub(crate) struct EntityManager {
     next_id: Entity,
     entities: HashSet<Entity>,
-}
-
-impl Default for EntityManager {
-    fn default() -> Self {
-        Self {
-            next_id: 0,
-            entities: HashSet::new(),
-        }
-    }
 }
 
 impl EntityManager {
@@ -30,6 +22,6 @@ impl EntityManager {
 }
 
 pub trait EntityProvider {
-    fn get_entities(&self) -> Vec<Entity>;
+    fn get_entities(&self) -> &[Entity];
     fn get_player(&self) -> Option<Entity>;
 }

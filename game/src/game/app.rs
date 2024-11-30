@@ -39,12 +39,9 @@ impl ApplicationHandler<GameEvent> for Game {
                 event,
                 is_synthetic: false,
                 ..
-            } => {
-                self.ecs
-                    .system_manager
-                    .input_system
-                    .update_keyboard_input(event.state, event.logical_key);
-            }
+            } => self
+                .ecs
+                .update_keyboard_input(event.state, event.logical_key),
 
             WindowEvent::CursorMoved {
                 device_id,
@@ -55,23 +52,15 @@ impl ApplicationHandler<GameEvent> for Game {
                     .as_ref()
                     .expect("Window was lost while updating cursor position!");
 
-                self.ecs.system_manager.input_system.update_cursor_position(
-                    device_id,
-                    position,
-                    window_ref.get_current_size(),
-                );
+                self.ecs
+                    .update_cursor_position(device_id, position, window_ref.get_current_size());
             }
 
             WindowEvent::MouseInput {
                 device_id,
                 state,
                 button,
-            } => {
-                self.ecs
-                    .system_manager
-                    .input_system
-                    .add_mouse_input(device_id, button, state);
-            }
+            } => self.ecs.add_mouse_input(device_id, button, state),
 
             WindowEvent::Moved(_)
             | WindowEvent::Resized(_)

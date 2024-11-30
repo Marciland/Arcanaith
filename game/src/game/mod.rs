@@ -3,7 +3,7 @@ mod event;
 
 use crate::{
     constants::{FPS, FULLSCREEN, ICONPATH, TITLE},
-    scenes::{self, MainMenu, Menu, Scene},
+    scenes::{MainMenu, Menu, Scene},
     Window,
 };
 use ecs::ECS;
@@ -38,9 +38,7 @@ impl Game {
             frame_time: Duration::from_secs_f64(1.0 / f64::from(FPS)),
             ecs: ECS::create("res/texture_table.json", "res/fonts"),
             event_proxy: event_loop.create_proxy(),
-            current_scene: Scene::Game(scenes::Game {
-                objects: Vec::new(), // dummy scene until ECS is initialized
-            }),
+            current_scene: Scene::None,
         }
     }
 
@@ -67,9 +65,9 @@ impl Game {
             .expect("Failed to create inner window!");
 
         let texture_count = self.ecs.get_max_texture_count();
-        let window = Window::create(inner_window, texture_count);
+        let mut window = Window::create(inner_window, texture_count);
 
-        self.ecs.initialize(&window);
+        self.ecs.initialize(window.get_render_context());
 
         self.current_scene = Scene::Menu(Menu::MainMenu(MainMenu::create(&mut self.ecs)));
 
@@ -82,13 +80,15 @@ impl Game {
 
         let window_ref = self
             .window
-            .as_ref()
+            .as_mut()
             .expect("Failed to get window ref while exiting!");
 
-        window_ref.wait_idle();
+        let render_context = window_ref.get_render_context();
 
-        self.ecs.destroy(window_ref.get_device());
+        render_context.wait_idle();
 
-        window_ref.destroy();
+        self.ecs.destroy(render_context.get_device());
+
+        unsafe { render_context.destroy() };
     }
 }

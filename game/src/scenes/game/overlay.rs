@@ -11,18 +11,18 @@ pub struct Overlay {
 
 impl Overlay {
     pub fn create(ecs: &mut ECS<GameEvent>) -> Self {
-        let mut objects: Vec<Entity> = Vec::with_capacity(8);
-
-        objects.push(Overlay::create_health_bar(ecs));
-        objects.push(Overlay::create_mana_bar(ecs));
-        objects.push(Overlay::create_exp_bar(ecs));
-        objects.push(Overlay::create_money_bag(ecs));
-        objects.push(Overlay::create_inventory(ecs));
-        objects.push(Overlay::create_wave_counter(ecs));
-        objects.push(Overlay::create_highscore(ecs));
-        objects.push(Overlay::create_pause(ecs));
-
-        Self { objects }
+        Self {
+            objects: vec![
+                Overlay::create_health_bar(ecs),
+                Overlay::create_mana_bar(ecs),
+                Overlay::create_exp_bar(ecs),
+                Overlay::create_money_bag(ecs),
+                Overlay::create_inventory(ecs),
+                Overlay::create_wave_counter(ecs),
+                Overlay::create_highscore(ecs),
+                Overlay::create_pause(ecs),
+            ],
+        }
     }
 
     fn create_health_bar(ecs: &mut ECS<GameEvent>) -> Entity {
@@ -52,7 +52,8 @@ impl Overlay {
     }
 
     fn create_money_bag(ecs: &mut ECS<GameEvent>) -> Entity {
-        ecs.new_icon_text(
+        Factory::icon_with_text(
+            ecs,
             Vec2 { x: 0.7, y: 0.975 },
             Vec2 { x: 0.1, y: 0.05 },
             "money_bag",

@@ -1,8 +1,9 @@
 use crate::{
     constants::TITLE,
-    structs::{ImageData, ModelViewProjection, StorageBufferObject, Vertex},
+    structs::{StorageBufferObject, Vertex},
     vulkan::internal::InternalVulkan,
 };
+
 use ash::{
     khr::{surface, swapchain},
     vk::{
@@ -34,6 +35,7 @@ use ash::{
     Device, Entry, Instance,
 };
 use ash_window::{create_surface, enumerate_required_extensions};
+use ecs::{ImageData, MVP};
 use std::{
     array::from_ref,
     ffi::CStr,
@@ -558,7 +560,7 @@ impl VulkanWrapper {
         pipeline_layout: PipelineLayout,
         descriptor_set: DescriptorSet,
         index_count: u32,
-        mvps: &[ModelViewProjection],
+        mvps: &[MVP],
         mvp_buffer: &StorageBufferObject,
     ) {
         mvp_buffer.update_data(mvps);
@@ -798,7 +800,7 @@ impl VulkanWrapper {
         let mvp_buffer_info = [DescriptorBufferInfo::default()
             .buffer(mvp_buffer)
             .offset(0)
-            .range((size_of::<ModelViewProjection>() * entity_count) as u64)];
+            .range((size_of::<MVP>() * entity_count) as u64)];
         let descriptor_writes = [WriteDescriptorSet::default()
             .dst_set(descriptor_set)
             .dst_binding(0)
@@ -926,8 +928,8 @@ impl VulkanWrapper {
         physical_device: PhysicalDevice,
         device: &Device,
         capacity: usize,
-    ) -> (Buffer, DeviceMemory, *mut ModelViewProjection) {
-        let buffer_size = (capacity * size_of::<ModelViewProjection>()) as u64;
+    ) -> (Buffer, DeviceMemory, *mut MVP) {
+        let buffer_size = (capacity * size_of::<MVP>()) as u64;
 
         let (buffer, memory) = InternalVulkan::create_buffer(
             instance,
@@ -939,7 +941,7 @@ impl VulkanWrapper {
         );
         let mapped = unsafe { device.map_memory(memory, 0, buffer_size, MemoryMapFlags::empty()) }
             .expect("Failed to map memory for SSBO!")
-            .cast::<ModelViewProjection>();
+            .cast::<MVP>();
 
         (buffer, memory, mapped)
     }

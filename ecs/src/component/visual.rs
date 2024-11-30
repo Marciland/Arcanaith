@@ -64,6 +64,7 @@ impl Layer {
 
 pub struct Vertex {
     pub position: Vec2,
+    #[allow(dead_code)]
     pub texture_coordinates: Vec2,
 }
 
@@ -74,6 +75,14 @@ pub struct ImageData {
 }
 
 impl ImageData {
+    pub fn create(image: Image, memory: DeviceMemory, view: ImageView) -> Self {
+        Self {
+            image,
+            memory,
+            view,
+        }
+    }
+
     pub fn get_view(&self) -> ImageView {
         self.view
     }

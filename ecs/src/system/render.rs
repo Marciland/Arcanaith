@@ -37,10 +37,12 @@ impl RenderSystem {
         P: EntityProvider,
         R: RenderContext,
     {
-        let entities: Vec<Entity> = provider.get_entities();
-
-        let mut render_targets: Vec<RenderTarget> =
-            get_render_targets(&entities, visual_storage, text_storage, position_storage);
+        let mut render_targets: Vec<RenderTarget> = get_render_targets(
+            provider.get_entities(),
+            visual_storage,
+            text_storage,
+            position_storage,
+        );
 
         let textures = get_render_resources(renderer, &mut render_targets, resource_system);
         let positions =

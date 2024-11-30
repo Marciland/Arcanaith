@@ -9,6 +9,7 @@ use overlay::Overlay;
 use winit::{event_loop::EventLoopProxy, keyboard::Key};
 
 pub struct Game {
+    pub player_id: Entity,
     pub objects: Vec<Entity>,
 }
 
@@ -21,10 +22,14 @@ impl Game {
         // TODO background
 
         // objects.push(Player::create(ecs));
+        let player = ecs.create_entity();
 
         // TODO spawner
 
-        Game { objects }
+        Game {
+            player_id: player,
+            objects,
+        }
     }
 
     pub fn get_objects(&self) -> &[Entity] {
@@ -33,32 +38,32 @@ impl Game {
 
     pub fn destroy(&self, device: &Device, ecs: &mut ECS<GameEvent>) {
         for obj in &self.objects {
-            ecs.destroy_entity(obj, device);
+            ecs.destroy_entity(*obj, device);
         }
     }
 }
 
-impl InputHandler for Game {
-    fn handle_mouse_events<GameEvent>(
+impl InputHandler<GameEvent> for Game {
+    fn handle_mouse_events(
         &self,
-        ecs: &ECS<GameEvent>,
+        _ecs: &ECS<GameEvent>,
         events: &[MouseEvent],
         _event_proxy: &EventLoopProxy<GameEvent>,
     ) {
         // TODO player movement
-        let _player = self.get_player();
+
         // TODO skills / movement?
         for _event in events {}
     }
 
-    fn handle_key_events<GameEvent>(
+    fn handle_key_events(
         &self,
-        ecs: &ECS<GameEvent>,
+        _ecs: &mut ECS<GameEvent>,
         pressed_keys: &IndexSet<Key>,
         _event_proxy: &EventLoopProxy<GameEvent>,
     ) {
         // TODO player movement
-        let _player = self.get_player();
+
         // TODO skills
         for _key in pressed_keys {}
     }

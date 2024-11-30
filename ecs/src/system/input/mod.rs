@@ -39,7 +39,7 @@ impl Default for InputSystem {
 }
 
 impl InputSystem {
-    fn update_cursor_position(
+    pub fn update_cursor_position(
         &mut self,
         id: DeviceId,
         position: PhysicalPosition<f64>,
@@ -52,7 +52,7 @@ impl InputSystem {
         self.cursor_positions.insert(id, normalized_position);
     }
 
-    fn update_keyboard_input(&mut self, state: ElementState, key: Key) {
+    pub fn update_keyboard_input(&mut self, state: ElementState, key: Key) {
         match state {
             ElementState::Pressed => {
                 self.keyboard_pressed_inputs.insert(key.clone());
@@ -64,7 +64,7 @@ impl InputSystem {
         }
     }
 
-    fn add_mouse_input(
+    pub fn add_mouse_input(
         &mut self,
         device_id: DeviceId,
         mouse_button: winit::event::MouseButton,
@@ -131,7 +131,7 @@ pub trait InputHandler<E> {
     );
     fn handle_key_events(
         &self,
-        ecs: &ECS<E>,
+        ecs: &mut ECS<E>,
         pressed_keys: &IndexSet<Key>,
         event_proxy: &EventLoopProxy<E>,
     );

@@ -1,14 +1,16 @@
-use crate::{structs::ModelViewProjection, vulkan::VulkanWrapper};
+use crate::vulkan::VulkanWrapper;
+
 use ash::{
     vk::{Buffer, DescriptorSet, DeviceMemory, PhysicalDevice},
     Device, Instance,
 };
+use ecs::MVP;
 use std::ptr::copy_nonoverlapping;
 
 pub struct StorageBufferObject {
     buffer: Buffer,
     memory: DeviceMemory,
-    mapped: *mut ModelViewProjection,
+    mapped: *mut MVP,
     capacity: usize,
 }
 
@@ -58,7 +60,7 @@ impl StorageBufferObject {
         VulkanWrapper::update_mvp_descriptors(device, descriptor_set, entity_count, self.buffer);
     }
 
-    pub fn update_data(&self, data: &[ModelViewProjection]) {
+    pub fn update_data(&self, data: &[MVP]) {
         assert!(
             data.len() <= self.capacity,
             "More MVPs than mvp_buffer capacity!"

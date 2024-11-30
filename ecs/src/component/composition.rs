@@ -1,4 +1,4 @@
-use super::{InputComponent, Layer, PositionComponent, TextComponent, VisualComponent};
+use super::{Layer, PositionComponent, TextComponent, VisualComponent};
 
 pub struct TextWithPosition<'component> {
     pub text: &'component mut TextComponent,
@@ -7,14 +7,6 @@ pub struct TextWithPosition<'component> {
 
 pub struct VisualWithPosition<'component> {
     pub visual: &'component VisualComponent,
-    pub position: &'component PositionComponent,
-}
-
-pub struct InputWithPosition<'component, E>
-where
-    E: 'static,
-{
-    pub input: &'component InputComponent<E>,
     pub position: &'component PositionComponent,
 }
 

@@ -3,18 +3,23 @@ mod entity;
 mod system;
 
 use component::ComponentManager;
-use entity::{EntityManager, EntityProvider};
-use system::{MouseHandler, MousePosition, RenderContext, RenderSystem, SystemManager};
+use entity::EntityManager;
+use system::{MouseHandler, MousePosition, RenderSystem, SystemManager};
 
-use ash::Device;
-use winit::event_loop::EventLoopProxy;
+use ash::{vk::Extent2D, Device};
+use winit::{
+    dpi::PhysicalPosition,
+    event::{DeviceId, ElementState, MouseButton},
+    event_loop::EventLoopProxy,
+    keyboard::Key,
+};
 
 pub use component::{
-    Component, InputComponent, Layer, PhysicsComponent, PositionComponent, TextComponent,
-    TextContent, VisualComponent,
+    Component, ImageData, InputComponent, Layer, PhysicsComponent, PositionComponent,
+    TextComponent, TextContent, VisualComponent, MVP,
 };
-pub use entity::Entity;
-pub use system::{InputHandler, MouseEvent};
+pub use entity::{Entity, EntityProvider};
+pub use system::{InputHandler, MouseEvent, RenderContext};
 
 pub struct ECS<E>
 where
@@ -125,6 +130,34 @@ where
         }
     }
 
+    pub fn update_keyboard_input(&mut self, state: ElementState, key: Key) {
+        self.system_manager
+            .input_system
+            .update_keyboard_input(state, key);
+    }
+
+    pub fn update_cursor_position(
+        &mut self,
+        id: DeviceId,
+        position: PhysicalPosition<f64>,
+        window_size: Extent2D,
+    ) {
+        self.system_manager
+            .input_system
+            .update_cursor_position(id, position, window_size);
+    }
+
+    pub fn add_mouse_input(
+        &mut self,
+        device_id: DeviceId,
+        mouse_button: MouseButton,
+        state: ElementState,
+    ) {
+        self.system_manager
+            .input_system
+            .add_mouse_input(device_id, mouse_button, state);
+    }
+
     pub fn process_inputs<T: InputHandler<E>>(
         &mut self,
         handler: &T,
@@ -137,7 +170,11 @@ where
         );
         handler.handle_key_events(
             self,
-            &self.system_manager.input_system.keyboard_pressed_inputs,
+            &self
+                .system_manager
+                .input_system
+                .keyboard_pressed_inputs
+                .clone(),
             event_proxy,
         );
 
@@ -154,11 +191,11 @@ where
         P: EntityProvider,
     {
         for entity in provider.get_entities() {
-            let Some(entity_physics) = self.component_manager.physics_storage.get(entity) else {
+            let Some(entity_physics) = self.component_manager.physics_storage.get(*entity) else {
                 continue;
             };
 
-            let Some(entity_position) = self.component_manager.position_storage.get_mut(entity)
+            let Some(entity_position) = self.component_manager.position_storage.get_mut(*entity)
             else {
                 continue;
             };

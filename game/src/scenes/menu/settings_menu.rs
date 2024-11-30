@@ -28,13 +28,13 @@ impl Menu {
 
 impl SettingsMenu {
     pub fn create(ecs: &mut ECS<GameEvent>) -> Self {
-        let mut objects: Vec<Entity> = Vec::with_capacity(3);
-
-        objects.push(Menu::create_background(ecs));
-        objects.push(Menu::create_title(ecs));
-        objects.push(Menu::create_back_button(ecs));
-
-        Self { objects }
+        Self {
+            objects: vec![
+                Menu::create_background(ecs),
+                Menu::create_title(ecs),
+                Menu::create_back_button(ecs),
+            ],
+        }
     }
 }
 

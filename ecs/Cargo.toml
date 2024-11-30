@@ -1,0 +1,25 @@
+[package]
+name = "ecs"
+version = "0.1.0"
+authors = ["Marcel Witoschek <marcel.marciland@gmail.com>"]
+edition = "2021"
+repository = "https://github.com/Marciland/Witch-s-Ascendancy/ecs"
+description = "Entity Component System for my game."
+license-file = "LICENSE"
+keywords = ["ecs", "entity-component-system"]
+readme = "readme.md"
+categories = ["games"]
+
+[dependencies]
+vulkan = { version = "*", path = "../vulkan" }
+ash = { workspace = true }
+glam = { workspace = true }
+image = { workspace = true }
+winit = { workspace = true }
+indexmap = { workspace = true }
+ab_glyph = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

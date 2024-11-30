@@ -1,13 +1,13 @@
 #version 450
 
-struct ModelViewProjection {
+struct MVP {
   mat4 model;
   mat4 view;
   mat4 projection;
 };
 
 layout(set = 0, binding = 0) readonly buffer MVPs {
-  ModelViewProjection mvpMatrices[];
+  MVP mvpMatrices[];
 };
 
 layout(location = 0) in vec2 inPosition;

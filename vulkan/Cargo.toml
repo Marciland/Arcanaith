@@ -1,0 +1,19 @@
+[package]
+name = "vulkan"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/Marciland/Witch-s-Ascendancy/vulkan"
+license-file = "LICENSE"
+description = "Vulkan rendering"
+keywords = ["vulkan"]
+categories = ["rendering"]
+readme = "readme.md"
+
+[dependencies]
+ash = { workspace = true }
+glam = { workspace = true }
+winit = { workspace = true }
+ash-window = { workspace = true }
+
+[lints]
+workspace = true

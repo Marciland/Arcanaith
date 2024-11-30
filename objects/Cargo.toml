@@ -1,0 +1,19 @@
+[package]
+name = "objects"
+version = "0.1.0"
+authors = ["Marcel Witoschek <marcel.marciland@gmail.com>"]
+edition = "2021"
+repository = "https://github.com/Marciland/Witch-s-Ascendancy/objects"
+description = "Object creation wraps ecs."
+license-file = "LICENSE"
+keywords = ["object-creation"]
+readme = "readme.md"
+categories = ["games"]
+
+[dependencies]
+ecs = { version = "0.1.0", path = "../ecs" }
+glam = { workspace = true, features = ["std"] }
+winit = { workspace = true, features = ["rwh_06"] }
+
+[lints]
+workspace = true

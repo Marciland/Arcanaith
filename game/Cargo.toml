@@ -1,0 +1,23 @@
+[package]
+name = "game"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/Marciland/Witch-s-Ascendancy/game"
+license-file = "LICENSE"
+description = "A game written in rust with vulkan."
+keywords = ["gamedev", "vulkan"]
+categories = ["rendering", "games"]
+readme = "readme.md"
+
+[dependencies]
+ecs = { version = "0.1.0", path = "../ecs" }
+objects = { version = "0.1.0", path = "../objects" }
+ash = { workspace = true, features = ["linked"] }
+glam = { workspace = true, features = ["std"] }
+winit = { workspace = true, features = ["rwh_06"] }
+image = { workspace = true, features = ["png"] }
+indexmap = { workspace = true, features = ["std"] }
+ash-window = "0.13.0"
+
+[lints]
+workspace = true

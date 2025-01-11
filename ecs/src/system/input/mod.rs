@@ -1,7 +1,5 @@
 mod mouse;
 
-use crate::{component::ComponentManager, Entity, ECS};
-
 use ash::vk::Extent2D;
 use glam::Vec2;
 use indexmap::IndexSet;
@@ -15,6 +13,8 @@ use winit::{
 };
 
 pub use mouse::{MouseEvent, MouseHandler, MousePosition};
+
+use super::super::{component::ComponentManager, entity::Entity, ECS};
 
 pub struct InputSystem {
     cursor_positions: HashMap<DeviceId, Vec2>,

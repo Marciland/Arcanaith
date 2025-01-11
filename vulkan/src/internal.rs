@@ -1,7 +1,3 @@
-use crate::{
-    constants::{FRAGSHADER, VERTSHADER},
-    structs::ShaderModules,
-};
 use ash::{
     khr::surface,
     util::read_spv,
@@ -12,8 +8,8 @@ use ash::{
         Extent2D, Extent3D, Fence, Format, FormatFeatureFlags, Image, ImageAspectFlags,
         ImageCreateInfo, ImageLayout, ImageMemoryBarrier, ImageSubresourceLayers,
         ImageSubresourceRange, ImageTiling, ImageType, ImageUsageFlags, ImageView,
-        ImageViewCreateInfo, ImageViewType, MemoryAllocateInfo, MemoryPropertyFlags,
-        MemoryRequirements, Offset3D, PhysicalDevice, PhysicalDeviceFeatures2,
+        ImageViewCreateInfo, ImageViewType, MemoryAllocateInfo, MemoryMapFlags,
+        MemoryPropertyFlags, MemoryRequirements, Offset3D, PhysicalDevice, PhysicalDeviceFeatures2,
         PhysicalDeviceVulkan12Features, PipelineLayout, PipelineLayoutCreateInfo,
         PipelineShaderStageCreateInfo, PipelineStageFlags, PresentModeKHR, Queue, QueueFlags,
         SampleCountFlags, ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubmitInfo,
@@ -27,9 +23,11 @@ use std::{
     io::{Cursor, Read, Result},
 };
 
-pub struct InternalVulkan;
+use super::structs::{ShaderModules, MVP};
 
-impl InternalVulkan {
+pub struct Internal;
+
+impl Internal {
     #[allow(clippy::too_many_arguments)]
     pub fn create_image(
         instance: &Instance,
@@ -63,7 +61,7 @@ impl InternalVulkan {
 
         let allocation_info = MemoryAllocateInfo::default()
             .allocation_size(memory_requirements.size)
-            .memory_type_index(InternalVulkan::find_memory_type(
+            .memory_type_index(Internal::find_memory_type(
                 instance,
                 physical_device,
                 memory_requirements,
@@ -126,7 +124,7 @@ impl InternalVulkan {
         old_layout: ImageLayout,
         new_layout: ImageLayout,
     ) {
-        let command_buffer = InternalVulkan::begin_single_time_commands(device, command_pool);
+        let command_buffer = Internal::begin_single_time_commands(device, command_pool);
 
         let src_access_mask;
         let dst_access_mask;
@@ -180,12 +178,7 @@ impl InternalVulkan {
             );
         }
 
-        InternalVulkan::end_single_time_commands(
-            device,
-            graphics_queue,
-            command_pool,
-            command_buffer,
-        );
+        Internal::end_single_time_commands(device, graphics_queue, command_pool, command_buffer);
     }
 
     pub fn copy_buffer_to_image(
@@ -196,7 +189,7 @@ impl InternalVulkan {
         image: Image,
         extent: Extent2D,
     ) {
-        let command_buffer = InternalVulkan::begin_single_time_commands(device, command_pool);
+        let command_buffer = Internal::begin_single_time_commands(device, command_pool);
 
         let region = BufferImageCopy::default()
             .buffer_offset(0)
@@ -225,12 +218,7 @@ impl InternalVulkan {
             );
         };
 
-        InternalVulkan::end_single_time_commands(
-            device,
-            graphics_queue,
-            command_pool,
-            command_buffer,
-        );
+        Internal::end_single_time_commands(device, graphics_queue, command_pool, command_buffer);
     }
 
     pub fn create_buffer(
@@ -252,7 +240,7 @@ impl InternalVulkan {
 
         let allocation_info = MemoryAllocateInfo::default()
             .allocation_size(memory_requirements.size)
-            .memory_type_index(InternalVulkan::find_memory_type(
+            .memory_type_index(Internal::find_memory_type(
                 instance,
                 physical_device,
                 memory_requirements,
@@ -275,19 +263,14 @@ impl InternalVulkan {
         dst: Buffer,
         size: u64,
     ) {
-        let command_buffer = InternalVulkan::begin_single_time_commands(device, command_pool);
+        let command_buffer = Internal::begin_single_time_commands(device, command_pool);
         let copy_region = BufferCopy::default().src_offset(0).dst_offset(0).size(size);
 
         unsafe {
             device.cmd_copy_buffer(command_buffer, src, dst, &[copy_region]);
         };
 
-        InternalVulkan::end_single_time_commands(
-            device,
-            graphics_queue,
-            command_pool,
-            command_buffer,
-        );
+        Internal::end_single_time_commands(device, graphics_queue, command_pool, command_buffer);
     }
 
     fn find_memory_type(
@@ -357,7 +340,7 @@ impl InternalVulkan {
     }
 
     pub fn find_depth_format(instance: &Instance, physical_device: PhysicalDevice) -> Format {
-        InternalVulkan::find_supported_format(
+        Internal::find_supported_format(
             instance,
             physical_device,
             vec![
@@ -417,10 +400,14 @@ impl InternalVulkan {
             && device_features_12.shader_sampled_image_array_non_uniform_indexing == TRUE
     }
 
-    fn create_shader_modules(device: &Device) -> ShaderModules {
+    pub fn create_shader_modules(
+        device: &Device,
+        vertex_path: &str,
+        fragment_path: &str,
+    ) -> ShaderModules {
         let vertex_shader_code = read_spv(&mut Cursor::new(
-            &read_bytes_from_file(VERTSHADER)
-                .expect(&("Could not read file: ".to_string() + VERTSHADER)),
+            &read_bytes_from_file(vertex_path)
+                .expect(&("Could not read file: ".to_string() + vertex_path)),
         ))
         .expect("Failed to read vertex shader spv!");
         let vertex_shader_create_info = ShaderModuleCreateInfo::default().code(&vertex_shader_code);
@@ -429,8 +416,8 @@ impl InternalVulkan {
                 .expect("Failed to create vertex shader module!");
 
         let fragment_shader_code = read_spv(&mut Cursor::new(
-            &read_bytes_from_file(FRAGSHADER)
-                .expect(&("Could not read file: ".to_string() + FRAGSHADER)),
+            &read_bytes_from_file(fragment_path)
+                .expect(&("Could not read file: ".to_string() + fragment_path)),
         ))
         .expect("Failed to read fragment shader spv!");
         let fragment_shader_create_info =
@@ -457,13 +444,11 @@ impl InternalVulkan {
     }
 
     pub fn create_shader_stages(
-        device: &Device,
-    ) -> (Vec<PipelineShaderStageCreateInfo>, ShaderModules) {
-        let shader_modules = InternalVulkan::create_shader_modules(device);
-
+        shader_modules: &ShaderModules,
+    ) -> Vec<PipelineShaderStageCreateInfo> {
         let stage_entry_point = CStr::from_bytes_with_nul("main\0".as_bytes())
             .expect("Failed to convert bytes to cstr!");
-        let shader_stages = vec![
+        vec![
             PipelineShaderStageCreateInfo::default()
                 .stage(ShaderStageFlags::VERTEX)
                 .module(shader_modules.vertex_module)
@@ -472,9 +457,7 @@ impl InternalVulkan {
                 .stage(ShaderStageFlags::FRAGMENT)
                 .module(shader_modules.fragment_module)
                 .name(stage_entry_point),
-        ];
-
-        (shader_stages, shader_modules)
+        ]
     }
 
     pub fn get_swapchain_present_mode(
@@ -493,6 +476,29 @@ impl InternalVulkan {
         };
 
         mailbox
+    }
+
+    pub fn create_ssbo(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+        device: &Device,
+        capacity: usize,
+    ) -> (Buffer, DeviceMemory, *mut MVP) {
+        let buffer_size = (capacity * size_of::<MVP>()) as u64;
+
+        let (buffer, memory) = Internal::create_buffer(
+            instance,
+            physical_device,
+            device,
+            buffer_size,
+            BufferUsageFlags::STORAGE_BUFFER,
+            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
+        );
+        let mapped = unsafe { device.map_memory(memory, 0, buffer_size, MemoryMapFlags::empty()) }
+            .expect("Failed to map memory for SSBO!")
+            .cast::<MVP>();
+
+        (buffer, memory, mapped)
     }
 }
 

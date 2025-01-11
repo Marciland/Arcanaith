@@ -1,9 +1,3 @@
-use ash::{
-    vk::{DeviceMemory, Image, ImageView},
-    Device,
-};
-use glam::Vec2;
-
 pub struct VisualComponent {
     texture_indices: Vec<usize>,
     current_texture: usize,
@@ -63,40 +57,5 @@ impl Layer {
             Layer::Game => 1,
             Layer::Background => 2,
         }
-    }
-}
-
-pub struct Vertex {
-    pub position: Vec2,
-    #[allow(dead_code)]
-    pub texture_coordinates: Vec2,
-}
-
-pub struct ImageData {
-    image: Image,
-    memory: DeviceMemory,
-    view: ImageView,
-}
-
-impl ImageData {
-    #[must_use]
-    pub fn create(image: Image, memory: DeviceMemory, view: ImageView) -> Self {
-        Self {
-            image,
-            memory,
-            view,
-        }
-    }
-
-    #[must_use]
-    pub fn get_view(&self) -> ImageView {
-        self.view
-    }
-
-    #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn destroy(&self, device: &Device) {
-        device.destroy_image_view(self.view, None);
-        device.destroy_image(self.image, None);
-        device.free_memory(self.memory, None);
     }
 }

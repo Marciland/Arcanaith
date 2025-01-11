@@ -1,6 +1,5 @@
-use crate::component::TextContent;
+use super::{super::super::component::TextContent, ResourceSystem};
 
-use super::ResourceSystem;
 use ab_glyph::{Font, FontVec, Glyph, OutlinedGlyph, Point, PxScale, Rect, ScaleFont};
 use image::{DynamicImage, ImageBuffer, Rgba};
 

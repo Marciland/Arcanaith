@@ -1,7 +1,7 @@
-use crate::{
-    component::{ComponentManager, PositionComponent, Quad, MVP},
+use super::super::super::{
+    component::{ComponentManager, PositionComponent, Quad},
+    entity::Entity,
     system::InputSystem,
-    Entity,
 };
 
 use glam::{Vec2, Vec3, Vec3Swizzles};
@@ -107,7 +107,7 @@ fn component_was_clicked(
 }
 
 fn quad_from_model(position: &PositionComponent) -> Quad {
-    let model_matrix = MVP::get_model_matrix(position);
+    let model_matrix = position.get_model_matrix();
     let mut geometry = Quad::new();
 
     let bottom_left = model_matrix.transform_point3(Vec3 {

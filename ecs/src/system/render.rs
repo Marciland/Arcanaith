@@ -1,15 +1,10 @@
-use crate::{
-    component::{ImageData, MVP},
-    entity::EntityProvider,
-};
-
 use super::{
     super::{
         component::{
             composition::{RenderTarget, TextWithPosition, VisualWithPosition},
             ComponentStorage, Layer, PositionComponent, TextComponent, VisualComponent,
         },
-        entity::Entity,
+        entity::{Entity, EntityProvider},
     },
     ResourceSystem,
 };
@@ -17,6 +12,7 @@ use ash::vk::ImageView;
 use glam::Mat4;
 use image::{ImageBuffer, Rgba};
 use std::cmp::Ordering;
+use vulkan::structs::{ImageData, MVP};
 
 pub trait RenderContext {
     fn draw(&mut self, textures: &[ImageView], positions: &[MVP]);
@@ -157,16 +153,20 @@ fn get_render_positions(
                     Layer::Game | Layer::Background => view_matrix,
                 };
                 MVP {
-                    model: MVP::get_model_matrix(visual_with_position.position),
+                    model: visual_with_position.position.get_model_matrix(),
                     view,
-                    projection: MVP::get_projection(),
+                    projection: get_projection(),
                 }
             }
             RenderTarget::Text(text) => MVP {
-                model: MVP::get_model_matrix(text.position),
+                model: text.position.get_model_matrix(),
                 view: Mat4::IDENTITY,
-                projection: MVP::get_projection(),
+                projection: get_projection(),
             },
         })
         .collect()
+}
+
+fn get_projection() -> Mat4 {
+    Mat4::orthographic_rh(-1.0, 1.0, -1.0, 1.0, 0.0, -1.0)
 }

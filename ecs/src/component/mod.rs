@@ -12,9 +12,9 @@ pub mod composition;
 
 pub use input::InputComponent;
 pub use physics::PhysicsComponent;
-pub use position::{PositionComponent, Quad, MVP};
+pub use position::{PositionComponent, Quad};
 pub use text::{TextComponent, TextContent};
-pub use visual::{ImageData, Layer, Vertex, VisualComponent};
+pub use visual::{Layer, VisualComponent};
 
 pub enum Component<E>
 where

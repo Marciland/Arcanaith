@@ -1,6 +1,4 @@
-use crate::Content;
-
-use super::Factory;
+use super::{super::Content, Factory};
 
 use ecs::{
     Component, Entity, InputComponent, PositionComponent, TextComponent, VisualComponent, ECS,

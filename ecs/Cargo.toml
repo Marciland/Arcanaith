@@ -11,6 +11,7 @@ readme = "readme.md"
 categories = ["games"]
 
 [dependencies]
+vulkan = { version = "*", path = "../vulkan" }
 ash = { workspace = true, features = ["linked"] }
 glam = { workspace = true, features = ["std"] }
 image = { workspace = true, features = ["png"] }

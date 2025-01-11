@@ -1,8 +1,4 @@
-use crate::{
-    constants::FRAMES_IN_FLIGHT,
-    structs::{StorageBufferObject, Vertex},
-    vulkan::VulkanWrapper,
-};
+use crate::constants::{FRAGSHADER, FRAMES_IN_FLIGHT, TITLE, VERTSHADER};
 
 use ash::{
     khr::{surface, swapchain},
@@ -14,9 +10,13 @@ use ash::{
     },
     Device, Entry, Instance,
 };
-use ecs::{ImageData, RenderContext, MVP};
+use ecs::RenderContext;
 use glam::Vec2;
 use image::{ImageBuffer, Rgba};
+use vulkan::{
+    structs::{ImageData, StorageBufferObject, Vertex, MVP},
+    RenderAPI,
+};
 
 pub struct Renderer {
     vk_instance: Instance,
@@ -59,14 +59,14 @@ impl Renderer {
     #[allow(clippy::too_many_lines)]
     pub fn create(inner_window: &winit::window::Window, max_texture_count: u32) -> Self {
         let entry = Entry::linked();
-        let vk_instance = VulkanWrapper::create_vulkan_instance(&entry, inner_window);
+        let vk_instance = RenderAPI::create_vulkan_instance(&entry, inner_window, TITLE);
         let (surface, surface_loader) =
-            VulkanWrapper::create_surface(inner_window, &entry, &vk_instance);
+            RenderAPI::create_surface(inner_window, &entry, &vk_instance);
         let (physical_device, queue_family_index) =
-            VulkanWrapper::find_physical_device(&vk_instance, surface, &surface_loader);
+            RenderAPI::find_physical_device(&vk_instance, surface, &surface_loader);
         let device =
-            VulkanWrapper::create_logical_device(&vk_instance, physical_device, queue_family_index);
-        let (swapchain, swapchain_loader, format, extent) = VulkanWrapper::create_swapchain(
+            RenderAPI::create_logical_device(&vk_instance, physical_device, queue_family_index);
+        let (swapchain, swapchain_loader, format, extent) = RenderAPI::create_swapchain(
             &vk_instance,
             surface,
             &device,
@@ -74,9 +74,9 @@ impl Renderer {
             &surface_loader,
         );
         let (command_pools, command_buffers) =
-            VulkanWrapper::create_command_buffers(&device, queue_family_index, FRAMES_IN_FLIGHT);
+            RenderAPI::create_command_buffers(&device, queue_family_index, FRAMES_IN_FLIGHT);
         let (images, image_views) =
-            VulkanWrapper::create_image_views(&swapchain_loader, swapchain, format, &device);
+            RenderAPI::create_image_views(&swapchain_loader, swapchain, format, &device);
         let graphics_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
         let bottom_left = Vertex {
             position: Vec2 { x: -0.5, y: -0.5 },
@@ -95,7 +95,7 @@ impl Renderer {
             texture_coordinates: Vec2 { x: 0.0, y: 1.0 },
         };
         let vertices: Vec<Vertex> = vec![bottom_left, bottom_right, top_right, top_left];
-        let (vertex_buffer, vertex_buffer_memory) = VulkanWrapper::create_vertex_buffer(
+        let (vertex_buffer, vertex_buffer_memory) = RenderAPI::create_vertex_buffer(
             &vk_instance,
             physical_device,
             &device,
@@ -104,7 +104,7 @@ impl Renderer {
             graphics_queue,
         );
         let indices: Vec<u32> = vec![0, 1, 2, 2, 3, 0];
-        let (index_buffer, index_buffer_memory) = VulkanWrapper::create_index_buffer(
+        let (index_buffer, index_buffer_memory) = RenderAPI::create_index_buffer(
             &vk_instance,
             physical_device,
             &device,
@@ -113,24 +113,26 @@ impl Renderer {
             command_pools[0],
         );
         let render_pass =
-            VulkanWrapper::create_render_pass(&vk_instance, physical_device, &device, format);
+            RenderAPI::create_render_pass(&vk_instance, physical_device, &device, format);
         let texture_sampler =
-            VulkanWrapper::create_texture_sampler(&vk_instance, physical_device, &device);
+            RenderAPI::create_texture_sampler(&vk_instance, physical_device, &device);
         let (descriptor_set_layout, descriptor_pool) =
-            VulkanWrapper::create_descriptors(&device, FRAMES_IN_FLIGHT as u32, max_texture_count);
-        let descriptor_sets = VulkanWrapper::create_descriptor_sets(
+            RenderAPI::create_descriptors(&device, FRAMES_IN_FLIGHT as u32, max_texture_count);
+        let descriptor_sets = RenderAPI::create_descriptor_sets(
             &device,
             descriptor_pool,
             descriptor_set_layout,
             FRAMES_IN_FLIGHT,
         );
-        let (pipeline_layout, pipeline) = VulkanWrapper::create_graphics_pipeline(
+        let (pipeline_layout, pipeline) = RenderAPI::create_graphics_pipeline(
             &device,
             extent,
             render_pass,
             &[descriptor_set_layout],
+            VERTSHADER,
+            FRAGSHADER,
         );
-        let depth = VulkanWrapper::create_depth(&vk_instance, physical_device, &device, extent);
+        let depth = RenderAPI::create_depth(&vk_instance, physical_device, &device, extent);
         let mut mvp_buffers: Vec<StorageBufferObject> = Vec::with_capacity(FRAMES_IN_FLIGHT);
         let initial_capacity = 100;
         for descriptor_set in &descriptor_sets {
@@ -140,7 +142,7 @@ impl Renderer {
                 &device,
                 initial_capacity,
             );
-            VulkanWrapper::update_mvp_descriptors(
+            RenderAPI::update_mvp_descriptors(
                 &device,
                 *descriptor_set,
                 initial_capacity,
@@ -149,7 +151,7 @@ impl Renderer {
             mvp_buffers.push(ssbo);
         }
         let (image_available, render_finished, in_flight) =
-            VulkanWrapper::create_sync(&device, FRAMES_IN_FLIGHT);
+            RenderAPI::create_sync(&device, FRAMES_IN_FLIGHT);
 
         Self {
             vk_instance,
@@ -197,7 +199,7 @@ impl Renderer {
         .expect("Failed to wait for fences!");
 
         if !textures.is_empty() {
-            VulkanWrapper::update_texture_descriptors(
+            RenderAPI::update_texture_descriptors(
                 &self.device,
                 self.descriptor_sets[self.current_frame],
                 textures,
@@ -287,7 +289,7 @@ impl Renderer {
 
         unsafe { self.destroy_swapchain_elements() };
 
-        let (swapchain, swapchain_loader, format, extent) = VulkanWrapper::create_swapchain(
+        let (swapchain, swapchain_loader, format, extent) = RenderAPI::create_swapchain(
             &self.vk_instance,
             self.surface,
             &self.device,
@@ -295,14 +297,14 @@ impl Renderer {
             &self.surface_loader,
         );
         let (images, image_views) =
-            VulkanWrapper::create_image_views(&swapchain_loader, swapchain, format, &self.device);
-        let depth = VulkanWrapper::create_depth(
+            RenderAPI::create_image_views(&swapchain_loader, swapchain, format, &self.device);
+        let depth = RenderAPI::create_depth(
             &self.vk_instance,
             self.physical_device,
             &self.device,
             extent,
         );
-        let framebuffers = VulkanWrapper::create_framebuffers(
+        let framebuffers = RenderAPI::create_framebuffers(
             &self.device,
             self.render_pass,
             &image_views,
@@ -401,7 +403,7 @@ impl RenderContext for Renderer {
         };
 
         if self.swapchain_framebuffers.is_empty() {
-            self.swapchain_framebuffers = VulkanWrapper::create_framebuffers(
+            self.swapchain_framebuffers = RenderAPI::create_framebuffers(
                 &self.device,
                 self.render_pass,
                 &self.image_views,
@@ -410,7 +412,7 @@ impl RenderContext for Renderer {
             );
         }
 
-        VulkanWrapper::begin_render_pass(
+        RenderAPI::begin_render_pass(
             &self.device,
             &self.swapchain_framebuffers,
             image_index as usize,
@@ -426,13 +428,13 @@ impl RenderContext for Renderer {
             mvps.len(),
             self.descriptor_sets[self.current_frame],
         );
-        VulkanWrapper::bind_buffers(
+        RenderAPI::bind_buffers(
             &self.device,
             self.command_buffers[self.current_frame],
             self.vertex_buffer,
             self.index_buffer,
         );
-        VulkanWrapper::draw_indexed_instanced(
+        RenderAPI::draw_indexed_instanced(
             &self.device,
             self.command_buffers[self.current_frame],
             self.pipeline_layout,
@@ -441,7 +443,7 @@ impl RenderContext for Renderer {
             mvps,
             &self.mvp_buffers[self.current_frame],
         );
-        VulkanWrapper::end_render_pass(&self.device, self.command_buffers[self.current_frame]);
+        RenderAPI::end_render_pass(&self.device, self.command_buffers[self.current_frame]);
 
         self.end_draw(image_index);
 
@@ -449,7 +451,7 @@ impl RenderContext for Renderer {
     }
 
     fn create_image_data(&self, image: ImageBuffer<Rgba<u8>, Vec<u8>>) -> ImageData {
-        VulkanWrapper::create_image_data(
+        RenderAPI::create_image_data(
             &self.vk_instance,
             self.physical_device,
             &self.device,

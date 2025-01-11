@@ -1,4 +1,3 @@
-use super::Vertex;
 use glam::{Mat4, Vec2, Vec3};
 
 pub struct PositionComponent {
@@ -6,23 +5,10 @@ pub struct PositionComponent {
     pub scale: Vec3,
 }
 
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct MVP {
-    pub model: Mat4,
-    pub view: Mat4,
-    pub projection: Mat4,
-}
-
-impl MVP {
+impl PositionComponent {
     #[must_use]
-    pub fn get_model_matrix(position: &PositionComponent) -> Mat4 {
-        Mat4::from_translation(position.xyz) * Mat4::from_scale(position.scale)
-    }
-
-    #[must_use]
-    pub fn get_projection() -> Mat4 {
-        Mat4::orthographic_rh(-1.0, 1.0, -1.0, 1.0, 0.0, -1.0)
+    pub fn get_model_matrix(&self) -> Mat4 {
+        Mat4::from_translation(self.xyz) * Mat4::from_scale(self.scale)
     }
 }
 
@@ -35,28 +21,16 @@ pub struct Quad {
 
 impl Quad {
     pub fn new() -> Self {
-        let bottom_left = Vertex {
-            position: Vec2 { x: -0.5, y: -0.5 },
-            texture_coordinates: Vec2 { x: 0.0, y: 0.0 },
-        };
-        let bottom_right = Vertex {
-            position: Vec2 { x: 0.5, y: -0.5 },
-            texture_coordinates: Vec2 { x: 1.0, y: 0.0 },
-        };
-        let top_right = Vertex {
-            position: Vec2 { x: 0.5, y: 0.5 },
-            texture_coordinates: Vec2 { x: 1.0, y: 1.0 },
-        };
-        let top_left = Vertex {
-            position: Vec2 { x: -0.5, y: 0.5 },
-            texture_coordinates: Vec2 { x: 0.0, y: 1.0 },
-        };
+        let bottom_left = Vec2 { x: -0.5, y: -0.5 };
+        let bottom_right = Vec2 { x: 0.5, y: -0.5 };
+        let top_right = Vec2 { x: 0.5, y: 0.5 };
+        let top_left = Vec2 { x: -0.5, y: 0.5 };
 
         Self {
-            top_right: top_right.position,
-            top_left: top_left.position,
-            bottom_left: bottom_left.position,
-            bottom_right: bottom_right.position,
+            top_right,
+            top_left,
+            bottom_left,
+            bottom_right,
         }
     }
 

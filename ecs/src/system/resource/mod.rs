@@ -7,10 +7,9 @@ use ash::{vk::ImageView, Device};
 use image::DynamicImage;
 use std::{collections::HashMap, path::PathBuf};
 use texture::TextureTable;
+use vulkan::structs::ImageData;
 
-use crate::component::{ImageData, TextComponent};
-
-use super::render::RenderContext;
+use super::{super::component::TextComponent, render::RenderContext};
 
 pub(crate) struct ResourceSystem {
     font_base_path: PathBuf,

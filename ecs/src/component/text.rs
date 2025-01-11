@@ -1,5 +1,6 @@
-use super::{visual::ImageData, ComponentStorage, Entity, Layer};
+use super::{ComponentStorage, Entity, Layer};
 use ash::Device;
+use vulkan::structs::ImageData;
 
 pub struct TextContent {
     pub text: String,

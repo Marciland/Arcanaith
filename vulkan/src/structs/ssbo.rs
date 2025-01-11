@@ -1,11 +1,13 @@
-use crate::vulkan::VulkanWrapper;
-
 use ash::{
     vk::{Buffer, DescriptorSet, DeviceMemory, PhysicalDevice},
     Device, Instance,
 };
-use ecs::MVP;
 use std::ptr::copy_nonoverlapping;
+
+use super::{
+    super::{internal::Internal, RenderAPI},
+    MVP,
+};
 
 pub struct StorageBufferObject {
     buffer: Buffer,
@@ -15,6 +17,7 @@ pub struct StorageBufferObject {
 }
 
 impl StorageBufferObject {
+    #[must_use]
     pub fn create(
         instance: &Instance,
         physical_device: PhysicalDevice,
@@ -22,7 +25,7 @@ impl StorageBufferObject {
         capacity: usize,
     ) -> Self {
         let (buffer, memory, mapped) =
-            VulkanWrapper::create_ssbo(instance, physical_device, device, capacity);
+            Internal::create_ssbo(instance, physical_device, device, capacity);
 
         Self {
             buffer,
@@ -47,7 +50,7 @@ impl StorageBufferObject {
         // add 50% more capacity
         let new_size = (entity_count as f32 * 1.5) as usize;
         let (buffer, memory, mapped) =
-            VulkanWrapper::create_ssbo(instance, physical_device, device, new_size);
+            Internal::create_ssbo(instance, physical_device, device, new_size);
 
         unsafe {
             self.destroy(device);
@@ -57,7 +60,7 @@ impl StorageBufferObject {
         self.memory = memory;
         self.mapped = mapped;
 
-        VulkanWrapper::update_mvp_descriptors(device, descriptor_set, entity_count, self.buffer);
+        RenderAPI::update_mvp_descriptors(device, descriptor_set, entity_count, self.buffer);
     }
 
     pub fn update_data(&self, data: &[MVP]) {
@@ -71,6 +74,7 @@ impl StorageBufferObject {
         }
     }
 
+    #[must_use]
     pub fn get_buffer(&self) -> Buffer {
         self.buffer
     }

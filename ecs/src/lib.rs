@@ -15,8 +15,8 @@ use winit::{
 };
 
 pub use component::{
-    Component, ImageData, InputComponent, Layer, PhysicsComponent, PositionComponent,
-    TextComponent, TextContent, VisualComponent, MVP,
+    Component, InputComponent, Layer, PhysicsComponent, PositionComponent, TextComponent,
+    TextContent, VisualComponent,
 };
 pub use entity::{Entity, EntityProvider};
 pub use system::{InputHandler, MouseEvent, RenderContext};

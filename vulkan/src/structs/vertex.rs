@@ -17,6 +17,7 @@ impl Vertex {
             .input_rate(VertexInputRate::VERTEX)
     }
 
+    #[must_use]
     pub fn get_attribute_descriptions() -> Vec<VertexInputAttributeDescription> {
         vec![
             VertexInputAttributeDescription::default()

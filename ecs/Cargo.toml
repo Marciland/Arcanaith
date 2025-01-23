@@ -11,8 +11,7 @@ readme = "readme.md"
 categories = ["games"]
 
 [dependencies]
-vulkan = { version = "*", path = "../vulkan" }
-ash = { workspace = true }
+rendering = { version = "*", path = "../rendering" }
 glam = { workspace = true }
 image = { workspace = true }
 winit = { workspace = true }

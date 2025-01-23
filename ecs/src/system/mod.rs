@@ -2,11 +2,11 @@ mod input;
 mod render;
 mod resource;
 
-use ash::Device;
+use rendering::Renderer;
 use resource::ResourceSystem;
 
 pub use input::{InputHandler, InputSystem, MouseEvent, MouseHandler, MousePosition};
-pub use render::{RenderContext, RenderSystem};
+pub use render::RenderSystem;
 
 pub(crate) struct SystemManager {
     pub resource_system: ResourceSystem,
@@ -23,12 +23,12 @@ impl SystemManager {
 
     pub fn initialize<R>(&mut self, renderer: &R)
     where
-        R: RenderContext,
+        R: Renderer,
     {
         self.resource_system.initialize(renderer);
     }
 
-    pub fn destroy(&self, device: &Device) {
-        self.resource_system.destroy(device);
+    pub fn destroy(&self) {
+        self.resource_system.destroy();
     }
 }

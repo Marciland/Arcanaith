@@ -4,9 +4,9 @@ mod system;
 
 use component::ComponentManager;
 use entity::EntityManager;
+use rendering::{Renderer, WindowSize};
 use system::{InputSystem, MouseHandler, MousePosition, RenderSystem, SystemManager};
 
-use ash::{vk::Extent2D, Device};
 use winit::{
     dpi::PhysicalPosition,
     event::{DeviceId, ElementState, MouseButton},
@@ -19,7 +19,7 @@ pub use component::{
     TextContent, VisualComponent,
 };
 pub use entity::{Entity, EntityProvider};
-pub use system::{InputHandler, MouseEvent, RenderContext};
+pub use system::{InputHandler, MouseEvent};
 
 pub struct ECS<E>
 where
@@ -49,7 +49,7 @@ where
 
     pub fn initialize<R>(&mut self, renderer: &R)
     where
-        R: RenderContext,
+        R: Renderer,
     {
         self.system_manager.initialize(renderer);
     }
@@ -141,7 +141,7 @@ where
         &mut self,
         id: DeviceId,
         position: PhysicalPosition<f64>,
-        window_size: Extent2D,
+        window_size: &WindowSize,
     ) {
         self.system_manager
             .input_system
@@ -208,7 +208,7 @@ where
     pub fn render<R, P>(&mut self, renderer: &mut R, provider: &P)
     where
         P: EntityProvider,
-        R: RenderContext,
+        R: Renderer,
     {
         RenderSystem::draw(
             renderer,
@@ -220,13 +220,13 @@ where
         );
     }
 
-    pub fn destroy_entity(&mut self, entity: Entity, device: &Device) {
-        self.component_manager.clear_entity(entity, device);
+    pub fn destroy_entity(&mut self, entity: Entity) {
+        self.component_manager.clear_entity(entity);
         self.entity_manager.destroy_entity(entity);
     }
 
-    pub fn destroy(&mut self, device: &Device) {
-        self.component_manager.destroy(device);
-        self.system_manager.destroy(device);
+    pub fn destroy(&mut self) {
+        self.component_manager.destroy();
+        self.system_manager.destroy();
     }
 }

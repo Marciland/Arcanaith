@@ -3,7 +3,6 @@ mod settings_menu;
 
 use crate::GameEvent;
 
-use ash::Device;
 use ecs::{Entity, InputHandler, Layer, MouseEvent, ECS};
 use glam::{Vec2, Vec3};
 use indexmap::IndexSet;
@@ -58,14 +57,14 @@ impl Menu {
         }
     }
 
-    pub fn destroy(&self, device: &Device, ecs: &mut ECS<GameEvent>) {
+    pub fn destroy(&self, ecs: &mut ECS<GameEvent>) {
         let objects = match self {
             Menu::MainMenu(main_menu) => &main_menu.objects,
             Menu::SettingsMenu(settings_menu) => &settings_menu.objects,
         };
 
         for obj in objects {
-            ecs.destroy_entity(*obj, device);
+            ecs.destroy_entity(*obj);
         }
     }
 }

@@ -3,13 +3,12 @@ mod text;
 mod texture;
 
 use ab_glyph::FontVec;
-use ash::{vk::ImageView, Device};
 use image::DynamicImage;
+use rendering::{ImageData, ImageView, Renderer};
 use std::{collections::HashMap, path::PathBuf};
 use texture::TextureTable;
-use vulkan::structs::ImageData;
 
-use super::{super::component::TextComponent, render::RenderContext};
+use super::super::component::TextComponent;
 
 pub(crate) struct ResourceSystem {
     font_base_path: PathBuf,
@@ -38,7 +37,7 @@ impl ResourceSystem {
 
     pub fn initialize<R>(&mut self, renderer: &R)
     where
-        R: RenderContext,
+        R: Renderer,
     {
         for image in &self.images {
             self.textures
@@ -59,10 +58,11 @@ impl ResourceSystem {
             .expect(&("Failed to get texture index: ".to_string() + key))
     }
 
-    pub fn get_texture(&self, texture_index: usize) -> &ImageData {
+    pub fn get_texture(&self, texture_index: usize) -> ImageView {
         self.textures
             .get(texture_index)
             .expect(&("Failed to get texture: ".to_string() + &texture_index.to_string()))
+            .get_view()
     }
 
     fn get_font(&self, font: &str) -> &FontVec {
@@ -73,7 +73,7 @@ impl ResourceSystem {
 
     pub fn get_bitmap<R>(&mut self, renderer: &R, component: &mut TextComponent) -> ImageView
     where
-        R: RenderContext,
+        R: Renderer,
     {
         let Some(bitmap) = &component.bitmap else {
             return self.create_bitmap(renderer, component);
@@ -84,7 +84,7 @@ impl ResourceSystem {
 
     fn create_bitmap<R>(&mut self, renderer: &R, component: &mut TextComponent) -> ImageView
     where
-        R: RenderContext,
+        R: Renderer,
     {
         let image = self.text_to_image(&component.content);
 
@@ -96,11 +96,9 @@ impl ResourceSystem {
         view
     }
 
-    pub fn destroy(&self, device: &Device) {
+    pub fn destroy(&self) {
         for texture in &self.textures {
-            unsafe {
-                texture.destroy(device);
-            }
+            texture.destroy();
         }
     }
 }

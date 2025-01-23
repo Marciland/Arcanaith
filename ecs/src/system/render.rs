@@ -8,16 +8,10 @@ use super::{
     },
     ResourceSystem,
 };
-use ash::vk::ImageView;
-use glam::Mat4;
-use image::{ImageBuffer, Rgba};
-use std::cmp::Ordering;
-use vulkan::structs::{ImageData, MVP};
 
-pub trait RenderContext {
-    fn draw(&mut self, textures: &[ImageView], positions: &[MVP]);
-    fn create_image_data(&self, image: ImageBuffer<Rgba<u8>, Vec<u8>>) -> ImageData;
-}
+use glam::Mat4;
+use rendering::{ImageView, Renderer, MVP};
+use std::cmp::Ordering;
 
 pub struct RenderSystem;
 
@@ -31,7 +25,7 @@ impl RenderSystem {
         resource_system: &mut ResourceSystem,
     ) where
         P: EntityProvider,
-        R: RenderContext,
+        R: Renderer,
     {
         let mut render_targets: Vec<RenderTarget> = get_render_targets(
             provider.get_entities(),
@@ -114,14 +108,12 @@ fn get_render_resources<R>(
     resource_system: &mut ResourceSystem,
 ) -> Vec<ImageView>
 where
-    R: RenderContext,
+    R: Renderer,
 {
     render_targets
         .iter_mut()
         .map(|target| match target {
-            RenderTarget::Visual(v) => resource_system
-                .get_texture(v.visual.get_current_texture())
-                .get_view(),
+            RenderTarget::Visual(v) => resource_system.get_texture(v.visual.get_current_texture()),
             RenderTarget::Text(t) => resource_system.get_bitmap(renderer, t.text),
         })
         .collect()
@@ -158,6 +150,7 @@ fn get_render_positions(
                     projection: get_projection(),
                 }
             }
+
             RenderTarget::Text(text) => MVP {
                 model: text.position.get_model_matrix(),
                 view: Mat4::IDENTITY,

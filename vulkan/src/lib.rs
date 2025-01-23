@@ -3,4 +3,4 @@ mod public;
 
 pub mod structs;
 
-pub struct RenderAPI;
+pub struct Vulkan;

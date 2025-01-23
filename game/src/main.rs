@@ -1,4 +1,5 @@
 use game::{Game, GameEvent};
+use rendering::VulkanAPI;
 use std::panic;
 use winit::event_loop::{ControlFlow, EventLoop};
 
@@ -20,7 +21,7 @@ fn main() {
         .expect("Failed to build custom event loop!");
     event_loop.set_control_flow(ControlFlow::Poll);
 
-    let mut game = Game::new(&event_loop);
+    let mut game = Game::<VulkanAPI>::new(&event_loop);
 
     event_loop.run_app(&mut game).expect("Failed to run game!");
 }

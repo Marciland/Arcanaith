@@ -2,12 +2,13 @@ use super::{
     event::{UserEventHandler, WindowEventHandler},
     Game, GameEvent,
 };
+use rendering::RenderAPI;
 use winit::{
     application::ApplicationHandler, event::WindowEvent, event_loop::ActiveEventLoop,
     window::WindowId,
 };
 
-impl ApplicationHandler<GameEvent> for Game {
+impl<API: RenderAPI> ApplicationHandler<GameEvent> for Game<API> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         self.initialize(event_loop);
     }
@@ -52,8 +53,11 @@ impl ApplicationHandler<GameEvent> for Game {
                     .as_ref()
                     .expect("Window was lost while updating cursor position!");
 
-                self.ecs
-                    .update_cursor_position(device_id, position, window_ref.get_current_size());
+                self.ecs.update_cursor_position(
+                    device_id,
+                    position,
+                    &window_ref.render_context.get_extent(),
+                );
             }
 
             WindowEvent::MouseInput {

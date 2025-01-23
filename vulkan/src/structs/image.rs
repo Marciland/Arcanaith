@@ -2,20 +2,23 @@ use ash::{
     vk::{DeviceMemory, Image, ImageView},
     Device,
 };
+use std::rc::Rc;
 
 pub struct ImageData {
     image: Image,
     memory: DeviceMemory,
     view: ImageView,
+    device: Rc<Device>,
 }
 
 impl ImageData {
     #[must_use]
-    pub fn create(image: Image, memory: DeviceMemory, view: ImageView) -> Self {
+    pub fn create(image: Image, memory: DeviceMemory, view: ImageView, device: Rc<Device>) -> Self {
         Self {
             image,
             memory,
             view,
+            device,
         }
     }
 
@@ -24,10 +27,11 @@ impl ImageData {
         self.view
     }
 
-    #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn destroy(&self, device: &Device) {
-        device.destroy_image_view(self.view, None);
-        device.destroy_image(self.image, None);
-        device.free_memory(self.memory, None);
+    pub fn destroy(&self) {
+        unsafe {
+            self.device.destroy_image_view(self.view, None);
+            self.device.destroy_image(self.image, None);
+            self.device.free_memory(self.memory, None);
+        }
     }
 }

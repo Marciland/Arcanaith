@@ -3,6 +3,7 @@ use crate::{
     Game,
 };
 
+use rendering::RenderAPI;
 use std::{thread, time::Instant};
 
 #[derive(Debug)]
@@ -23,17 +24,10 @@ pub trait WindowEventHandler {
     fn redraw_requested(&mut self);
 }
 
-impl UserEventHandler for Game {
+impl<API: RenderAPI> UserEventHandler for Game<API> {
     fn load_settings_menu(&mut self) {
-        let device_ref = self
-            .window
-            .as_mut()
-            .expect("Failed to get window while loading settings menu!")
-            .get_render_context()
-            .get_device();
-
         match self.current_scene {
-            Scene::Menu(Menu::MainMenu(_)) => self.current_scene.destroy(device_ref, &mut self.ecs),
+            Scene::Menu(Menu::MainMenu(_)) => self.current_scene.destroy(&mut self.ecs),
             _ => panic!("SettingsMenu event should not have been send!"),
         }
 
@@ -41,33 +35,19 @@ impl UserEventHandler for Game {
     }
 
     fn load_main_menu(&mut self) {
-        let device_ref = self
-            .window
-            .as_mut()
-            .expect("Failed to get window while loading main menu!")
-            .get_render_context()
-            .get_device();
-
-        self.current_scene.destroy(device_ref, &mut self.ecs);
+        self.current_scene.destroy(&mut self.ecs);
 
         self.current_scene = Scene::Menu(Menu::MainMenu(MainMenu::create(&mut self.ecs)));
     }
 
     fn load_new_game(&mut self) {
-        let device_ref = self
-            .window
-            .as_mut()
-            .expect("Failed to get window while starting new game!")
-            .get_render_context()
-            .get_device();
-
-        self.current_scene.destroy(device_ref, &mut self.ecs);
+        self.current_scene.destroy(&mut self.ecs);
 
         self.current_scene = Scene::Game(scenes::Game::create(&mut self.ecs));
     }
 }
 
-impl WindowEventHandler for Game {
+impl<API: RenderAPI> WindowEventHandler for Game<API> {
     fn redraw_requested(&mut self) {
         let start_time = Instant::now();
 
@@ -84,12 +64,12 @@ impl WindowEventHandler for Game {
         let minimized = window.is_minimized().unwrap_or(false);
         if !minimized {
             self.ecs
-                .render(window.get_render_context(), &self.current_scene);
+                .render(&mut window.render_context, &self.current_scene);
         }
 
         let render_time = Instant::elapsed(&start_time);
 
-        println!("{render_time:?}");
+        // println!("{render_time:?}");
 
         let remaining_time = self.frame_time.saturating_sub(render_time);
         if !remaining_time.is_zero() {

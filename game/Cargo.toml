@@ -13,7 +13,6 @@ readme = "readme.md"
 ecs = { version = "*", path = "../ecs" }
 objects = { version = "*", path = "../objects" }
 rendering = { version = "*", path = "../rendering" }
-ash = { workspace = true }
 glam = { workspace = true }
 winit = { workspace = true }
 image = { workspace = true }

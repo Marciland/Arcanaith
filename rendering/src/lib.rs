@@ -3,7 +3,7 @@ mod context;
 mod window;
 
 pub use api::{RenderAPI, VulkanAPI};
-pub use ash::vk::ImageView;
+pub use ash::vk::ImageView; // TODO can I get rid of this and give an abstraction over this?
 pub use context::RenderContext;
 pub use vulkan::structs::{ImageData, MVP};
 pub use window::WindowSize;

@@ -1,19 +1,19 @@
 use ash::{
-    khr::surface,
+    khr::{surface, swapchain},
     util::read_spv,
     vk::{
         AccessFlags, Buffer, BufferCopy, BufferCreateInfo, BufferImageCopy, BufferUsageFlags,
         CommandBuffer, CommandBufferAllocateInfo, CommandBufferBeginInfo, CommandBufferLevel,
         CommandBufferUsageFlags, CommandPool, DependencyFlags, DescriptorSetLayout, DeviceMemory,
-        Extent2D, Extent3D, Fence, Format, FormatFeatureFlags, Image, ImageAspectFlags,
-        ImageCreateInfo, ImageLayout, ImageMemoryBarrier, ImageSubresourceLayers,
+        ExtensionProperties, Extent2D, Extent3D, Fence, Format, FormatFeatureFlags, Image,
+        ImageAspectFlags, ImageCreateInfo, ImageLayout, ImageMemoryBarrier, ImageSubresourceLayers,
         ImageSubresourceRange, ImageTiling, ImageType, ImageUsageFlags, ImageView,
         ImageViewCreateInfo, ImageViewType, MemoryAllocateInfo, MemoryMapFlags,
-        MemoryPropertyFlags, MemoryRequirements, Offset3D, PhysicalDevice, PhysicalDeviceFeatures2,
-        PhysicalDeviceVulkan12Features, PipelineLayout, PipelineLayoutCreateInfo,
-        PipelineShaderStageCreateInfo, PipelineStageFlags, PresentModeKHR, Queue, QueueFlags,
-        SampleCountFlags, ShaderModuleCreateInfo, ShaderStageFlags, SharingMode, SubmitInfo,
-        SurfaceKHR, QUEUE_FAMILY_IGNORED, TRUE,
+        MemoryPropertyFlags, MemoryRequirements, Offset3D, PhysicalDevice, PhysicalDeviceFeatures,
+        PhysicalDeviceFeatures2, PhysicalDeviceVulkan12Features, PipelineLayout,
+        PipelineLayoutCreateInfo, PipelineShaderStageCreateInfo, PipelineStageFlags,
+        PresentModeKHR, Queue, QueueFlags, SampleCountFlags, ShaderModuleCreateInfo,
+        ShaderStageFlags, SharingMode, SubmitInfo, SurfaceKHR, QUEUE_FAMILY_IGNORED, TRUE,
     },
     Device, Instance,
 };
@@ -354,40 +354,12 @@ impl Internal {
         )
     }
 
-    pub fn get_queue_family_index(
+    pub fn validate_physical_device(
         instance: &Instance,
+        physical_device: PhysicalDevice,
         surface: SurfaceKHR,
         surface_loader: &surface::Instance,
-        physical_device: PhysicalDevice,
-    ) -> Option<u32> {
-        let queue_family_properties =
-            unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
-
-        queue_family_properties
-            .iter()
-            .enumerate()
-            .find_map(|(index, info)| {
-                if !info.queue_flags.contains(QueueFlags::GRAPHICS) {
-                    return None;
-                }
-
-                let surface_supported = unsafe {
-                    surface_loader.get_physical_device_surface_support(
-                        physical_device,
-                        index as u32,
-                        surface,
-                    )
-                }
-                .expect("Failed to get phyiscal device surface support!");
-                if !surface_supported {
-                    return None;
-                }
-
-                Some(index as u32)
-            })
-    }
-
-    pub fn device_features_available(instance: &Instance, physical_device: PhysicalDevice) -> bool {
+    ) -> Option<(PhysicalDevice, u32)> {
         let mut features = PhysicalDeviceFeatures2::default();
         let mut device_features_12 = PhysicalDeviceVulkan12Features::default();
         features = features.push_next(&mut device_features_12);
@@ -396,9 +368,44 @@ impl Internal {
             instance.get_physical_device_features2(physical_device, &mut features);
         };
 
-        features.features.sampler_anisotropy == TRUE
+        if !features.features.sampler_anisotropy == TRUE
             && device_features_12.runtime_descriptor_array == TRUE
             && device_features_12.shader_sampled_image_array_non_uniform_indexing == TRUE
+        {
+            return None;
+        }
+
+        let queue_family_properties =
+            unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
+
+        let queue_family_index =
+            queue_family_properties
+                .iter()
+                .enumerate()
+                .find_map(|(index, info)| {
+                    if !info.queue_flags.contains(QueueFlags::GRAPHICS) {
+                        return None;
+                    }
+
+                    let surface_supported = unsafe {
+                        surface_loader.get_physical_device_surface_support(
+                            physical_device,
+                            index as u32,
+                            surface,
+                        )
+                    }
+                    .unwrap_or(false);
+
+                    if !surface_supported {
+                        return None;
+                    }
+
+                    Some(index as u32)
+                });
+
+        let index = queue_family_index?;
+
+        Some((physical_device, index))
     }
 
     pub fn create_shader_modules(
@@ -500,6 +507,73 @@ impl Internal {
             .cast::<MVP>();
 
         (buffer, memory, mapped)
+    }
+
+    pub fn is_extension_supported(extensions: &[ExtensionProperties], required: &CStr) -> bool {
+        extensions.iter().any(|ext| {
+            let ext_name = &ext.extension_name;
+            let len = ext_name
+                .iter()
+                .position(|&c| c == 0)
+                .unwrap_or(ext_name.len());
+            let ext_name_u8 = &ext_name[..len].iter().map(|&c| c as u8).collect::<Vec<_>>();
+            ext_name_u8 == required.to_bytes()
+        })
+    }
+
+    pub fn get_device_extensions(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+    ) -> [*const i8; 1] {
+        let supported_extensions =
+            unsafe { instance.enumerate_device_extension_properties(physical_device) }
+                .expect("Failed to enumerate device extension properties!");
+        assert!(
+            Internal::is_extension_supported(&supported_extensions, swapchain::NAME),
+            "Required extension {:?} is not supported!",
+            swapchain::NAME
+        );
+
+        [swapchain::NAME.as_ptr()]
+    }
+
+    pub fn get_12_features(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+    ) -> PhysicalDeviceVulkan12Features<'static> {
+        let mut supported_vulkan12_features = PhysicalDeviceVulkan12Features::default();
+        let mut features2 =
+            PhysicalDeviceFeatures2::default().push_next(&mut supported_vulkan12_features);
+
+        unsafe {
+            instance.get_physical_device_features2(physical_device, &mut features2);
+        }
+
+        assert!(
+            supported_vulkan12_features.runtime_descriptor_array != 0,
+            "Physical device does not support runtime descriptor array!"
+        );
+        assert!(
+            supported_vulkan12_features.shader_sampled_image_array_non_uniform_indexing != 0,
+            "Physical device does not support shader sampled image array non-uniform indexing!"
+        );
+
+        PhysicalDeviceVulkan12Features::default()
+            .runtime_descriptor_array(true)
+            .shader_sampled_image_array_non_uniform_indexing(true)
+    }
+
+    pub fn get_13_features(
+        instance: &Instance,
+        physical_device: PhysicalDevice,
+    ) -> PhysicalDeviceFeatures {
+        let supported_features = unsafe { instance.get_physical_device_features(physical_device) };
+        assert!(
+            supported_features.sampler_anisotropy != 0,
+            "Physical device does not support sampler anisotropy!"
+        );
+
+        PhysicalDeviceFeatures::default().sampler_anisotropy(true)
     }
 }
 

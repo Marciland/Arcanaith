@@ -1,0 +1,18 @@
+[package]
+name = "rendering"
+version = "0.1.0"
+authors = ["Marcel Witoschek <marcel.marciland@gmail.com>"]
+edition = "2021"
+repository = "https://github.com/Marciland/Witch-s-Ascendancy/rendering"
+description = "Rendering."
+license-file = "LICENSE"
+keywords = ["rendering"]
+readme = "readme.md"
+categories = ["games"]
+
+[dependencies]
+vulkan = { version = "*", path = "../vulkan" }
+ash = { workspace = true }
+image = { workspace = true }
+glam = { workspace = true }
+winit = { workspace = true }

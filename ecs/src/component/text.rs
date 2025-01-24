@@ -1,6 +1,6 @@
 use super::{ComponentStorage, Entity, Layer};
-use ash::Device;
-use vulkan::structs::ImageData;
+
+use rendering::ImageData;
 
 pub struct TextContent {
     pub text: String,
@@ -15,15 +15,15 @@ pub struct TextComponent {
 }
 
 impl ComponentStorage<TextComponent> {
-    pub fn destroy(&mut self, device: &Device) {
+    pub fn destroy(&mut self) {
         for component in self.components.values_mut() {
-            component.destroy(device);
+            component.destroy();
         }
     }
 
-    pub fn destroy_entity(&mut self, entity: Entity, device: &Device) {
+    pub fn destroy_entity(&mut self, entity: Entity) {
         if let Some(mut component) = self.components.remove(&entity) {
-            component.destroy(device);
+            component.destroy();
         }
     }
 }
@@ -38,9 +38,9 @@ impl TextComponent {
         }
     }
 
-    fn destroy(&mut self, device: &Device) {
+    fn destroy(&mut self) {
         if let Some(image_data) = self.bitmap.take() {
-            unsafe { image_data.destroy(device) }
+            image_data.destroy();
         }
     }
 }

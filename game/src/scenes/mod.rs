@@ -3,7 +3,6 @@ mod menu;
 
 use crate::GameEvent;
 
-use ash::Device;
 use ecs::{Entity, EntityProvider, InputHandler, MouseEvent, ECS};
 use indexmap::IndexSet;
 use winit::{event_loop::EventLoopProxy, keyboard::Key};
@@ -26,11 +25,11 @@ impl Scene {
         }
     }
 
-    pub fn destroy(&self, device: &Device, ecs: &mut ECS<GameEvent>) {
+    pub fn destroy(&self, ecs: &mut ECS<GameEvent>) {
         match self {
             Scene::None => (),
-            Scene::Menu(menu) => menu.destroy(device, ecs),
-            Scene::Game(game) => game.destroy(device, ecs),
+            Scene::Menu(menu) => menu.destroy(ecs),
+            Scene::Game(game) => game.destroy(ecs),
         }
     }
 }

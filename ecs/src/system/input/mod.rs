@@ -1,9 +1,9 @@
 mod mouse;
 
-use ash::vk::Extent2D;
 use glam::Vec2;
 use indexmap::IndexSet;
 use mouse::MouseButton;
+use rendering::WindowSize;
 use std::collections::{HashMap, HashSet};
 use winit::{
     dpi::PhysicalPosition,
@@ -43,7 +43,7 @@ impl InputSystem {
         &mut self,
         id: DeviceId,
         position: PhysicalPosition<f64>,
-        window_size: Extent2D,
+        window_size: &WindowSize,
     ) {
         let normalized_position = Vec2 {
             x: (position.x / f64::from(window_size.width)) as f32 * 2.0 - 1.0,

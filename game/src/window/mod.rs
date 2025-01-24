@@ -1,37 +1,62 @@
-mod renderer;
+use rendering::{RenderAPI, RenderContext};
+use winit::{
+    event_loop::ActiveEventLoop,
+    window::{Fullscreen::Borderless, Icon},
+};
 
-use ash::vk::Extent2D;
-use renderer::Renderer;
+use crate::constants::{FRAGSHADER, FRAMES_IN_FLIGHT, FULLSCREEN, ICONPATH, TITLE, VERTSHADER};
 
-pub struct Window {
-    inner: winit::window::Window,
-    renderer: Renderer,
+pub struct Window<API: RenderAPI> {
+    inner_window: winit::window::Window,
+    pub render_context: RenderContext<API>,
 }
 
-impl Window {
-    pub fn create(inner_window: winit::window::Window, max_texture_count: u32) -> Self {
-        let renderer = Renderer::create(&inner_window, max_texture_count);
+impl<API: RenderAPI> Window<API> {
+    pub fn create(event_loop: &ActiveEventLoop, max_texture_count: u32) -> Self {
+        let (icon_rgba, icon_width, icon_height) = {
+            let image = image::open(ICONPATH)
+                .expect("Failed to open icon image!")
+                .into_rgba8();
+            let (width, height) = image.dimensions();
+            let rgba = image.into_raw();
+            (rgba, width, height)
+        };
+        let icon =
+            Icon::from_rgba(icon_rgba, icon_width, icon_height).expect("Failed to create icon!");
+
+        let mut attributes = winit::window::Window::default_attributes()
+            .with_title(TITLE)
+            .with_window_icon(Some(icon))
+            .with_visible(false);
+        if FULLSCREEN {
+            attributes = attributes.with_fullscreen(Some(Borderless(None)));
+        }
+
+        let inner_window = event_loop
+            .create_window(attributes)
+            .expect("Failed to create inner window!");
+
+        let render_context = RenderContext::create(
+            &inner_window,
+            max_texture_count,
+            TITLE,
+            FRAMES_IN_FLIGHT,
+            VERTSHADER,
+            FRAGSHADER,
+        );
 
         inner_window.set_visible(true);
         Self {
-            inner: inner_window,
-            renderer,
+            inner_window,
+            render_context,
         }
     }
 
     pub fn is_minimized(&self) -> Option<bool> {
-        self.inner.is_minimized()
+        self.inner_window.is_minimized()
     }
 
     pub fn request_render(&self) {
-        self.inner.request_redraw();
-    }
-
-    pub fn get_current_size(&self) -> Extent2D {
-        self.renderer.get_extent()
-    }
-
-    pub fn get_render_context(&mut self) -> &mut Renderer {
-        &mut self.renderer
+        self.inner_window.request_redraw();
     }
 }

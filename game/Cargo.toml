@@ -11,9 +11,8 @@ readme = "readme.md"
 
 [dependencies]
 ecs = { version = "*", path = "../ecs" }
-vulkan = { version = "*", path = "../vulkan" }
 objects = { version = "*", path = "../objects" }
-ash = { workspace = true }
+rendering = { version = "*", path = "../rendering" }
 glam = { workspace = true }
 winit = { workspace = true }
 image = { workspace = true }

@@ -5,7 +5,6 @@ mod text;
 mod visual;
 
 use super::entity::Entity;
-use ash::Device;
 use std::collections::HashMap;
 
 pub mod composition;
@@ -86,16 +85,16 @@ where
         }
     }
 
-    pub fn clear_entity(&mut self, entity: Entity, device: &Device) {
+    pub fn clear_entity(&mut self, entity: Entity) {
         self.visual_storage.remove(entity);
         self.position_storage.remove(entity);
         self.input_storage.remove(entity);
         self.physics_storage.remove(entity);
 
-        self.text_storage.destroy_entity(entity, device);
+        self.text_storage.destroy_entity(entity);
     }
 
-    pub fn destroy(&mut self, device: &Device) {
-        self.text_storage.destroy(device);
+    pub fn destroy(&mut self) {
+        self.text_storage.destroy();
     }
 }

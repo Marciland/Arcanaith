@@ -5,7 +5,7 @@ use ash::{
 use std::ptr::copy_nonoverlapping;
 
 use super::{
-    super::{internal::Internal, RenderAPI},
+    super::{internal::Internal, Vulkan},
     MVP,
 };
 
@@ -60,7 +60,7 @@ impl StorageBufferObject {
         self.memory = memory;
         self.mapped = mapped;
 
-        RenderAPI::update_mvp_descriptors(device, descriptor_set, entity_count, self.buffer);
+        Vulkan::update_mvp_descriptors(device, descriptor_set, entity_count, self.buffer);
     }
 
     pub fn update_data(&self, data: &[MVP]) {

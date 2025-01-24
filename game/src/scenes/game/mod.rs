@@ -2,7 +2,6 @@ mod overlay;
 
 use crate::game::GameEvent;
 
-use ash::Device;
 use ecs::{Entity, InputHandler, MouseEvent, ECS};
 use indexmap::IndexSet;
 use overlay::Overlay;
@@ -14,7 +13,7 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn create(ecs: &mut ECS<GameEvent>) -> Game {
+    pub fn create(ecs: &mut ECS<GameEvent>) -> Self {
         let mut objects = Vec::with_capacity(100);
 
         objects.extend(Overlay::create(ecs).objects);
@@ -26,7 +25,7 @@ impl Game {
 
         // TODO spawner
 
-        Game {
+        Self {
             player_id: player,
             objects,
         }
@@ -36,9 +35,9 @@ impl Game {
         &self.objects
     }
 
-    pub fn destroy(&self, device: &Device, ecs: &mut ECS<GameEvent>) {
+    pub fn destroy(&self, ecs: &mut ECS<GameEvent>) {
         for obj in &self.objects {
-            ecs.destroy_entity(*obj, device);
+            ecs.destroy_entity(*obj);
         }
     }
 }

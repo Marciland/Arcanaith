@@ -122,93 +122,6 @@ impl VulkanAPI {
         self.depth = depth;
         self.swapchain_framebuffers = framebuffers;
     }
-
-    fn prepare_draw(&mut self, textures: &[ImageView]) -> Option<u32> {
-        if !textures.is_empty() {
-            Vulkan::update_texture_descriptors(
-                &self.device,
-                self.descriptor_sets[self.current_frame],
-                textures,
-                self.texture_sampler,
-            );
-        }
-
-        // after 30 suboptimal frames, recreate swapchain without return but before acquire image!
-        if self.suboptimal_timer == 30 {
-            self.recreate_swapchain();
-            self.suboptimal_timer = 0;
-        }
-
-        let Ok((image_index, suboptimal)) = (unsafe {
-            self.swapchain_loader.acquire_next_image(
-                self.swapchain,
-                u64::MAX,
-                self.image_available[self.current_frame],
-                Fence::null(),
-            )
-        }) else {
-            self.recreate_swapchain();
-            return None;
-        };
-
-        if suboptimal {
-            self.suboptimal_timer += 1;
-        }
-
-        unsafe {
-            self.device
-                .reset_fences(&[self.in_flight[self.current_frame]])
-        }
-        .expect("Failed to reset fences!");
-
-        unsafe {
-            self.device.reset_command_pool(
-                self.command_pools[self.current_frame],
-                CommandPoolResetFlags::empty(),
-            )
-        }
-        .expect("Failed to reset command pool!");
-
-        Some(image_index)
-    }
-
-    fn end_draw(&mut self, image_index: u32) {
-        let wait_semaphores = [self.image_available[self.current_frame]];
-        let command_buffers = [self.command_buffers[self.current_frame]];
-        let signal_semaphores = [self.render_finished[self.current_frame]];
-
-        let submit_info = SubmitInfo::default()
-            .wait_semaphores(&wait_semaphores)
-            .wait_dst_stage_mask(&[PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
-            .command_buffers(&command_buffers)
-            .signal_semaphores(&signal_semaphores);
-
-        unsafe {
-            self.device.queue_submit(
-                self.graphics_queue,
-                &[submit_info],
-                self.in_flight[self.current_frame],
-            )
-        }
-        .expect("Failed to submit queue!");
-
-        let swapchains = [self.swapchain];
-        let image_indices = [image_index];
-
-        let present_info = PresentInfoKHR::default()
-            .wait_semaphores(&signal_semaphores)
-            .swapchains(&swapchains)
-            .image_indices(&image_indices);
-
-        if unsafe {
-            self.swapchain_loader
-                .queue_present(self.graphics_queue, &present_info)
-        }
-        .is_err()
-        {
-            self.recreate_swapchain();
-        };
-    }
 }
 
 impl RenderAPI for VulkanAPI {
@@ -357,9 +270,55 @@ impl RenderAPI for VulkanAPI {
     }
 
     fn draw(&mut self, textures: &[ImageView], positions: &[MVP]) {
-        let Some(image_index) = self.prepare_draw(textures) else {
-            return; // swapchain was recreated, skip frame
+        unsafe {
+            self.device
+                .wait_for_fences(&[self.in_flight[self.current_frame]], true, u64::MAX)
+        }
+        .expect("Failed to wait for fences!");
+
+        if !textures.is_empty() {
+            Vulkan::update_texture_descriptors(
+                &self.device,
+                self.descriptor_sets[self.current_frame],
+                textures,
+                self.texture_sampler,
+            );
+        }
+
+        // after 30 suboptimal frames, recreate swapchain without return but before acquire image!
+        if self.suboptimal_timer == 30 {
+            self.recreate_swapchain();
+            self.suboptimal_timer = 0;
+        }
+
+        let Ok((image_index, suboptimal)) = (unsafe {
+            self.swapchain_loader.acquire_next_image(
+                self.swapchain,
+                u64::MAX,
+                self.image_available[self.current_frame],
+                Fence::null(),
+            )
+        }) else {
+            return self.recreate_swapchain(); // skip frame
         };
+
+        if suboptimal {
+            self.suboptimal_timer += 1;
+        }
+
+        unsafe {
+            self.device
+                .reset_fences(&[self.in_flight[self.current_frame]])
+        }
+        .expect("Failed to reset fences!");
+
+        unsafe {
+            self.device.reset_command_pool(
+                self.command_pools[self.current_frame],
+                CommandPoolResetFlags::empty(),
+            )
+        }
+        .expect("Failed to reset command pool!");
 
         if self.swapchain_framebuffers.is_empty() {
             self.swapchain_framebuffers = Vulkan::create_framebuffers(
@@ -404,7 +363,41 @@ impl RenderAPI for VulkanAPI {
         );
         Vulkan::end_render_pass(&self.device, self.command_buffers[self.current_frame]);
 
-        self.end_draw(image_index);
+        let wait_semaphores = [self.image_available[self.current_frame]];
+        let command_buffers = [self.command_buffers[self.current_frame]];
+        let signal_semaphores = [self.render_finished[self.current_frame]];
+
+        let submit_info = SubmitInfo::default()
+            .wait_semaphores(&wait_semaphores)
+            .wait_dst_stage_mask(&[PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
+            .command_buffers(&command_buffers)
+            .signal_semaphores(&signal_semaphores);
+
+        unsafe {
+            self.device.queue_submit(
+                self.graphics_queue,
+                &[submit_info],
+                self.in_flight[self.current_frame],
+            )
+        }
+        .expect("Failed to submit queue!");
+
+        let swapchains = [self.swapchain];
+        let image_indices = [image_index];
+
+        let present_info = PresentInfoKHR::default()
+            .wait_semaphores(&signal_semaphores)
+            .swapchains(&swapchains)
+            .image_indices(&image_indices);
+
+        if unsafe {
+            self.swapchain_loader
+                .queue_present(self.graphics_queue, &present_info)
+        }
+        .is_err()
+        {
+            self.recreate_swapchain();
+        };
 
         self.current_frame = (self.current_frame + 1) % self.frames_in_flight;
     }

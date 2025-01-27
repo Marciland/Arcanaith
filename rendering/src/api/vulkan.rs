@@ -54,7 +54,6 @@ pub struct VulkanAPI {
     in_flight: Vec<Fence>,
     current_frame: usize,
     frames_in_flight: usize,
-    suboptimal_timer: usize,
 }
 
 impl VulkanAPI {
@@ -265,7 +264,6 @@ impl RenderAPI for VulkanAPI {
             in_flight,
             current_frame: 0,
             frames_in_flight,
-            suboptimal_timer: 0,
         }
     }
 
@@ -276,22 +274,7 @@ impl RenderAPI for VulkanAPI {
         }
         .expect("Failed to wait for fences!");
 
-        if !textures.is_empty() {
-            Vulkan::update_texture_descriptors(
-                &self.device,
-                self.descriptor_sets[self.current_frame],
-                textures,
-                self.texture_sampler,
-            );
-        }
-
-        // after 30 suboptimal frames, recreate swapchain without return but before acquire image!
-        if self.suboptimal_timer == 30 {
-            self.recreate_swapchain();
-            self.suboptimal_timer = 0;
-        }
-
-        let Ok((image_index, suboptimal)) = (unsafe {
+        let Ok((image_index, _suboptimal /* ignore suboptimal for performance */)) = (unsafe {
             self.swapchain_loader.acquire_next_image(
                 self.swapchain,
                 u64::MAX,
@@ -299,12 +282,8 @@ impl RenderAPI for VulkanAPI {
                 Fence::null(),
             )
         }) else {
-            return self.recreate_swapchain(); // skip frame
+            return self.recreate_swapchain(); // skip frame as swapchain is invalid
         };
-
-        if suboptimal {
-            self.suboptimal_timer += 1;
-        }
 
         unsafe {
             self.device
@@ -327,6 +306,15 @@ impl RenderAPI for VulkanAPI {
                 &self.image_views,
                 self.depth.get_view(),
                 self.extent,
+            );
+        }
+
+        if !textures.is_empty() {
+            Vulkan::update_texture_descriptors(
+                &self.device,
+                self.descriptor_sets[self.current_frame],
+                textures,
+                self.texture_sampler,
             );
         }
 

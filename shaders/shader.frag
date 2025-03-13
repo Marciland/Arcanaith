@@ -8,15 +8,13 @@ layout(location = 1) flat in int instanceIndex;
 
 layout(location = 0) out vec4 outColor;
 
-void main()
-{
-    vec4 textureColor = texture(objectTextures[nonuniformEXT(instanceIndex)],
-                                fragTextureCoordinates);
+void main() {
+  vec4 textureColor = texture(objectTextures[nonuniformEXT(instanceIndex)],
+                              fragTextureCoordinates);
 
-    if (textureColor.a < 0.1)
-    {
-        discard;
-    }
+  if (textureColor.a < 0.1) {
+    discard;
+  }
 
-    outColor = textureColor;
+  outColor = textureColor;
 }

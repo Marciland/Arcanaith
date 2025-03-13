@@ -69,7 +69,7 @@ impl<API: RenderAPI> WindowEventHandler for Game<API> {
 
         let render_time = Instant::elapsed(&start_time);
 
-        // println!("{render_time:?}");
+        println!("{render_time:?}");
 
         let remaining_time = self.frame_time.saturating_sub(render_time);
         if !remaining_time.is_zero() {

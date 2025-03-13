@@ -6,9 +6,7 @@ struct MVP {
   mat4 projection;
 };
 
-layout(set = 0, binding = 0) readonly buffer MVPs {
-  MVP mvpMatrices[];
-};
+layout(set = 0, binding = 0) readonly buffer MVPs { MVP mvpMatrices[]; };
 
 layout(location = 0) in vec2 inPosition;
 layout(location = 1) in vec2 inTextureCoordinates;

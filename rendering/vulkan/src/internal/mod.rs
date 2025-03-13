@@ -1,3 +1,5 @@
+pub mod external;
+
 use ash::{
     khr::{surface, swapchain},
     util::read_spv,

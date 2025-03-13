@@ -1,4 +1,8 @@
-use super::super::{internal::Internal, structs::Vertex, Vulkan};
+use super::super::{
+    internal::{external, Internal},
+    structs::Vertex,
+    Vulkan,
+};
 
 use ash::{
     khr::{surface, swapchain},
@@ -7,26 +11,26 @@ use ash::{
         AttachmentStoreOp, BlendFactor, BlendOp, ColorComponentFlags, CommandBuffer,
         CommandBufferAllocateInfo, CommandBufferLevel, CommandPool, CommandPoolCreateFlags,
         CommandPoolCreateInfo, CompareOp, CompositeAlphaFlagsKHR, CullModeFlags,
-        DescriptorSetLayout, DeviceCreateInfo, DeviceQueueCreateInfo, DynamicState, Extent2D,
-        Fence, FenceCreateFlags, FenceCreateInfo, Format, Framebuffer, FramebufferCreateInfo,
-        FrontFace, GraphicsPipelineCreateInfo, Image, ImageAspectFlags, ImageLayout,
-        ImageUsageFlags, ImageView, InstanceCreateInfo, LogicOp, Offset2D, PhysicalDevice,
-        Pipeline, PipelineBindPoint, PipelineCache, PipelineColorBlendAttachmentState,
-        PipelineColorBlendStateCreateInfo, PipelineDepthStencilStateCreateInfo,
-        PipelineDynamicStateCreateInfo, PipelineInputAssemblyStateCreateInfo, PipelineLayout,
-        PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
-        PipelineStageFlags, PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo,
-        PolygonMode, PrimitiveTopology, Rect2D, RenderPass, RenderPassCreateInfo, SampleCountFlags,
-        Semaphore, SemaphoreCreateInfo, SharingMode, SubpassDependency, SubpassDescription,
-        SurfaceKHR, SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3,
-        SUBPASS_EXTERNAL,
+        DebugUtilsMessageSeverityFlagsEXT, DebugUtilsMessageTypeFlagsEXT,
+        DebugUtilsMessengerCreateInfoEXT, DescriptorSetLayout, DeviceCreateInfo,
+        DeviceQueueCreateInfo, DynamicState, Extent2D, Fence, FenceCreateFlags, FenceCreateInfo,
+        Format, Framebuffer, FramebufferCreateInfo, FrontFace, GraphicsPipelineCreateInfo, Image,
+        ImageAspectFlags, ImageLayout, ImageUsageFlags, ImageView, InstanceCreateInfo, LogicOp,
+        Offset2D, PhysicalDevice, Pipeline, PipelineBindPoint, PipelineCache,
+        PipelineColorBlendAttachmentState, PipelineColorBlendStateCreateInfo,
+        PipelineDepthStencilStateCreateInfo, PipelineDynamicStateCreateInfo,
+        PipelineInputAssemblyStateCreateInfo, PipelineLayout, PipelineMultisampleStateCreateInfo,
+        PipelineRasterizationStateCreateInfo, PipelineStageFlags,
+        PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo, PolygonMode,
+        PrimitiveTopology, Rect2D, RenderPass, RenderPassCreateInfo, SampleCountFlags, Semaphore,
+        SemaphoreCreateInfo, SharingMode, SubpassDependency, SubpassDescription, SurfaceKHR,
+        SwapchainCreateInfoKHR, SwapchainKHR, Viewport, API_VERSION_1_3, SUBPASS_EXTERNAL,
     },
     Device, Entry, Instance,
 };
 use ash_window::{create_surface, enumerate_required_extensions};
+use std::{array::from_ref, ffi::CString};
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
-
-use std::{array::from_ref, ffi::CStr};
 
 impl Vulkan {
     #[must_use]
@@ -39,25 +43,54 @@ impl Vulkan {
             .display_handle()
             .expect("Failed to get display handle!")
             .as_raw();
-        let extension_names = enumerate_required_extensions(display_handle)
-            .expect("Failed to get required extensions!")
-            .to_vec();
 
-        let application_name_null_terminated = title.to_string() + "\0";
-        let application_name_bytes = application_name_null_terminated.as_bytes();
-        let application_name = CStr::from_bytes_with_nul(application_name_bytes)
-            .expect("Failed to convert bytes to cstr!");
+        let application_name = CString::new(title).expect("Failed to create CString");
         let application_info = ApplicationInfo::default()
-            .application_name(application_name)
+            .application_name(&application_name)
             .application_version(1)
             .api_version(API_VERSION_1_3);
 
-        let create_info = InstanceCreateInfo::default()
-            .enabled_extension_names(&extension_names)
-            .application_info(&application_info);
+        if cfg!(debug_assertions) {
+            let mut extension_names = enumerate_required_extensions(display_handle)
+                .expect("Failed to get required extensions!")
+                .to_vec();
+            extension_names.push(c"VK_EXT_debug_utils".as_ptr());
 
-        unsafe { entry.create_instance(&create_info, None) }
-            .expect("Failed to create Vulkan Instance!")
+            let validation_layer = CString::new("VK_LAYER_KHRONOS_validation").unwrap();
+            let layers = [validation_layer.as_ptr()];
+
+            let mut debug_utils_info = DebugUtilsMessengerCreateInfoEXT::default()
+                .message_severity(
+                    DebugUtilsMessageSeverityFlagsEXT::WARNING
+                        | DebugUtilsMessageSeverityFlagsEXT::ERROR,
+                )
+                .message_type(
+                    DebugUtilsMessageTypeFlagsEXT::GENERAL
+                        | DebugUtilsMessageTypeFlagsEXT::VALIDATION
+                        | DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
+                )
+                .pfn_user_callback(Some(external::debug_callback));
+
+            let create_info = InstanceCreateInfo::default()
+                .enabled_extension_names(&extension_names)
+                .application_info(&application_info)
+                .enabled_layer_names(&layers)
+                .push_next(&mut debug_utils_info);
+
+            unsafe { entry.create_instance(&create_info, None) }
+                .expect("Failed to create Vulkan Instance!")
+        } else {
+            let extension_names = enumerate_required_extensions(display_handle)
+                .expect("Failed to get required extensions!")
+                .to_vec();
+
+            let create_info = InstanceCreateInfo::default()
+                .enabled_extension_names(&extension_names)
+                .application_info(&application_info);
+
+            unsafe { entry.create_instance(&create_info, None) }
+                .expect("Failed to create Vulkan Instance!")
+        }
     }
 
     #[must_use]

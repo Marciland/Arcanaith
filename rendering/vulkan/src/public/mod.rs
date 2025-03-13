@@ -125,7 +125,7 @@ impl Vulkan {
     ) {
         unsafe {
             device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
-            device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, IndexType::UINT16);
+            device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, IndexType::UINT32);
         }
     }
 

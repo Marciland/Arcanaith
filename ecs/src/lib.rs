@@ -196,12 +196,10 @@ where
                 continue;
             };
 
-            let Some(entity_position) = self.component_manager.position_storage.get_mut(*entity)
-            else {
-                continue;
+            if let Some(entity_position) = self.component_manager.position_storage.get_mut(*entity)
+            {
+                entity_position.xyz += entity_physics.velocity;
             };
-
-            entity_position.xyz += entity_physics.velocity;
         }
     }
 

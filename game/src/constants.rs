@@ -1,4 +1,4 @@
-pub const TITLE: &str = "Witch's Ascendancy";
+pub const TITLE: &str = "Arcanaith";
 pub const ICONPATH: &str = "res/icon.png";
 pub const FRAGSHADER: &str = "shaders/frag.spv";
 pub const VERTSHADER: &str = "shaders/vert.spv";

@@ -2,7 +2,7 @@
 name = "vulkan"
 version = "0.1.0"
 edition = "2021"
-repository = "https://github.com/Marciland/Witch-s-Ascendancy/vulkan"
+repository = "https://github.com/Marciland/Arcanaith/vulkan"
 license-file = "LICENSE"
 description = "Vulkan rendering"
 keywords = ["vulkan"]

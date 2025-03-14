@@ -2,7 +2,7 @@
 name = "game"
 version = "0.1.0"
 edition = "2021"
-repository = "https://github.com/Marciland/Witch-s-Ascendancy/game"
+repository = "https://github.com/Marciland/Arcanaith/game"
 license-file = "LICENSE"
 description = "A game written in rust with vulkan."
 keywords = ["gamedev", "vulkan"]
